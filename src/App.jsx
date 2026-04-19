@@ -29,7 +29,8 @@ const db = {
   async getFinancas() { const { data, error } = await supabase.from('financas').select('*').order('data_reg', { ascending: false }); if (error) throw error; return data || [] },
   async createFinanca(f) { const uid = await this.uid(); const { data, error } = await supabase.from('financas').insert({ ...f, user_id: uid }).select().single(); if (error) throw error; return data },
   async deleteFinanca(id) { const { error } = await supabase.from('financas').delete().eq('id', id); if (error) throw error },
-}const ToastCtx = createContext(null)
+}
+const ToastCtx = createContext(null)
 function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([])
   const toast = useCallback((msg, type = 'ok') => {
