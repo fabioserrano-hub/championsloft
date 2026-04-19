@@ -974,5 +974,3 @@ function App() {
     </ToastProvider>
   )
 }
-
-createRoot(document.getElementById('root')).render(<App />)
