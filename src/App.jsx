@@ -401,6 +401,15 @@ function Pombos() {
   const [confirm, setConfirm] = useState(null)
   const [photoFile, setPhotoFile] = useState(null)
   const [photoPreview, setPhotoPreview] = useState(null)
+  const anoAtual = new Date().getFullYear()
+  const anos = Array.from({length:10},(_,i)=>anoAtual-i)
+  const paises = ['PT','ES','FR','BE','NL','DE','IT','GB','PL','CZ']
+  const CORES_POMBO = ['Azul barrado','Azul sem barra','Azul xadrez','Vermelho barrado','Vermelho sem barra','Branco','Branco com marcas','Amarelo','Alazão','Cinzento','Meado','Tigrado']
+  const [filtro, setFiltro] = useState('todos')
+  const [anilhaPais, setAnilhaPais] = useState('PT')
+  const [anilhaAno, setAnilhaAno] = useState(String(new Date().getFullYear()))
+  const [anilhaNum, setAnilhaNum] = useState('')
+  const FILTROS = [{id:'todos',label:'Todos'},{id:'M',label:'♂ Machos'},{id:'F',label:'♀ Fêmeas'},{id:'ativo',label:'Voadores'},{id:'reproducao',label:'Reprodução'},{id:'lesionado',label:'Lesionados'},{id:'velocidade',label:'Velocidade'},{id:'meio_fundo',label:'Meio-Fundo'},{id:'fundo',label:'Fundo'},{id:'grande_fundo',label:'G.Fundo'}]
   const EMPTY = { anilha: '', nome: '', sexo: 'M', cor: '', peso: '', esp: ['velocidade'], estado: 'ativo', pombal: '', pai: '', mae: '', obs: '', emoji: '🐦' }
   const [form, setForm] = useState(EMPTY)
   const sf = (k, v) => setForm(f => ({ ...f, [k]: v }))
@@ -414,11 +423,17 @@ function Pombos() {
 
   useEffect(() => { load() }, [load])
 
-  const filtered = pombos.filter(p =>
-    !search || p.nome?.toLowerCase().includes(search.toLowerCase()) || p.anilha?.toLowerCase().includes(search.toLowerCase())
-  )
+  const filtered = pombos.filter(p => {
+    const matchSearch = !search || p.nome?.toLowerCase().includes(search.toLowerCase()) || p.anilha?.toLowerCase().includes(search.toLowerCase())
+    const matchFiltro = filtro==='todos' || p.sexo===filtro || p.estado===filtro || (p.esp||[]).includes(filtro)
+    return matchSearch && matchFiltro
+  })
 
-  const openNew = () => { setForm({ ...EMPTY, pombal: pombais[0]?.nome || '' }); setPhotoFile(null); setPhotoPreview(null); setSelected(null); setModal('form') }
+  const openNew = () => {
+    setAnilhaPais('PT'); setAnilhaAno(String(anoAtual)); setAnilhaNum('')
+    setForm({ ...EMPTY, pombal: pombais[0]?.nome || '' })
+    setPhotoFile(null); setPhotoPreview(null); setSelected(null); setModal('form')
+  }
   const openEdit = (p) => { setSelected(p); setForm({ anilha: p.anilha || '', nome: p.nome || '', sexo: p.sexo || 'M', cor: p.cor || '', peso: p.peso || '', esp: p.esp || ['velocidade'], estado: p.estado || 'ativo', pombal: p.pombal || '', pai: p.pai || '', mae: p.mae || '', obs: p.obs || '', emoji: p.emoji || '🐦' }); setPhotoPreview(p.foto_url || null); setPhotoFile(null); setModal('form') }
   const openDetail = (p) => { setSelected(p); setModal('detail') }
   const close = () => { setModal(null); setSelected(null); setPhotoFile(null); setPhotoPreview(null) }
@@ -430,7 +445,10 @@ function Pombos() {
     if (!form.nome.trim()) { toast('Nome obrigatório', 'warn'); return }
     setSaving(true)
     try {
-      const payload = { anilha: form.anilha.trim(), nome: form.nome.trim(), sexo: form.sexo, cor: form.cor, peso: form.peso ? parseInt(form.peso) : null, esp: form.esp, estado: form.estado, pombal: form.pombal, pai: form.pai, mae: form.mae, obs: form.obs, emoji: form.emoji, provas: 0, percentil: 0, forma: 50 }
+      const anilhaFinal = form.anilha.trim() || `${anilhaPais}-${anilhaAno}-${anilhaNum.padStart(5,'0')}`
+      const paiFinal = form.pai.trim() || (form.paiBiNum ? `${form.paiBiPais}-${form.paiBiAno}-${form.paiBiNum.padStart(5,'0')}` : '')
+      const maeFinal = form.mae.trim() || (form.maeBiNum ? `${form.maeBiPais}-${form.maeBiAno}-${form.maeBiNum.padStart(5,'0')}` : '')
+      const payload = { anilha: anilhaFinal, nome: form.nome.trim(), sexo: form.sexo, cor: form.cor, peso: form.peso ? parseInt(form.peso) : null, esp: form.esp, estado: form.estado, pombal: form.pombal, pai: paiFinal, mae: maeFinal, obs: form.obs, emoji: form.emoji, provas: selected?.provas||0, percentil: selected?.percentil||0, forma: selected?.forma||50 }
       let saved
       if (selected) saved = await db.updatePombo(selected.id, payload)
       else saved = await db.createPombo(payload)
@@ -471,7 +489,7 @@ function Pombos() {
                 const fc = (p.forma || 50) >= 80 ? '#1ed98a' : (p.forma || 50) >= 60 ? '#facc15' : '#f87171'
                 return (
                   <div key={p.id} className="pombo-card" onClick={() => openDetail(p)}>
-                    <div className="pombo-photo">
+                    <div className="pombo-photo" style={{ height:160 }}>
                       {p.foto_url ? <img src={p.foto_url} alt={p.nome} /> : p.emoji}
                       <div style={{ position: 'absolute', top: 6, right: 6, background: 'rgba(0,0,0,.6)', borderRadius: 6, padding: '2px 6px', fontSize: 11, fontWeight: 700 }}>
                         {p.sexo === 'M' ? '♂' : '♀'}
@@ -510,11 +528,29 @@ function Pombos() {
               <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>JPG, PNG. Máx 5MB</div>
             </div>
           </div>
-          <Field label="Anel *"><input className="input" placeholder="PT-2026-00000" value={form.anilha} onChange={e => sf('anilha', e.target.value.toUpperCase())} /></Field>
+          <Field label="Anel *">
+            <div style={{ display:'flex', gap:4 }}>
+              <select className="input" style={{ width:70 }} value={anilhaPais} onChange={e=>setAnilhaPais(e.target.value)}>
+                {paises.map(p=><option key={p}>{p}</option>)}
+              </select>
+              <select className="input" style={{ width:90 }} value={anilhaAno} onChange={e=>setAnilhaAno(e.target.value)}>
+                {anos.map(a=><option key={a}>{a}</option>)}
+              </select>
+              <input className="input" style={{ flex:1 }} placeholder="00000" value={anilhaNum} onChange={e=>setAnilhaNum(e.target.value.replace(/\D/,''))} maxLength={5}/>
+            </div>
+            <div style={{ fontSize:11, color:'#64748b', marginTop:4 }}>
+              Anilha: {anilhaPais}-{anilhaAno}-{anilhaNum.padStart(5,'0')||'?????'}
+            </div>
+          </Field>
           <Field label="Nome *"><input className="input" placeholder="Nome do pombo" value={form.nome} onChange={e => sf('nome', e.target.value)} /></Field>
           <Field label="Sexo"><select className="input" value={form.sexo} onChange={e => sf('sexo', e.target.value)}><option value="M">♂ Macho</option><option value="F">♀ Fêmea</option></select></Field>
           <Field label="Estado"><select className="input" value={form.estado} onChange={e => sf('estado', e.target.value)}>{['ativo', 'reproducao', 'lesionado', 'inativo'].map(s => <option key={s}>{s}</option>)}</select></Field>
-          <Field label="Cor / Aspecto"><input className="input" placeholder="Azul barrado" value={form.cor} onChange={e => sf('cor', e.target.value)} /></Field>
+          <Field label="Cor / Aspecto">
+            <select className="input" value={form.cor} onChange={e=>sf('cor',e.target.value)}>
+              <option value="">— Seleccionar —</option>
+              {CORES_POMBO.map(c=><option key={c}>{c}</option>)}
+            </select>
+          </Field>
           <Field label="Peso (g)"><input className="input" type="number" placeholder="420" value={form.peso} onChange={e => sf('peso', e.target.value)} /></Field>
           <Field label="Pombal"><select className="input" value={form.pombal} onChange={e => sf('pombal', e.target.value)}><option value="">— Sem pombal —</option>{pombais.map(pb => <option key={pb.id}>{pb.nome}</option>)}</select></Field>
           <div className="col-2">
@@ -695,97 +731,109 @@ function Provas() {
   const [modal, setModal] = useState(false)
   const [saving, setSaving] = useState(false)
   const [confirm, setConfirm] = useState(null)
-  const EMPTY = { nome: '', data: new Date().toISOString().slice(0, 10), dist: '', tipo: 'Fundo', local_solta: '', lugar: '', vel: '', n_pombos: '', obs: '' }
+  const [tab, setTab] = useState('lista')
+  const [filtroTipo, setFiltroTipo] = useState('todas')
+  const EMPTY = { nome:'', data:new Date().toISOString().slice(0,10), dist:'', tipo:'Fundo', local_solta:'', lugar:'', vel:'', n_pombos:'' }
   const [form, setForm] = useState(EMPTY)
-  const sf = (k, v) => setForm(f => ({ ...f, [k]: v }))
+  const sf = (k,v) => setForm(f=>({...f,[k]:v}))
 
   const load = useCallback(async () => {
     setLoading(true)
     try { setProvas(await db.getProvas()) }
-    catch (e) { toast('Erro: ' + e.message, 'err') }
+    catch(e) { toast('Erro: '+e.message,'err') }
     finally { setLoading(false) }
-  }, [])
+  },[])
 
-  useEffect(() => { load() }, [load])
+  useEffect(()=>{ load() },[load])
+
+  const hoje = new Date().toISOString().slice(0,10)
+  const passadas = provas.filter(p=>p.data_reg<=hoje)
+  const futuras = provas.filter(p=>p.data_reg>hoje)
 
   const save = async () => {
-    if (!form.nome.trim()) { toast('Nome obrigatório', 'warn'); return }
+    if (!form.nome.trim()) { toast('Nome obrigatório','warn'); return }
     setSaving(true)
     try {
-      await db.createProva({ nome: form.nome.trim(), data_reg: form.data, dist: parseInt(form.dist) || null, tipo: form.tipo.toLowerCase().replace(/-| /g, '_'), local_solta: form.local_solta, lugar: form.lugar ? parseInt(form.lugar) : null, vel: form.vel || null, n: form.n_pombos ? parseInt(form.n_pombos) : null, obs: form.obs })
-      toast('Prova registada!', 'ok'); setModal(false); setForm(EMPTY); load()
-    } catch (e) { toast('Erro: ' + e.message, 'err') }
+      await db.createProva({ nome:form.nome.trim(), data_reg:form.data, dist:parseInt(form.dist)||null, tipo:form.tipo.toLowerCase().replace(/-| /g,'_'), local_solta:form.local_solta, lugar:form.lugar?parseInt(form.lugar):null, vel:form.vel||null, n:form.n_pombos?parseInt(form.n_pombos):null })
+      toast('Prova registada!','ok'); setModal(false); setForm(EMPTY); load()
+    } catch(e) { toast('Erro: '+e.message,'err') }
     finally { setSaving(false) }
   }
 
   const del = async () => {
-    try { await db.deleteProva(confirm.id); toast('Eliminada', 'ok'); setConfirm(null); load() }
-    catch (e) { toast('Erro: ' + e.message, 'err') }
+    try { await db.deleteProva(confirm.id); toast('Eliminada','ok'); setConfirm(null); load() }
+    catch(e) { toast('Erro: '+e.message,'err') }
   }
 
-  const vitorias = provas.filter(p => p.lugar === 1).length
+  const ProvaRow = ({ p }) => (
+    <tr>
+      <td style={{ color:'#64748b', fontSize:12 }}>{new Date(p.data_reg).toLocaleDateString('pt-PT')}</td>
+      <td style={{ fontWeight:500 }}>{p.nome}</td>
+      <td><Badge v="blue">{p.tipo?.replace(/_/g,' ')}</Badge></td>
+      <td style={{ fontFamily:'Barlow Condensed', fontSize:16, color:'#facc15' }}>{p.dist?p.dist+'km':'—'}</td>
+      <td style={{ color:'#94a3b8', fontSize:12 }}>{p.local_solta||'—'}</td>
+      <td><span style={{ fontFamily:'Barlow Condensed', fontSize:18, fontWeight:700, color:p.lugar===1?'#facc15':p.lugar===2?'#cbd5e1':p.lugar===3?'#b45309':'#94a3b8' }}>{p.lugar?p.lugar+'º':'—'}</span></td>
+      <td style={{ fontFamily:'JetBrains Mono', fontSize:11, color:'#1ed98a' }}>{p.vel||'—'}</td>
+      <td><button className="btn btn-icon btn-sm" onClick={()=>setConfirm(p)}>🗑️</button></td>
+    </tr>
+  )
 
   return (
     <div>
       <div className="section-header">
-        <div><div className="section-title">Provas</div><div className="section-sub">{provas.length} provas · {vitorias} vitórias</div></div>
-        <button className="btn btn-primary" onClick={() => { setForm(EMPTY); setModal(true) }}>＋ Nova Prova</button>
+        <div><div className="section-title">Provas</div><div className="section-sub">{passadas.length} realizadas · {futuras.length} agendadas</div></div>
+        <button className="btn btn-primary" onClick={()=>{ setForm(EMPTY); setModal(true) }}>＋ Nova Prova</button>
       </div>
 
       <div className="grid-3 mb-6">
-        <KpiCard icon="🏆" label="Total" value={provas.length} color="text-yellow" />
-        <KpiCard icon="🥇" label="Vitórias" value={vitorias} color="text-green" />
-        <KpiCard icon="📍" label="Km Totais" value={provas.reduce((s, p) => s + (p.dist || 0), 0) + 'km'} color="text-blue" />
+        <KpiCard icon="🏆" label="Total" value={provas.length} color="text-yellow"/>
+        <KpiCard icon="🥇" label="Vitórias" value={provas.filter(p=>p.lugar===1).length} color="text-green"/>
+        <KpiCard icon="📅" label="Agendadas" value={futuras.length} color="text-blue"/>
       </div>
 
-      {loading ? <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}><Spinner lg /></div>
-        : provas.length === 0 ? <EmptyState icon="🏆" title="Sem provas" desc="Registe a primeira prova" action={<button className="btn btn-primary" onClick={() => setModal(true)}>＋ Nova Prova</button>} />
-          : (
-            <div className="card" style={{ overflowX: 'auto' }}>
-              <table>
-                <thead><tr><th>Data</th><th>Prova</th><th>Tipo</th><th>Dist.</th><th>Local Solta</th><th>Lugar</th><th>Vel.</th><th></th></tr></thead>
-                <tbody>
-                  {provas.map(p => (
-                    <tr key={p.id}>
-                      <td style={{ color: '#64748b', fontSize: 12 }}>{new Date(p.data_reg).toLocaleDateString('pt-PT')}</td>
-                      <td style={{ fontWeight: 500 }}>{p.nome}</td>
-                      <td><Badge v="blue">{p.tipo?.replace(/_/g, ' ')}</Badge></td>
-                      <td style={{ fontFamily: 'Barlow Condensed', fontSize: 16, color: '#facc15' }}>{p.dist}km</td>
-                      <td style={{ color: '#94a3b8', fontSize: 12 }}>{p.local_solta || '—'}</td>
-                      <td><span style={{ fontFamily: 'Barlow Condensed', fontSize: 18, fontWeight: 700, color: p.lugar === 1 ? '#facc15' : p.lugar === 2 ? '#cbd5e1' : p.lugar === 3 ? '#b45309' : '#94a3b8' }}>{p.lugar ? p.lugar + 'º' : '—'}</span></td>
-                      <td style={{ fontFamily: 'JetBrains Mono', fontSize: 11, color: '#1ed98a' }}>{p.vel || '—'}</td>
-                      <td><button className="btn btn-icon btn-sm" onClick={() => setConfirm(p)}>🗑️</button></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )
+      {/* Tabs */}
+      <div style={{ display:'flex', gap:4, background:'#1a2840', borderRadius:10, padding:4, marginBottom:16, width:'fit-content' }}>
+        {[['lista','📋 Todas'],['passadas','✅ Realizadas'],['futuras','📅 Agendadas']].map(([t,l])=>(
+          <button key={t} onClick={()=>setTab(t)} style={{ padding:'8px 14px', borderRadius:8, fontSize:13, fontWeight:500, cursor:'pointer', border:'none', fontFamily:'inherit', background:tab===t?'#1ed98a':'none', color:tab===t?'#0a0f14':'#94a3b8' }}>{l}</button>
+        ))}
+      </div>
+
+      {loading ? <div style={{ display:'flex', justifyContent:'center', padding:60 }}><Spinner lg/></div>
+        : (()=>{
+            const lista = tab==='passadas'?passadas:tab==='futuras'?futuras:provas
+            if (lista.length===0) return <EmptyState icon="🏆" title={tab==='futuras'?"Sem provas agendadas":"Sem provas"} desc={tab==='futuras'?"Registe uma prova futura":"Registe a primeira prova"} action={<button className="btn btn-primary" onClick={()=>setModal(true)}>＋ Nova Prova</button>}/>
+            return (
+              <div className="card" style={{ overflowX:'auto' }}>
+                <table>
+                  <thead><tr><th>Data</th><th>Prova</th><th>Tipo</th><th>Dist.</th><th>Local Solta</th><th>Lugar</th><th>Vel.</th><th></th></tr></thead>
+                  <tbody>{lista.map(p=><ProvaRow key={p.id} p={p}/>)}</tbody>
+                </table>
+              </div>
+            )
+          })()
       }
 
-      <Modal open={modal} onClose={() => setModal(false)} title="🏆 Nova Prova" wide
-        footer={<><button className="btn btn-secondary" onClick={() => setModal(false)}>Cancelar</button><button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? <Spinner /> : null}Registar</button></>}>
+      <Modal open={modal} onClose={()=>setModal(false)} title="🏆 Nova Prova" wide
+        footer={<><button className="btn btn-secondary" onClick={()=>setModal(false)}>Cancelar</button><button className="btn btn-primary" onClick={save} disabled={saving}>{saving?<Spinner/>:null}Registar</button></>}>
         <div className="form-grid">
-          <div className="col-2"><Field label="Nome *"><input className="input" placeholder="Grande Prova do Tejo" value={form.nome} onChange={e => sf('nome', e.target.value)} /></Field></div>
-          <Field label="Data"><input className="input" type="date" value={form.data} onChange={e => sf('data', e.target.value)} /></Field>
-          <Field label="Tipo"><select className="input" value={form.tipo} onChange={e => sf('tipo', e.target.value)}>{['Velocidade', 'Semi-Fundo', 'Fundo', 'Grande Fundo'].map(t => <option key={t}>{t}</option>)}</select></Field>
-          <Field label="Distância (km)"><input className="input" type="number" placeholder="180" value={form.dist} onChange={e => sf('dist', e.target.value)} /></Field>
-          <Field label="Nº Pombos"><input className="input" type="number" placeholder="30" value={form.n_pombos} onChange={e => sf('n_pombos', e.target.value)} /></Field>
-          <div className="col-2"><Field label="Local de Solta"><input className="input" placeholder="Santarém, Portugal" value={form.local_solta} onChange={e => sf('local_solta', e.target.value)} /></Field></div>
-          <Field label="Classificação (lugar)"><input className="input" type="number" placeholder="1" value={form.lugar} onChange={e => sf('lugar', e.target.value)} /></Field>
-          <Field label="Velocidade (m/min)"><input className="input" placeholder="1382" value={form.vel} onChange={e => sf('vel', e.target.value)} /></Field>
+          <div className="col-2"><Field label="Nome *"><input className="input" placeholder="Grande Prova do Tejo" value={form.nome} onChange={e=>sf('nome',e.target.value)}/></Field></div>
+          <Field label="Data"><input className="input" type="date" value={form.data} onChange={e=>sf('data',e.target.value)}/></Field>
+          <Field label="Tipo"><select className="input" value={form.tipo} onChange={e=>sf('tipo',e.target.value)}>{['Velocidade','Semi-Fundo','Fundo','Grande Fundo'].map(t=><option key={t}>{t}</option>)}</select></Field>
+          <Field label="Distância (km)"><input className="input" type="number" placeholder="180" value={form.dist} onChange={e=>sf('dist',e.target.value)}/></Field>
+          <Field label="Nº Pombos"><input className="input" type="number" placeholder="30" value={form.n_pombos} onChange={e=>sf('n_pombos',e.target.value)}/></Field>
+          <div className="col-2"><Field label="Local de Solta"><input className="input" placeholder="Santarém, Portugal" value={form.local_solta} onChange={e=>sf('local_solta',e.target.value)}/></Field></div>
+          <Field label="Lugar"><input className="input" type="number" placeholder="1" value={form.lugar} onChange={e=>sf('lugar',e.target.value)}/></Field>
+          <Field label="Velocidade (m/min)"><input className="input" placeholder="1382" value={form.vel} onChange={e=>sf('vel',e.target.value)}/></Field>
         </div>
       </Modal>
-
-      <Modal open={!!confirm} onClose={() => setConfirm(null)} title="Eliminar prova"
-        footer={<><button className="btn btn-secondary" onClick={() => setConfirm(null)}>Cancelar</button><button className="btn btn-danger" onClick={del}>Eliminar</button></>}>
-        <p style={{ fontSize: 14, color: '#cbd5e1' }}>Eliminar "{confirm?.nome}"?</p>
+      <Modal open={!!confirm} onClose={()=>setConfirm(null)} title="Eliminar prova"
+        footer={<><button className="btn btn-secondary" onClick={()=>setConfirm(null)}>Cancelar</button><button className="btn btn-danger" onClick={del}>Eliminar</button></>}>
+        <p style={{ fontSize:14, color:'#cbd5e1' }}>Eliminar "{confirm?.nome}"?</p>
       </Modal>
     </div>
   )
 }
 
-// ─── FINANÇAS PAGE ────────────────────────────────────
 function Financas() {
   const toast = useToast()
   const [trans, setTrans] = useState([])
@@ -922,7 +970,7 @@ function Saude() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    try { const [r, p] = await Promise.all([db.getSaude(), db.getPombos()]); setRegistos(r); setPombos(p) }
+    try { const [r, p] = await Promise.all([db.getSaude(), db.getPombos()]); setRegistos(r); setPombos(p||[]) }
     catch (e) { toast('Erro: ' + e.message, 'err') }
     finally { setLoading(false) }
   }, [])
@@ -1121,12 +1169,36 @@ function Treinos() {
     finally { setSaving(false) }
   }
 
+  const [editing, setEditing] = useState(null)
+
   const del = async () => {
     try {
       const { error } = await supabase.from('treinos').delete().eq('id', confirm.id)
       if (error) throw error
       toast('Eliminado','ok'); setConfirm(null); load()
     } catch(e) { toast('Erro: '+e.message,'err') }
+  }
+
+  const openEdit = (t) => {
+    setEditing(t)
+    setForm({ data:t.data_reg||new Date().toISOString().slice(0,10), local:t.local||'', dist:String(t.dist||''), tipo:t.tipo||'Em Linha', pombos_n:String(t.pombos_n||''), retorno:t.retorno||'100%', obs:t.obs||'' })
+    setModal(true)
+  }
+
+  const saveEdit = async () => {
+    if (!form.local.trim()) { toast('Local obrigatório','warn'); return }
+    setSaving(true)
+    try {
+      const { error } = await supabase.from('treinos').update({
+        data_reg: form.data, local: form.local.trim(),
+        dist: form.dist ? parseInt(form.dist) : null,
+        tipo: form.tipo, pombos_n: form.pombos_n ? parseInt(form.pombos_n) : null,
+        retorno: form.retorno, obs: form.obs
+      }).eq('id', editing.id)
+      if (error) throw error
+      toast('Treino actualizado!','ok'); setModal(false); setEditing(null); load()
+    } catch(e) { toast('Erro: '+e.message,'err') }
+    finally { setSaving(false) }
   }
 
   const total = treinos.length
@@ -1157,15 +1229,18 @@ function Treinos() {
                     <td style={{ fontFamily:'Barlow Condensed', fontSize:16, color:'#facc15' }}>{t.dist?t.dist+'km':'—'}</td>
                     <td>{t.pombos_n||'—'}</td>
                     <td style={{ color: t.retorno==='100%'?'#1ed98a':'#facc15', fontWeight:600 }}>{t.retorno||'—'}</td>
-                    <td><button className="btn btn-icon btn-sm" onClick={()=>setConfirm(t)}>🗑️</button></td>
+                    <td style={{ display:'flex', gap:4 }}>
+                      <button className="btn btn-icon btn-sm" onClick={()=>openEdit(t)}>✏️</button>
+                      <button className="btn btn-icon btn-sm" onClick={()=>setConfirm(t)}>🗑️</button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
       }
-      <Modal open={modal} onClose={()=>setModal(false)} title="🎯 Novo Treino"
-        footer={<><button className="btn btn-secondary" onClick={()=>setModal(false)}>Cancelar</button><button className="btn btn-primary" onClick={save} disabled={saving}>{saving?<Spinner/>:null}Registar</button></>}>
+      <Modal open={modal} onClose={()=>{setModal(false);setEditing(null)}} title={editing?'✏️ Editar Treino':'🎯 Novo Treino'}
+        footer={<><button className="btn btn-secondary" onClick={()=>{setModal(false);setEditing(null)}}>Cancelar</button><button className="btn btn-primary" onClick={editing?saveEdit:save} disabled={saving}>{saving?<Spinner/>:null}{editing?'Guardar':'Registar'}</button></>}>
         <div className="form-grid">
           <Field label="Data"><input className="input" type="date" value={form.data} onChange={e=>sf('data',e.target.value)} /></Field>
           <Field label="Tipo"><select className="input" value={form.tipo} onChange={e=>sf('tipo',e.target.value)}>{['Em Linha','Basket','Voo Livre','Nocturno'].map(t=><option key={t}>{t}</option>)}</select></Field>
@@ -1186,12 +1261,15 @@ function Treinos() {
 
 function Reproducao() {
   const toast = useToast()
+  const [tab, setTab] = useState('acasalamentos')
   const [acas, setAcas] = useState([])
   const [pombos, setPombos] = useState([])
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(false)
   const [saving, setSaving] = useState(false)
   const [confirm, setConfirm] = useState(null)
+  const [pedigreeP, setPedigreeP] = useState(null)
+  const [perfil, setPerfil] = useState(null)
   const EMPTY = { pai_id:'', mae_id:'', inicio:new Date().toISOString().slice(0,10), obs:'' }
   const [form, setForm] = useState(EMPTY)
   const sf = (k,v) => setForm(f=>({...f,[k]:v}))
@@ -1199,11 +1277,13 @@ function Reproducao() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [a, p] = await Promise.all([
+      const { data: { user } } = await supabase.auth.getUser()
+      const [a, p, pr] = await Promise.all([
         supabase.from('breeding').select('*').order('created_at', { ascending: false }).then(r => r.data || []),
-        supabase.from('pigeons').select('*').order('nome').then(r => r.data || [])
+        supabase.from('pigeons').select('*').order('nome').then(r => r.data || []),
+        supabase.from('perfis').select('*').eq('user_id', user.id).single().then(r => r.data || null),
       ])
-      setAcas(a); setPombos(p)
+      setAcas(a); setPombos(p); setPerfil(pr)
     } catch(e) { toast('Erro: '+e.message,'err') }
     finally { setLoading(false) }
   },[])
@@ -1244,62 +1324,194 @@ function Reproducao() {
 
   const estadoVar = { em_progresso:'yellow', concluido:'green', pausado:'gray' }
 
+  // Pedigree component
+  const PedigreeView = ({ pombo }) => {
+    if (!pombo) return null
+    const pai = pombos.find(p=>p.anilha===pombo.pai)
+    const mae = pombos.find(p=>p.anilha===pombo.mae)
+    const avoPM = pai ? pombos.find(p=>p.anilha===pai.pai) : null
+    const avoMM = pai ? pombos.find(p=>p.anilha===pai.mae) : null
+    const avoPF = mae ? pombos.find(p=>p.anilha===mae.pai) : null
+    const avoMF = mae ? pombos.find(p=>p.anilha===mae.mae) : null
+
+    const PomboBox = ({ p, gen }) => (
+      <div style={{ background:gen===1?'#141f2e':'#0f1923', border:`1px solid ${gen===1?'#1ed98a':'#1e3050'}`, borderRadius:10, padding:'8px 12px', minWidth:160 }}>
+        {p ? <>
+          <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:4 }}>
+            <span style={{ fontSize:18 }}>{p.emoji||'🐦'}</span>
+            <div>
+              <div style={{ fontSize:12, fontWeight:600, color:'#fff' }}>{p.nome}</div>
+              <div style={{ fontFamily:'JetBrains Mono', fontSize:10, color:'#1ed98a' }}>{p.anilha}</div>
+            </div>
+          </div>
+          <div style={{ fontSize:10, color:'#64748b' }}>{p.sexo==='M'?'♂':'♀'} · {p.cor||'—'}</div>
+          {p.percentil>0&&<div style={{ fontSize:10, color:'#facc15', marginTop:2 }}>⭐ {p.percentil}% percentil</div>}
+        </> : <div style={{ fontSize:11, color:'#475569', fontStyle:'italic' }}>Desconhecido</div>}
+      </div>
+    )
+
+    return (
+      <div>
+        {/* Header para impressão */}
+        <div style={{ background:'linear-gradient(135deg,#0f1923,#141f2e)', border:'1px solid #1e3050', borderRadius:16, padding:'20px 24px', marginBottom:20 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:16, flexWrap:'wrap' }}>
+            <div style={{ width:60, height:60, borderRadius:12, background:'rgba(30,217,138,.1)', border:'1px solid rgba(30,217,138,.2)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:32 }}>
+              {pombo.foto_url ? <img src={pombo.foto_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', borderRadius:12 }}/> : pombo.emoji||'🐦'}
+            </div>
+            <div style={{ flex:1 }}>
+              <div style={{ fontFamily:'Barlow Condensed', fontSize:28, fontWeight:700, color:'#fff' }}>{pombo.nome}</div>
+              <div style={{ fontFamily:'JetBrains Mono', fontSize:12, color:'#1ed98a' }}>{pombo.anilha}</div>
+              <div style={{ fontSize:12, color:'#94a3b8', marginTop:4 }}>
+                {pombo.sexo==='M'?'♂ Macho':'♀ Fêmea'} · {pombo.cor||'—'} · {pombo.esp?.join(', ')||'—'}
+              </div>
+            </div>
+            <div style={{ textAlign:'right' }}>
+              {perfil?.nome&&<div style={{ fontSize:13, fontWeight:500, color:'#fff' }}>🏆 {perfil.nome}</div>}
+              {perfil?.org&&<div style={{ fontSize:11, color:'#64748b' }}>{perfil.org}</div>}
+              {perfil?.fed&&<div style={{ fontFamily:'JetBrains Mono', fontSize:10, color:'#1ed98a' }}>FCP: {perfil.fed}</div>}
+            </div>
+          </div>
+          {pombo.percentil>0&&(
+            <div style={{ marginTop:12, paddingTop:12, borderTop:'1px solid #1e3050', display:'flex', gap:20 }}>
+              <div style={{ textAlign:'center' }}><div style={{ fontFamily:'Barlow Condensed', fontSize:24, fontWeight:700, color:'#facc15' }}>{pombo.percentil}%</div><div style={{ fontSize:10, color:'#64748b' }}>PERCENTIL</div></div>
+              <div style={{ textAlign:'center' }}><div style={{ fontFamily:'Barlow Condensed', fontSize:24, fontWeight:700, color:'#1ed98a' }}>{pombo.provas||0}</div><div style={{ fontSize:10, color:'#64748b' }}>PROVAS</div></div>
+              <div style={{ textAlign:'center' }}><div style={{ fontFamily:'Barlow Condensed', fontSize:24, fontWeight:700, color:'#60a5fa' }}>{pombo.forma||50}%</div><div style={{ fontSize:10, color:'#64748b' }}>FORMA</div></div>
+            </div>
+          )}
+        </div>
+
+        {/* Árvore genealógica */}
+        <div style={{ fontWeight:600, color:'#fff', marginBottom:12 }}>🌳 Árvore Genealógica — 3 Gerações</div>
+        <div style={{ overflowX:'auto' }}>
+          <div style={{ display:'flex', gap:0, alignItems:'stretch', minWidth:600 }}>
+            {/* Geração 1 — sujeito */}
+            <div style={{ display:'flex', flexDirection:'column', justifyContent:'center', marginRight:24 }}>
+              <PomboBox p={pombo} gen={1}/>
+            </div>
+            {/* Linha conectora */}
+            <div style={{ width:24, display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'center' }}>
+              <div style={{ width:2, flex:1, background:'#1e3050' }}/>
+              <div style={{ width:24, height:2, background:'#1e3050' }}/>
+              <div style={{ width:2, flex:1, background:'#1e3050' }}/>
+            </div>
+            {/* Geração 2 — pais */}
+            <div style={{ display:'flex', flexDirection:'column', gap:12, justifyContent:'center', marginRight:24 }}>
+              <PomboBox p={pai} gen={2}/>
+              <PomboBox p={mae} gen={2}/>
+            </div>
+            {/* Geração 3 — avós */}
+            <div style={{ display:'flex', flexDirection:'column', gap:6, justifyContent:'center' }}>
+              <PomboBox p={avoPM} gen={3}/>
+              <PomboBox p={avoMM} gen={3}/>
+              <PomboBox p={avoPF} gen={3}/>
+              <PomboBox p={avoMF} gen={3}/>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ marginTop:16, display:'flex', gap:8 }}>
+          <button className="btn btn-secondary" onClick={()=>window.print()}>🖨️ Imprimir Pedigree</button>
+          <button className="btn btn-secondary" onClick={()=>setPedigreeP(null)}>✕ Fechar</button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div>
       <div className="section-header">
         <div><div className="section-title">Reprodução</div><div className="section-sub">{acas.length} acasalamentos · {acas.filter(a=>a.estado==='em_progresso').length} activos</div></div>
-        <button className="btn btn-primary" onClick={()=>{ setForm(EMPTY); setModal(true) }}>＋ Novo Acasalamento</button>
+        {tab==='acasalamentos'&&<button className="btn btn-primary" onClick={()=>{ setForm(EMPTY); setModal(true) }}>＋ Novo Acasalamento</button>}
+        {tab==='pedigree'&&<button className="btn btn-secondary" onClick={()=>setPedigreeP(null)}>Limpar</button>}
       </div>
-      <div className="grid-3 mb-6">
-        <KpiCard icon="🥚" label="Acasalamentos" value={acas.length} color="text-green"/>
-        <KpiCard icon="✅" label="Em Progresso" value={acas.filter(a=>a.estado==='em_progresso').length} color="text-yellow"/>
-        <KpiCard icon="♂" label="Machos Disponíveis" value={machos.length} color="text-blue"/>
+
+      {/* Tabs */}
+      <div style={{ display:'flex', gap:4, background:'#1a2840', borderRadius:10, padding:4, marginBottom:20, width:'fit-content' }}>
+        {[['acasalamentos','🥚 Acasalamentos'],['ninhadas','🐣 Ninhadas'],['pedigree','🌳 Pedigree']].map(([t,l])=>(
+          <button key={t} onClick={()=>setTab(t)} style={{ padding:'8px 14px', borderRadius:8, fontSize:13, fontWeight:500, cursor:'pointer', border:'none', fontFamily:'inherit', background:tab===t?'#1ed98a':'none', color:tab===t?'#0a0f14':'#94a3b8' }}>{l}</button>
+        ))}
       </div>
-      {loading ? <div style={{ display:'flex', justifyContent:'center', padding:60 }}><Spinner lg /></div>
+
+      {tab==='acasalamentos' && (
+        loading ? <div style={{ display:'flex', justifyContent:'center', padding:60 }}><Spinner lg/></div>
         : acas.length===0 ? <EmptyState icon="🥚" title="Sem acasalamentos" desc="Registe o primeiro par reprodutor" action={<button className="btn btn-primary" onClick={()=>setModal(true)}>＋ Novo Acasalamento</button>} />
-        : <div className="grid-2">
+        : <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
             {acas.map(a => {
               const pai = pombos.find(p=>p.id===a.pai_id)
               const mae = pombos.find(p=>p.id===a.mae_id)
               return (
                 <div key={a.id} className="card card-p">
-                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
-                    <Badge v={estadoVar[a.estado]||'gray'}>{a.estado?.replace('_',' ')}</Badge>
-                    <button className="btn btn-icon btn-sm" onClick={()=>setConfirm(a)}>🗑️</button>
-                  </div>
-                  <div style={{ display:'flex', alignItems:'center', gap:16, marginBottom:12 }}>
-                    <div style={{ flex:1, textAlign:'center' }}>
-                      <div style={{ width:48, height:48, borderRadius:12, background:'#1a2840', display:'flex', alignItems:'center', justifyContent:'center', fontSize:24, margin:'0 auto 6px', overflow:'hidden' }}>
-                        {pai?.foto_url?<img src={pai.foto_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>:(pai?.emoji||'🐦')}
+                  <div style={{ display:'flex', alignItems:'center', gap:12, flexWrap:'wrap' }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:8, flex:1, minWidth:200 }}>
+                      <div style={{ textAlign:'center' }}>
+                        <div style={{ width:40, height:40, borderRadius:10, background:'#1a2840', display:'flex', alignItems:'center', justifyContent:'center', fontSize:20, overflow:'hidden' }}>
+                          {pai?.foto_url?<img src={pai.foto_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>:(pai?.emoji||'🐦')}
+                        </div>
+                        <div style={{ fontSize:11, color:'#60a5fa', marginTop:2 }}>♂</div>
                       </div>
-                      <div style={{ fontSize:12, fontWeight:500, color:'#fff' }}>{a.pai_nome||pai?.nome||'—'}</div>
-                      <div style={{ fontSize:11, color:'#60a5fa' }}>♂ Macho</div>
-                    </div>
-                    <div style={{ fontSize:20, color:'#475569' }}>×</div>
-                    <div style={{ flex:1, textAlign:'center' }}>
-                      <div style={{ width:48, height:48, borderRadius:12, background:'#1a2840', display:'flex', alignItems:'center', justifyContent:'center', fontSize:24, margin:'0 auto 6px', overflow:'hidden' }}>
-                        {mae?.foto_url?<img src={mae.foto_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>:(mae?.emoji||'🐦')}
+                      <div style={{ fontSize:13, color:'#94a3b8' }}>×</div>
+                      <div style={{ textAlign:'center' }}>
+                        <div style={{ width:40, height:40, borderRadius:10, background:'#1a2840', display:'flex', alignItems:'center', justifyContent:'center', fontSize:20, overflow:'hidden' }}>
+                          {mae?.foto_url?<img src={mae.foto_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>:(mae?.emoji||'🐦')}
+                        </div>
+                        <div style={{ fontSize:11, color:'#f472b6', marginTop:2 }}>♀</div>
                       </div>
-                      <div style={{ fontSize:12, fontWeight:500, color:'#fff' }}>{a.mae_nome||mae?.nome||'—'}</div>
-                      <div style={{ fontSize:11, color:'#f472b6' }}>♀ Fêmea</div>
+                      <div>
+                        <div style={{ fontSize:13, fontWeight:500, color:'#fff' }}>{a.pai_nome||pai?.nome||'—'}</div>
+                        <div style={{ fontSize:12, color:'#64748b' }}>× {a.mae_nome||mae?.nome||'—'}</div>
+                        <div style={{ fontSize:11, color:'#64748b', marginTop:2 }}>desde {a.inicio?new Date(a.inicio).toLocaleDateString('pt-PT'):'—'} · 🥚 {a.ninhadas||0} ninhadas</div>
+                      </div>
                     </div>
-                  </div>
-                  <div style={{ display:'flex', justifyContent:'space-between', fontSize:11, color:'#64748b', borderTop:'1px solid #1e3050', paddingTop:10 }}>
-                    <span>Início: {a.inicio?new Date(a.inicio).toLocaleDateString('pt-PT'):'—'}</span>
-                    <span>🥚 {a.ninhadas||0} ninhadas</span>
+                    <div style={{ display:'flex', gap:6, alignItems:'center' }}>
+                      <Badge v={estadoVar[a.estado]||'gray'}>{a.estado?.replace('_',' ')}</Badge>
+                      <button className="btn btn-danger btn-sm" onClick={()=>setConfirm(a)}>🗑️</button>
+                    </div>
                   </div>
                 </div>
               )
             })}
           </div>
-      }
+      )}
+
+      {tab==='ninhadas' && (
+        <EmptyState icon="🐣" title="Ninhadas" desc="Registe os pares no separador Acasalamentos para ver as ninhadas aqui" />
+      )}
+
+      {tab==='pedigree' && (
+        <div>
+          {!pedigreeP ? (
+            <div>
+              <div style={{ fontSize:13, color:'#64748b', marginBottom:12 }}>Seleccione um pombo para ver o seu pedigree completo:</div>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))', gap:8 }}>
+                {pombos.map(p=>(
+                  <button key={p.id} onClick={()=>setPedigreeP(p)}
+                    style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 12px', background:'#141f2e', border:'1px solid #1e3050', borderRadius:12, cursor:'pointer', fontFamily:'inherit', textAlign:'left', transition:'all .15s' }}
+                    onMouseOver={e=>e.currentTarget.style.borderColor='#1ed98a'}
+                    onMouseOut={e=>e.currentTarget.style.borderColor='#1e3050'}>
+                    <div style={{ width:36, height:36, borderRadius:8, background:'#1a2840', display:'flex', alignItems:'center', justifyContent:'center', fontSize:20, overflow:'hidden', flexShrink:0 }}>
+                      {p.foto_url?<img src={p.foto_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>:p.emoji}
+                    </div>
+                    <div>
+                      <div style={{ fontSize:13, fontWeight:500, color:'#fff' }}>{p.nome}</div>
+                      <div style={{ fontFamily:'JetBrains Mono', fontSize:10, color:'#1ed98a' }}>{p.anilha}</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <PedigreeView pombo={pedigreeP}/>
+          )}
+        </div>
+      )}
+
       <Modal open={modal} onClose={()=>setModal(false)} title="🥚 Novo Acasalamento"
         footer={<><button className="btn btn-secondary" onClick={()=>setModal(false)}>Cancelar</button><button className="btn btn-primary" onClick={save} disabled={saving}>{saving?<Spinner/>:null}Registar</button></>}>
         <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
           <Field label="♂ Macho (Pai) *"><select className="input" value={form.pai_id} onChange={e=>sf('pai_id',e.target.value)}><option value="">— Seleccionar macho —</option>{machos.map(p=><option key={p.id} value={p.id}>{p.nome} ({p.anilha})</option>)}</select></Field>
           <Field label="♀ Fêmea (Mãe) *"><select className="input" value={form.mae_id} onChange={e=>sf('mae_id',e.target.value)}><option value="">— Seleccionar fêmea —</option>{femeas.map(p=><option key={p.id} value={p.id}>{p.nome} ({p.anilha})</option>)}</select></Field>
-          <Field label="Data de Início"><input className="input" type="date" value={form.inicio} onChange={e=>sf('inicio',e.target.value)} /></Field>
-          <Field label="Observações"><textarea className="input" rows={2} style={{ resize:'none' }} placeholder="Notas sobre o par..." value={form.obs} onChange={e=>sf('obs',e.target.value)} /></Field>
+          <Field label="Data de Início"><input className="input" type="date" value={form.inicio} onChange={e=>sf('inicio',e.target.value)}/></Field>
+          <Field label="Observações"><textarea className="input" rows={2} style={{ resize:'none' }} value={form.obs} onChange={e=>sf('obs',e.target.value)}/></Field>
         </div>
       </Modal>
       <Modal open={!!confirm} onClose={()=>setConfirm(null)} title="Eliminar acasalamento"
@@ -2012,6 +2224,78 @@ function Relatorios() {
     </div>
   )
 }
+
+function Documentos() {
+  const toast = useToast()
+  const [docs, setDocs] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [modal, setModal] = useState(false)
+  const [form, setForm] = useState({ nome:'', tipo:'Certificado', desc:'', url:'' })
+  const sf = (k,v) => setForm(f=>({...f,[k]:v}))
+
+  // Documentos em localStorage por enquanto
+  useEffect(()=>{
+    try { setDocs(JSON.parse(localStorage.getItem('cl_docs')||'[]')) } catch(e) {}
+  },[])
+
+  const save = () => {
+    if (!form.nome.trim()) { toast('Nome obrigatório','warn'); return }
+    const novo = [...docs, { id:Date.now(), ...form, data:new Date().toISOString().slice(0,10) }]
+    setDocs(novo)
+    try { localStorage.setItem('cl_docs', JSON.stringify(novo)) } catch(e) {}
+    toast('Documento adicionado!','ok'); setModal(false); setForm({ nome:'', tipo:'Certificado', desc:'', url:'' })
+  }
+
+  const del = (id) => {
+    const novo = docs.filter(d=>d.id!==id)
+    setDocs(novo)
+    try { localStorage.setItem('cl_docs', JSON.stringify(novo)) } catch(e) {}
+    toast('Removido','ok')
+  }
+
+  const TIPOS_ICON = { 'Certificado':'🏆', 'Regulamento':'📋', 'Relatório':'📊', 'Comprovativo':'📄', 'Outro':'📁' }
+
+  return (
+    <div>
+      <div className="section-header">
+        <div><div className="section-title">Documentos</div><div className="section-sub">{docs.length} documentos</div></div>
+        <button className="btn btn-primary" onClick={()=>setModal(true)}>＋ Novo Documento</button>
+      </div>
+      {docs.length===0 ? <EmptyState icon="📄" title="Sem documentos" desc="Guarde links para documentos importantes" action={<button className="btn btn-primary" onClick={()=>setModal(true)}>＋ Novo Documento</button>}/>
+      : <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+          {docs.map(d=>(
+            <div key={d.id} className="card card-p" style={{ display:'flex', alignItems:'center', gap:12 }}>
+              <div style={{ fontSize:28, flexShrink:0 }}>{TIPOS_ICON[d.tipo]||'📁'}</div>
+              <div style={{ flex:1 }}>
+                <div style={{ fontWeight:500, color:'#fff' }}>{d.nome}</div>
+                <div style={{ fontSize:12, color:'#64748b' }}>{d.tipo} · {d.data}</div>
+                {d.desc&&<div style={{ fontSize:12, color:'#94a3b8', marginTop:2 }}>{d.desc}</div>}
+              </div>
+              <div style={{ display:'flex', gap:6 }}>
+                {d.url&&<a href={d.url} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm">🔗 Abrir</a>}
+                <button className="btn btn-danger btn-sm" onClick={()=>del(d.id)}>🗑️</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      }
+      <Modal open={modal} onClose={()=>setModal(false)} title="📄 Novo Documento"
+        footer={<><button className="btn btn-secondary" onClick={()=>setModal(false)}>Cancelar</button><button className="btn btn-primary" onClick={save}>Guardar</button></>}>
+        <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+          <Field label="Nome *"><input className="input" placeholder="Ex: Certificado de Campeão 2026" value={form.nome} onChange={e=>sf('nome',e.target.value)}/></Field>
+          <Field label="Tipo">
+            <select className="input" value={form.tipo} onChange={e=>sf('tipo',e.target.value)}>
+              {['Certificado','Regulamento','Relatório','Comprovativo','Outro'].map(t=><option key={t}>{t}</option>)}
+            </select>
+          </Field>
+          <Field label="Descrição"><input className="input" placeholder="Breve descrição..." value={form.desc} onChange={e=>sf('desc',e.target.value)}/></Field>
+          <Field label="Link (URL)"><input className="input" placeholder="https://..." value={form.url} onChange={e=>sf('url',e.target.value)}/></Field>
+        </div>
+      </Modal>
+    </div>
+  )
+}
+
 function EmBreve({ icon, title }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh', textAlign: 'center' }}>
