@@ -1110,7 +1110,7 @@ function Treinos() {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       const { error } = await supabase.from('treinos').insert({
-        data: form.data, local: form.local.trim(),
+        data_reg: form.data, local: form.local.trim(),
         dist: form.dist ? parseInt(form.dist) : null,
         tipo: form.tipo, pombos_n: form.pombos_n ? parseInt(form.pombos_n) : null,
         retorno: form.retorno, obs: form.obs, user_id: user.id
@@ -1141,7 +1141,7 @@ function Treinos() {
       <div className="grid-3 mb-6">
         <KpiCard icon="🎯" label="Total" value={total} color="text-green"/>
         <KpiCard icon="📍" label="Km Totais" value={distTotal+'km'} color="text-blue"/>
-        <KpiCard icon="📅" label={`Ano ${new Date().getFullYear()}`} value={treinos.filter(t=>new Date(t.data).getFullYear()===new Date().getFullYear()).length} color="text-yellow"/>
+        <KpiCard icon="📅" label={`Ano ${new Date().getFullYear()}`} value={treinos.filter(t=>new Date(t.data_reg).getFullYear()===new Date().getFullYear()).length} color="text-yellow"/>
       </div>
       {loading ? <div style={{ display:'flex', justifyContent:'center', padding:60 }}><Spinner lg /></div>
         : treinos.length===0 ? <EmptyState icon="🎯" title="Sem treinos" desc="Registe o primeiro treino" action={<button className="btn btn-primary" onClick={()=>setModal(true)}>＋ Novo Treino</button>} />
@@ -1151,7 +1151,7 @@ function Treinos() {
               <tbody>
                 {treinos.map(t=>(
                   <tr key={t.id}>
-                    <td style={{ color:'#64748b', fontSize:12 }}>{new Date(t.data).toLocaleDateString('pt-PT')}</td>
+                    <td style={{ color:'#64748b', fontSize:12 }}>{new Date(t.data_reg).toLocaleDateString('pt-PT')}</td>
                     <td style={{ fontWeight:500 }}>{t.local}</td>
                     <td><Badge v="blue">{t.tipo}</Badge></td>
                     <td style={{ fontFamily:'Barlow Condensed', fontSize:16, color:'#facc15' }}>{t.dist?t.dist+'km':'—'}</td>
@@ -1413,6 +1413,605 @@ function Alimentacao() {
   )
 }
 
+
+function Calendario() {
+  const toast = useToast()
+  const now = new Date()
+  const [year, setYear] = useState(now.getFullYear())
+  const [month, setMonth] = useState(now.getMonth())
+  const [eventos, setEventos] = useState({})
+  const [loading, setLoading] = useState(true)
+  const [selected, setSelected] = useState(null)
+  const [modalEvento, setModalEvento] = useState(false)
+  const [formEvento, setFormEvento] = useState({ titulo:'', tipo:'limpeza', data:new Date().toISOString().slice(0,10), hora:'', obs:'' })
+  const [eventosPlaneados, setEventosPlaneados] = useState([])
+  const sf = (k,v) => setFormEvento(f=>({...f,[k]:v}))
+
+  const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
+  const DIAS_SEM = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb']
+  const TIPOS_COR = { prova:'#C9A44A', treino:'#2E7DD4', vacina:'#6C4FBB', limpeza:'#1ed98a', encestamento:'#E07B39', alimentacao:'#64748b', outro:'#94a3b8' }
+
+  useEffect(() => {
+    async function load() {
+      setLoading(true)
+      try {
+        const [provas, treinos, planeados] = await Promise.all([
+          supabase.from('races').select('data_reg,nome,dist,local_solta').then(r => r.data||[]),
+          supabase.from('treinos').select('data_reg,local,dist,tipo').then(r => r.data||[]),
+          supabase.from('eventos_cal').select('*').then(r => r.data||[]).catch(()=>[]),
+        ])
+        const map = {}
+        provas.forEach(p => {
+          const key = p.data_reg
+          if (!key) return
+          if (!map[key]) map[key] = []
+          map[key].push({ tipo:'prova', titulo:p.nome, sub:`${p.dist}km · ${p.local_solta||''}`, cor:'#C9A44A' })
+        })
+        treinos.forEach(t => {
+          const key = t.data_reg
+          if (!key) return
+          if (!map[key]) map[key] = []
+          map[key].push({ tipo:'treino', titulo:t.local, sub:`${t.dist||0}km · ${t.tipo}`, cor:'#2E7DD4' })
+        })
+        planeados.forEach(e => {
+          const key = e.data_ev
+          if (!key) return
+          if (!map[key]) map[key] = []
+          map[key].push({ tipo:e.tipo, titulo:e.titulo, sub:e.obs||'', cor:TIPOS_COR[e.tipo]||'#94a3b8', id:e.id, planeado:true })
+        })
+        setEventos(map)
+        setEventosPlaneados(planeados)
+      } catch(e) { toast('Erro ao carregar calendário','err') }
+      finally { setLoading(false) }
+    }
+    load()
+  }, [year, month])
+
+  const prevMes = () => { if(month===0){setYear(y=>y-1);setMonth(11)}else setMonth(m=>m-1); setSelected(null) }
+  const nextMes = () => { if(month===11){setYear(y=>y+1);setMonth(0)}else setMonth(m=>m+1); setSelected(null) }
+
+  const firstDay = new Date(year, month, 1).getDay()
+  const daysInMonth = new Date(year, month+1, 0).getDate()
+  const today = now.getDate()
+  const isThisMonth = now.getMonth()===month && now.getFullYear()===year
+
+  const key = (d) => `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`
+
+  const saveEvento = async () => {
+    if (!formEvento.titulo.trim()) { toast('Título obrigatório','warn'); return }
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      const { error } = await supabase.from('eventos_cal').insert({
+        titulo: formEvento.titulo, tipo: formEvento.tipo,
+        data_ev: formEvento.data, hora: formEvento.hora||null,
+        obs: formEvento.obs, user_id: user.id
+      })
+      if (error) {
+        // tabela não existe — criar
+        toast('Evento guardado localmente (tabela não criada no Supabase)','warn')
+      } else {
+        toast('Evento criado!','ok')
+      }
+      setModalEvento(false)
+    } catch(e) { toast('Erro: '+e.message,'err') }
+  }
+
+  const selectedEvs = selected ? (eventos[selected]||[]) : []
+
+  // Próximos eventos
+  const todayStr = now.toISOString().slice(0,10)
+  const proximos = Object.entries(eventos)
+    .filter(([k]) => k >= todayStr)
+    .sort(([a],[b]) => a.localeCompare(b))
+    .slice(0,8)
+
+  return (
+    <div>
+      <div className="section-header">
+        <div><div className="section-title">Calendário</div></div>
+        <button className="btn btn-primary" onClick={()=>{ setFormEvento({titulo:'',tipo:'limpeza',data:selected||new Date().toISOString().slice(0,10),hora:'',obs:''}); setModalEvento(true) }}>＋ Novo Evento</button>
+      </div>
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 280px', gap:16 }}>
+        {/* Calendário */}
+        <div className="card card-p">
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:16 }}>
+            <button className="btn btn-secondary btn-sm" onClick={prevMes}>‹</button>
+            <div style={{ fontWeight:600, color:'#fff', fontSize:15 }}>{MESES[month]} {year}</div>
+            <button className="btn btn-secondary btn-sm" onClick={nextMes}>›</button>
+          </div>
+          {/* Dias da semana */}
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', marginBottom:4 }}>
+            {DIAS_SEM.map(d=><div key={d} style={{ textAlign:'center', fontSize:11, fontWeight:600, color:'#64748b', padding:'4px 0' }}>{d}</div>)}
+          </div>
+          {/* Dias */}
+          {loading ? <div style={{ textAlign:'center', padding:20 }}><Spinner/></div> : (
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:2 }}>
+              {Array.from({length:firstDay}, (_,i) => <div key={`e${i}`}/>)}
+              {Array.from({length:daysInMonth}, (_,i) => {
+                const d = i+1
+                const dayKey = key(d)
+                const evs = eventos[dayKey]||[]
+                const isToday = isThisMonth && d===today
+                const isSel = selected===dayKey
+                return (
+                  <button key={d} onClick={()=>setSelected(isSel?null:dayKey)}
+                    style={{ padding:'6px 2px', borderRadius:8, border:'none', cursor:'pointer', fontFamily:'inherit', fontSize:13, fontWeight:isToday?700:400,
+                      background: isToday?'#1ed98a': isSel?'#1a2840':'transparent',
+                      color: isToday?'#0a0f14': isSel?'#fff':'#cbd5e1',
+                      outline: isSel&&!isToday?'1px solid #1ed98a':'none',
+                      position:'relative' }}>
+                    {d}
+                    {evs.length>0 && (
+                      <div style={{ display:'flex', justifyContent:'center', gap:2, marginTop:2 }}>
+                        {evs.slice(0,3).map((ev,i)=><div key={i} style={{ width:4, height:4, borderRadius:'50%', background:ev.cor }}/>)}
+                      </div>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+          {/* Legenda */}
+          <div style={{ display:'flex', flexWrap:'wrap', gap:10, marginTop:12, paddingTop:12, borderTop:'1px solid #1e3050' }}>
+            {Object.entries(TIPOS_COR).map(([t,c])=>(
+              <div key={t} style={{ display:'flex', alignItems:'center', gap:4, fontSize:11, color:'#94a3b8' }}>
+                <div style={{ width:8, height:8, borderRadius:'50%', background:c }}/>
+                {t}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Painel direito */}
+        <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+          {/* Dia seleccionado */}
+          {selected && (
+            <div className="card card-p">
+              <div style={{ fontWeight:600, color:'#fff', marginBottom:10, fontSize:13 }}>
+                {new Date(selected+'T12:00:00').toLocaleDateString('pt-PT',{weekday:'long',day:'numeric',month:'long'})}
+              </div>
+              {selectedEvs.length===0
+                ? <div style={{ fontSize:12, color:'#64748b' }}>Sem eventos neste dia</div>
+                : selectedEvs.map((ev,i)=>(
+                  <div key={i} style={{ display:'flex', gap:8, padding:'8px 0', borderBottom:'1px solid #1e3050' }}>
+                    <div style={{ width:3, background:ev.cor, borderRadius:2, flexShrink:0 }}/>
+                    <div>
+                      <div style={{ fontSize:13, fontWeight:500, color:'#fff' }}>{ev.titulo}</div>
+                      {ev.sub&&<div style={{ fontSize:11, color:'#64748b' }}>{ev.sub}</div>}
+                      <div style={{ fontSize:10, color:ev.cor, marginTop:2 }}>{ev.tipo}</div>
+                    </div>
+                  </div>
+                ))
+              }
+              <button className="btn btn-secondary btn-sm" style={{ marginTop:10, width:'100%' }}
+                onClick={()=>{ setFormEvento({titulo:'',tipo:'limpeza',data:selected,hora:'',obs:''}); setModalEvento(true) }}>
+                ＋ Adicionar evento neste dia
+              </button>
+            </div>
+          )}
+          {/* Próximos eventos */}
+          <div className="card card-p" style={{ flex:1 }}>
+            <div style={{ fontWeight:600, color:'#fff', marginBottom:10, fontSize:13 }}>📋 Próximos Eventos</div>
+            {proximos.length===0
+              ? <div style={{ fontSize:12, color:'#64748b' }}>Sem eventos futuros</div>
+              : proximos.map(([date, evs])=>(
+                <button key={date} onClick={()=>{
+                  const d = new Date(date+'T12:00:00')
+                  setYear(d.getFullYear()); setMonth(d.getMonth()); setSelected(date)
+                }} style={{ width:'100%', textAlign:'left', background:'none', border:'none', cursor:'pointer', padding:'6px 0', borderBottom:'1px solid #1e3050', fontFamily:'inherit' }}>
+                  <div style={{ fontSize:11, color:'#64748b' }}>
+                    {new Date(date+'T12:00:00').toLocaleDateString('pt-PT',{weekday:'short',day:'numeric',month:'short'})}
+                  </div>
+                  {evs.slice(0,2).map((ev,i)=>(
+                    <div key={i} style={{ fontSize:12, color:'#fff', display:'flex', alignItems:'center', gap:4, marginTop:2 }}>
+                      <div style={{ width:6, height:6, borderRadius:'50%', background:ev.cor, flexShrink:0 }}/>
+                      {ev.titulo}
+                    </div>
+                  ))}
+                  {evs.length>2&&<div style={{ fontSize:11, color:'#64748b' }}>+{evs.length-2} mais</div>}
+                </button>
+              ))
+            }
+          </div>
+        </div>
+      </div>
+
+      {/* Modal novo evento */}
+      <Modal open={modalEvento} onClose={()=>setModalEvento(false)} title="📅 Novo Evento"
+        footer={<><button className="btn btn-secondary" onClick={()=>setModalEvento(false)}>Cancelar</button>
+          <button className="btn btn-primary" onClick={saveEvento}>Guardar</button></>}>
+        <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+          <Field label="Título *"><input className="input" placeholder="Ex: Limpeza pombal, Vacinação..." value={formEvento.titulo} onChange={e=>sf('titulo',e.target.value)}/></Field>
+          <div className="form-grid">
+            <Field label="Tipo">
+              <select className="input" value={formEvento.tipo} onChange={e=>sf('tipo',e.target.value)}>
+                {Object.keys(TIPOS_COR).map(t=><option key={t} value={t}>{t}</option>)}
+              </select>
+            </Field>
+            <Field label="Data"><input className="input" type="date" value={formEvento.data} onChange={e=>sf('data',e.target.value)}/></Field>
+            <Field label="Hora (opcional)"><input className="input" type="time" value={formEvento.hora} onChange={e=>sf('hora',e.target.value)}/></Field>
+          </div>
+          <Field label="Observações"><textarea className="input" rows={2} style={{resize:'none'}} value={formEvento.obs} onChange={e=>sf('obs',e.target.value)}/></Field>
+        </div>
+      </Modal>
+    </div>
+  )
+}
+
+function Meteorologia() {
+  const toast = useToast()
+  const [search, setSearch] = useState('')
+  const [meteo, setMeteo] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [localNome, setLocalNome] = useState('')
+  const [perfil, setPerfil] = useState(null)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    async function loadPerfil() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const { data } = await supabase.from('perfis').select('*').eq('user_id', user.id).single()
+      if (data) { setPerfil(data); if(data.pombal_lat&&data.pombal_lon) loadMeteo(data.pombal_lat, data.pombal_lon, data.pombal_nome||'Pombal') }
+    }
+    loadPerfil()
+  }, [])
+
+  const loadMeteo = async (lat, lon, nome) => {
+    setLoading(true); setError(null)
+    try {
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m,weather_code,precipitation&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,wind_speed_10m_max,wind_direction_10m_dominant,weather_code&wind_speed_unit=kmh&timezone=Europe%2FLisbon&forecast_days=7`
+      const r = await fetch(url)
+      if (!r.ok) throw new Error('Erro API')
+      const data = await r.json()
+      setMeteo({ ...data, lat, lon }); setLocalNome(nome)
+    } catch(e) { setError('Não foi possível obter dados. Verifique a ligação.') }
+    finally { setLoading(false) }
+  }
+
+  const handleSearch = async (e) => {
+    e.preventDefault()
+    if (!search.trim()) return
+    setLoading(true); setError(null)
+    try {
+      const r = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(search)}&count=3&language=pt&format=json`)
+      const d = await r.json()
+      if (!d.results?.length) { setError('Local não encontrado'); setLoading(false); return }
+      const res = d.results[0]
+      const nome = `${res.name}${res.admin1?', '+res.admin1:''}, ${res.country}`
+      await loadMeteo(res.latitude, res.longitude, nome)
+    } catch(e) { setError('Erro ao pesquisar'); setLoading(false) }
+  }
+
+  const WMO = { 0:'☀️ Limpo', 1:'🌤️ Limpo', 2:'⛅ Nublado', 3:'☁️ Coberto', 45:'🌫️ Nevoeiro', 51:'🌦️ Chuva leve', 61:'🌧️ Chuva', 63:'🌧️ Chuva', 71:'🌨️ Neve', 80:'🌦️ Aguaceiros', 95:'⛈️ Trovoada' }
+  const wmoLabel = (code) => WMO[code] || WMO[Math.floor(code/10)*10] || '🌡️ Variável'
+  const DIAS = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb']
+  const dirVento = (g) => { const d=['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSO','SO','OSO','O','ONO','NO','NNO']; return d[Math.round(g/22.5)%16]||'—' }
+
+  const condVoo = (wind, wmo, precip=0) => {
+    if (wmo>=95||precip>5) return { label:'Mau ⛔', color:'#f87171' }
+    if (wmo>=61||precip>2||wind>40) return { label:'Fraco ⚠️', color:'#facc15' }
+    if (wind>25||wmo>=51) return { label:'Razoável', color:'#60a5fa' }
+    return { label:'Bom ✅', color:'#1ed98a' }
+  }
+
+  const cur = meteo?.current
+
+  return (
+    <div>
+      <div className="section-header">
+        <div><div className="section-title">Meteorologia</div><div className="section-sub">Condições para voo e soltas</div></div>
+      </div>
+
+      {/* Pesquisa */}
+      <form onSubmit={handleSearch} style={{ display:'flex', gap:8, marginBottom:20 }}>
+        <input className="input" style={{ flex:1 }} placeholder="Pesquisar localidade... (ex: Santarém, Torres Novas)"
+          value={search} onChange={e=>setSearch(e.target.value)}/>
+        <button type="submit" className="btn btn-primary" disabled={loading}>
+          {loading?<Spinner/>:'🔍'} Pesquisar
+        </button>
+        {perfil?.pombal_lat && (
+          <button type="button" className="btn btn-secondary" onClick={()=>loadMeteo(perfil.pombal_lat, perfil.pombal_lon, perfil.pombal_nome||'Pombal')}>
+            🏠 Pombal
+          </button>
+        )}
+      </form>
+
+      {error && <div style={{ padding:12, background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.2)', borderRadius:10, color:'#f87171', fontSize:13, marginBottom:16 }}>{error}</div>}
+
+      {!meteo && !loading && !error && (
+        <div className="card card-p" style={{ textAlign:'center', padding:40 }}>
+          <div style={{ fontSize:48, marginBottom:12 }}>🌦️</div>
+          <div style={{ fontSize:15, fontWeight:600, color:'#fff', marginBottom:8 }}>Pesquise uma localidade</div>
+          <div style={{ fontSize:13, color:'#64748b' }}>
+            {perfil?.pombal_lat ? 'Ou use o botão "Pombal" para ver as condições no seu pombal' : 'Defina as coordenadas GPS do pombal no Perfil para acesso rápido'}
+          </div>
+        </div>
+      )}
+
+      {loading && <div style={{ display:'flex', justifyContent:'center', padding:40 }}><Spinner lg/></div>}
+
+      {meteo && !loading && (
+        <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+          {/* Local */}
+          <div style={{ fontSize:13, color:'#94a3b8', display:'flex', alignItems:'center', gap:6 }}>
+            📍 <span style={{ color:'#fff', fontWeight:500 }}>{localNome}</span>
+            <span style={{ color:'#475569' }}>· {meteo.lat?.toFixed(3)}, {meteo.lon?.toFixed(3)}</span>
+          </div>
+
+          {/* KPIs actuais */}
+          <div className="grid-4">
+            <KpiCard icon="🌡️" label="Temperatura" value={`${cur.temperature_2m}°C`} color="text-yellow"/>
+            <KpiCard icon="💨" label="Vento" value={`${cur.wind_speed_10m}km/h`} sub={dirVento(cur.wind_direction_10m)} color="text-blue"/>
+            <KpiCard icon="💧" label="Humidade" value={`${cur.relative_humidity_2m}%`} color="text-blue"/>
+            <div className="kpi">
+              <div style={{ fontSize:20 }}>🕊️</div>
+              <div className="kpi-val" style={{ color:condVoo(cur.wind_speed_10m, cur.weather_code, cur.precipitation).color, fontSize:18 }}>
+                {condVoo(cur.wind_speed_10m, cur.weather_code, cur.precipitation).label}
+              </div>
+              <div className="kpi-label">Condição p/ Voo</div>
+            </div>
+          </div>
+
+          {/* Condição actual */}
+          <div className="card card-p" style={{ display:'flex', alignItems:'center', gap:16 }}>
+            <div style={{ fontSize:36 }}>{wmoLabel(cur.weather_code).split(' ')[0]}</div>
+            <div>
+              <div style={{ fontWeight:500, color:'#fff' }}>{wmoLabel(cur.weather_code).split(' ').slice(1).join(' ')}</div>
+              <div style={{ fontSize:13, color:'#64748b', marginTop:4 }}>
+                {cur.wind_speed_10m>30?'⚠️ Vento forte — evitar soltas':
+                 cur.temperature_2m<5?'⚠️ Temperatura baixa — reforçar alimentação':
+                 cur.temperature_2m>32?'⚠️ Calor intenso — garantir hidratação':
+                 '✅ Condições adequadas para voo'}
+              </div>
+            </div>
+          </div>
+
+          {/* Previsão 7 dias */}
+          <div className="card card-p">
+            <div style={{ fontWeight:600, color:'#fff', marginBottom:12 }}>📅 Previsão 7 Dias</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
+              {meteo.daily.time.map((date, i) => {
+                const wmo = meteo.daily.weather_code[i]
+                const cv = condVoo(meteo.daily.wind_speed_10m_max[i], wmo, meteo.daily.precipitation_sum[i])
+                const d = new Date(date+'T12:00:00')
+                const isHoje = i===0
+                return (
+                  <div key={date} style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 10px', borderRadius:10, background:isHoje?'#1a2840':'transparent' }}>
+                    <div style={{ width:32, fontSize:12, fontWeight:isHoje?700:400, color:isHoje?'#fff':'#94a3b8' }}>{isHoje?'Hoje':DIAS[d.getDay()]}</div>
+                    <div style={{ fontSize:20, width:24 }}>{wmoLabel(wmo).split(' ')[0]}</div>
+                    <div style={{ flex:1, fontSize:11, color:'#64748b' }}>
+                      {meteo.daily.precipitation_sum[i]>0&&`💧${meteo.daily.precipitation_sum[i].toFixed(1)}mm · `}
+                      💨{Math.round(meteo.daily.wind_speed_10m_max[i])}km/h {dirVento(meteo.daily.wind_direction_10m_dominant[i])}
+                    </div>
+                    <div style={{ fontSize:13, fontWeight:500, color:'#fff' }}>
+                      {Math.round(meteo.daily.temperature_2m_min[i])}–{Math.round(meteo.daily.temperature_2m_max[i])}°C
+                    </div>
+                    <div style={{ fontSize:12, fontWeight:500, color:cv.color, width:80, textAlign:'right' }}>{cv.label}</div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Mapa */}
+          <div className="card" style={{ overflow:'hidden' }}>
+            <div style={{ padding:'12px 16px', borderBottom:'1px solid #1e3050', fontWeight:600, color:'#fff', fontSize:13 }}>🗺️ Localização</div>
+            <div style={{ height:180 }}>
+              <iframe width="100%" height="100%" frameBorder="0" style={{ display:'block' }}
+                src={`https://maps.google.com/maps?q=${meteo.lat},${meteo.lon}&z=10&output=embed`}/>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function Relatorios() {
+  const toast = useToast()
+  const [data, setData] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [tab, setTab] = useState('desempenho')
+
+  useEffect(() => {
+    async function load() {
+      setLoading(true)
+      try {
+        const [pombos, provas, fin, saude, treinos] = await Promise.all([
+          supabase.from('pigeons').select('*').then(r=>r.data||[]),
+          supabase.from('races').select('*').then(r=>r.data||[]),
+          supabase.from('financas').select('*').then(r=>r.data||[]),
+          supabase.from('health').select('*').then(r=>r.data||[]),
+          supabase.from('treinos').select('*').then(r=>r.data||[]),
+        ])
+        const ano = new Date().getFullYear()
+        const finAno = fin.filter(t=>new Date(t.data_reg).getFullYear()===ano)
+        const rec = finAno.filter(t=>t.tipo==='receita').reduce((s,t)=>s+(t.val||0),0)
+        const dep = finAno.filter(t=>t.tipo==='despesa').reduce((s,t)=>s+(t.val||0),0)
+
+        // Finanças mensais (últimos 6 meses)
+        const finMensal = Array.from({length:6},(_,i)=>{
+          const d=new Date(); d.setMonth(d.getMonth()-(5-i))
+          const m=d.getMonth(); const a=d.getFullYear()
+          const tM=fin.filter(t=>{const td=new Date(t.data_reg);return td.getMonth()===m&&td.getFullYear()===a})
+          return { mes:d.toLocaleString('pt',{month:'short'}), rec:tM.filter(t=>t.tipo==='receita').reduce((s,t)=>s+(t.val||0),0), dep:tM.filter(t=>t.tipo==='despesa').reduce((s,t)=>s+(t.val||0),0) }
+        })
+
+        // Top pombos
+        const top = [...pombos].sort((a,b)=>(b.percentil||0)-(a.percentil||0)).slice(0,10)
+
+        // Distribuição especialidade
+        const espMap = {}
+        pombos.forEach(p=>(p.esp||[]).forEach(e=>{espMap[e]=(espMap[e]||0)+1}))
+
+        // Saúde distribuição
+        const aptMap = {}
+        saude.forEach(s=>{aptMap[s.aptidao]=(aptMap[s.aptidao]||0)+1})
+
+        setData({ pombos, provas, fin, saude, treinos, rec, dep, saldo:rec-dep, finMensal, top, espMap, aptMap, ano })
+      } catch(e) { toast('Erro: '+e.message,'err') }
+      finally { setLoading(false) }
+    }
+    load()
+  }, [])
+
+  if (loading) return <div style={{ display:'flex', justifyContent:'center', padding:60 }}><Spinner lg/></div>
+  if (!data) return null
+
+  const CORES = ['#1ed98a','#C9A44A','#2E7DD4','#D94F4F','#6C4FBB','#E07B39']
+  const maxFinMensal = Math.max(...data.finMensal.map(m=>Math.max(m.rec,m.dep)),1)
+
+  return (
+    <div>
+      <div className="section-header">
+        <div><div className="section-title">Relatórios</div><div className="section-sub">Análise da época {data.ano}</div></div>
+      </div>
+
+      {/* KPIs */}
+      <div className="grid-4 mb-6">
+        <KpiCard icon="🐦" label="Total Pombos" value={data.pombos.length} color="text-green"/>
+        <KpiCard icon="🏆" label="Provas" value={data.provas.length} color="text-yellow"/>
+        <KpiCard icon="🎯" label="Treinos" value={data.treinos.length} color="text-blue"/>
+        <KpiCard icon="💶" label={`Saldo ${data.ano}`} value={`${data.saldo>=0?'+':''}${data.saldo.toFixed(0)}€`} color={data.saldo>=0?'text-green':'text-red'}/>
+      </div>
+
+      {/* Tabs */}
+      <div style={{ display:'flex', gap:4, background:'#1a2840', borderRadius:10, padding:4, marginBottom:20, width:'fit-content' }}>
+        {[['desempenho','🏅 Desempenho'],['financas','💰 Finanças'],['saude','🏥 Saúde']].map(([t,l])=>(
+          <button key={t} onClick={()=>setTab(t)} style={{ padding:'8px 16px', borderRadius:8, fontSize:13, fontWeight:500, cursor:'pointer', border:'none', fontFamily:'inherit', background:tab===t?'#1ed98a':'none', color:tab===t?'#0a0f14':'#94a3b8' }}>{l}</button>
+        ))}
+      </div>
+
+      {tab==='desempenho' && (
+        <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+          {/* Top pombos */}
+          <div className="card card-p">
+            <div style={{ fontWeight:600, color:'#fff', marginBottom:12 }}>🏅 Ranking de Pombos</div>
+            {data.top.length===0 ? <div style={{ color:'#64748b', fontSize:13 }}>Sem pombos registados</div>
+            : data.top.map((p,i)=>{
+              const fc=(p.forma||50)>=80?'#1ed98a':(p.forma||50)>=60?'#facc15':'#f87171'
+              return (
+                <div key={p.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 0', borderBottom:'1px solid #1e3050' }}>
+                  <span style={{ fontFamily:'Barlow Condensed', fontSize:18, fontWeight:700, width:20, color:i===0?'#facc15':i===1?'#cbd5e1':i===2?'#b45309':'#475569' }}>{i+1}</span>
+                  <div style={{ width:32, height:32, borderRadius:8, background:'#1a2840', display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, overflow:'hidden' }}>
+                    {p.foto_url?<img src={p.foto_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>:p.emoji}
+                  </div>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontSize:13, fontWeight:500, color:'#fff', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.nome}</div>
+                    <div style={{ fontFamily:'JetBrains Mono', fontSize:10, color:'#64748b' }}>{p.anilha}</div>
+                  </div>
+                  <div style={{ textAlign:'right', marginRight:8 }}>
+                    <div style={{ fontSize:13, fontWeight:700, color:'#1ed98a' }}>{p.percentil||0}%</div>
+                    <div style={{ fontSize:11, color:'#64748b' }}>{p.provas||0} provas</div>
+                  </div>
+                  <div style={{ width:60 }}>
+                    <div className="progress"><div className="progress-bar" style={{ width:`${p.forma||50}%`, background:fc }}/></div>
+                    <div style={{ fontSize:10, color:'#64748b', textAlign:'right' }}>{p.forma||50}%</div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Especialidades */}
+          <div className="card card-p">
+            <div style={{ fontWeight:600, color:'#fff', marginBottom:12 }}>🎯 Distribuição por Especialidade</div>
+            {Object.entries(data.espMap).map(([esp,n],i)=>{
+              const total = Object.values(data.espMap).reduce((s,v)=>s+v,0)||1
+              return (
+                <div key={esp} style={{ marginBottom:10 }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', fontSize:13, marginBottom:4 }}>
+                    <span style={{ color:'#cbd5e1' }}>{esp.replace('_',' ')}</span>
+                    <span style={{ fontWeight:600, color:'#fff' }}>{n} <span style={{ color:'#64748b', fontWeight:400 }}>({(n/total*100).toFixed(0)}%)</span></span>
+                  </div>
+                  <div className="progress"><div className="progress-bar" style={{ width:`${n/total*100}%`, background:CORES[i%CORES.length] }}/></div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {tab==='financas' && (
+        <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+          {/* Gráfico barras simples */}
+          <div className="card card-p">
+            <div style={{ fontWeight:600, color:'#fff', marginBottom:16 }}>📈 Evolução Mensal</div>
+            <div style={{ display:'flex', alignItems:'flex-end', gap:8, height:120 }}>
+              {data.finMensal.map((m,i)=>(
+                <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:2 }}>
+                  <div style={{ fontSize:10, color:m.rec-m.dep>=0?'#1ed98a':'#f87171', fontWeight:600 }}>
+                    {m.rec-m.dep>=0?'+':''}{(m.rec-m.dep).toFixed(0)}€
+                  </div>
+                  <div style={{ width:'100%', display:'flex', gap:2, alignItems:'flex-end', height:80 }}>
+                    <div style={{ flex:1, background:'#1ed98a', borderRadius:'3px 3px 0 0', height:`${Math.round(m.rec/maxFinMensal*80)}px` }}/>
+                    <div style={{ flex:1, background:'#f87171', borderRadius:'3px 3px 0 0', height:`${Math.round(m.dep/maxFinMensal*80)}px` }}/>
+                  </div>
+                  <div style={{ fontSize:10, color:'#64748b' }}>{m.mes}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ display:'flex', gap:12, marginTop:8, fontSize:11, color:'#64748b' }}>
+              <span style={{ display:'flex', alignItems:'center', gap:4 }}><span style={{ width:8, height:8, background:'#1ed98a', display:'inline-block', borderRadius:2 }}/>Receitas</span>
+              <span style={{ display:'flex', alignItems:'center', gap:4 }}><span style={{ width:8, height:8, background:'#f87171', display:'inline-block', borderRadius:2 }}/>Despesas</span>
+            </div>
+          </div>
+
+          {/* Categorias despesas */}
+          <div className="card card-p">
+            <div style={{ fontWeight:600, color:'#fff', marginBottom:12 }}>📊 Despesas por Categoria</div>
+            {(()=>{
+              const catMap = {}
+              data.fin.filter(t=>t.tipo==='despesa').forEach(t=>{catMap[t.cat]=(catMap[t.cat]||0)+(t.val||0)})
+              const cats = Object.entries(catMap).sort((a,b)=>b[1]-a[1])
+              const total = cats.reduce((s,[,v])=>s+v,0)||1
+              if (!cats.length) return <div style={{ color:'#64748b', fontSize:13 }}>Sem despesas</div>
+              return cats.map(([cat,val],i)=>(
+                <div key={cat} style={{ marginBottom:10 }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', fontSize:13, marginBottom:4 }}>
+                    <span style={{ color:'#cbd5e1' }}>{cat}</span>
+                    <span style={{ fontWeight:600, color:'#fff' }}>{val.toFixed(0)}€ <span style={{ color:'#64748b', fontWeight:400 }}>({(val/total*100).toFixed(0)}%)</span></span>
+                  </div>
+                  <div className="progress"><div className="progress-bar" style={{ width:`${val/total*100}%`, background:CORES[i%CORES.length] }}/></div>
+                </div>
+              ))
+            })()}
+          </div>
+        </div>
+      )}
+
+      {tab==='saude' && (
+        <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+          <div className="card card-p">
+            <div style={{ fontWeight:600, color:'#fff', marginBottom:12 }}>🏥 Distribuição de Aptidão</div>
+            {Object.keys(data.aptMap).length===0
+              ? <div style={{ color:'#64748b', fontSize:13, textAlign:'center', padding:20 }}>Sem registos de saúde</div>
+              : Object.entries(data.aptMap).map(([apt,n],i)=>{
+                const total=Object.values(data.aptMap).reduce((s,v)=>s+v,0)||1
+                const cor={'excelente':'#1ed98a','boa':'#1ed98a','media':'#facc15','fraca':'#facc15','doente':'#f87171','quarentena':'#f87171'}[apt]||'#94a3b8'
+                return (
+                  <div key={apt} style={{ marginBottom:10 }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', fontSize:13, marginBottom:4 }}>
+                      <span style={{ color:'#cbd5e1' }}>{apt}</span>
+                      <span style={{ fontWeight:600, color:'#fff' }}>{n} pombos</span>
+                    </div>
+                    <div className="progress"><div className="progress-bar" style={{ width:`${n/total*100}%`, background:cor }}/></div>
+                  </div>
+                )
+              })
+            }
+          </div>
+          <div className="grid-3">
+            <KpiCard icon="✅" label="Aptos" value={data.pombos.filter(p=>p.estado==='ativo').length} color="text-green"/>
+            <KpiCard icon="⚠️" label="Lesionados" value={data.pombos.filter(p=>p.estado==='lesionado').length} color="text-yellow"/>
+            <KpiCard icon="🥚" label="Em Reprodução" value={data.pombos.filter(p=>p.estado==='reproducao').length} color="text-blue"/>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 function EmBreve({ icon, title }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh', textAlign: 'center' }}>
@@ -1454,9 +2053,9 @@ function AppLayout() {
       case 'treinos':     return <Treinos />
       case 'reproducao':    return <Reproducao />
       case 'alimentacao':   return <Alimentacao />
-      case 'calendario':  return <EmBreve icon="📅" title="Calendário" />
-      case 'relatorios':  return <EmBreve icon="📊" title="Relatórios" />
-      case 'meteorologia':return <EmBreve icon="🌦️" title="Meteorologia" />
+      case 'calendario':  return <Calendario />
+      case 'relatorios':  return <Relatorios />
+      case 'meteorologia':return <Meteorologia />
       default:            return <Dashboard nav={nav} />
     }
   }
@@ -1545,3 +2144,4 @@ function AppContent() {
 
   return user ? <AppLayout /> : <Login />
 }
+
