@@ -706,6 +706,8 @@ function Pombais() {
   const [selected, setSelected] = useState(null)
   const [saving, setSaving] = useState(false)
   const [confirm, setConfirm] = useState(null)
+  const [pombalDetalhe, setPombalDetalhe] = useState(null)
+  const [pomboDetalhe, setPomboDetalhe] = useState(null)
   const EMPTY = { nome: '', tipo: 'Misto', cap: '40', loc: '', lat: '', lon: '', cor: '#1ed98a' }
   const [form, setForm] = useState(EMPTY)
   const sf = (k, v) => setForm(f => ({ ...f, [k]: v }))
@@ -766,6 +768,7 @@ function Pombais() {
                         </div>
                       </div>
                       <div style={{ display: 'flex', gap: 4 }}>
+                        <button className="btn btn-icon btn-sm" onClick={()=>setPombalDetalhe(pb)}>👁️</button>
                         <button className="btn btn-icon btn-sm" onClick={() => openEdit(pb)}>✏️</button>
                         <button className="btn btn-icon btn-sm" onClick={() => setConfirm(pb)}>🗑️</button>
                       </div>
@@ -816,6 +819,66 @@ function Pombais() {
       <Modal open={!!confirm} onClose={() => setConfirm(null)} title="Eliminar pombal"
         footer={<><button className="btn btn-secondary" onClick={() => setConfirm(null)}>Cancelar</button><button className="btn btn-danger" onClick={del}>Eliminar</button></>}>
         <p style={{ fontSize: 14, color: '#cbd5e1' }}>Eliminar "{confirm?.nome}"?</p>
+      </Modal>
+
+      {/* Detalhe pombal */}
+      <Modal open={!!pombalDetalhe} onClose={()=>{setPombalDetalhe(null);setPomboDetalhe(null)}} title={`🏠 ${pombalDetalhe?.nome}`} wide>
+        {pomboDetalhe ? (
+          <div>
+            <button className="btn btn-secondary btn-sm" style={{ marginBottom:14 }} onClick={()=>setPomboDetalhe(null)}>← Voltar</button>
+            <div style={{ display:'flex', gap:16, marginBottom:16 }}>
+              <div style={{ width:80, height:80, borderRadius:14, background:'#1a2840', display:'flex', alignItems:'center', justifyContent:'center', fontSize:40, overflow:'hidden', flexShrink:0, border:'1px solid #243860' }}>
+                {pomboDetalhe.foto_url?<img src={pomboDetalhe.foto_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>:pomboDetalhe.emoji||'🐦'}
+              </div>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:18, fontWeight:700, color:'#fff' }}>{pomboDetalhe.nome}</div>
+                <div style={{ fontFamily:'JetBrains Mono', fontSize:12, color:'#1ed98a', marginTop:2 }}>{pomboDetalhe.anilha}</div>
+                <div style={{ fontSize:13, color:'#94a3b8', marginTop:4 }}>{pomboDetalhe.sexo==='M'?'♂ Macho':'♀ Fêmea'} · {pomboDetalhe.cor||'—'}</div>
+              </div>
+            </div>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, marginBottom:16 }}>
+              {[['Provas',pomboDetalhe.provas||0,'#facc15'],['Percentil',(pomboDetalhe.percentil||0)+'%','#1ed98a'],['Forma',(pomboDetalhe.forma||50)+'%','#60a5fa']].map(([l,v,c])=>(
+                <div key={l} style={{ textAlign:'center', background:'#1a2840', borderRadius:10, padding:12 }}>
+                  <div style={{ fontFamily:'Barlow Condensed', fontSize:28, fontWeight:700, color:c }}>{v}</div>
+                  <div style={{ fontSize:11, color:'#64748b' }}>{l}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+              <div><div className="label">Pai</div><div style={{ fontFamily:'JetBrains Mono', fontSize:11, color:'#1ed98a', marginTop:4 }}>{pomboDetalhe.pai||'—'}</div></div>
+              <div><div className="label">Mãe</div><div style={{ fontFamily:'JetBrains Mono', fontSize:11, color:'#1ed98a', marginTop:4 }}>{pomboDetalhe.mae||'—'}</div></div>
+            </div>
+            {pomboDetalhe.obs&&<div style={{ marginTop:12 }}><div className="label">Observações</div><div style={{ fontSize:13, color:'#cbd5e1', marginTop:4 }}>{pomboDetalhe.obs}</div></div>}
+          </div>
+        ) : (
+          <div>
+            <div style={{ fontSize:13, color:'#94a3b8', marginBottom:12 }}>
+              {pombos.filter(p=>p.pombal===pombalDetalhe?.nome).length} pombos neste pombal
+            </div>
+            {pombos.filter(p=>p.pombal===pombalDetalhe?.nome).length===0
+              ? <div style={{ textAlign:'center', color:'#64748b', padding:'30px 0' }}>Nenhum pombo neste pombal</div>
+              : <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                  {pombos.filter(p=>p.pombal===pombalDetalhe?.nome).map(p=>(
+                    <div key={p.id} onClick={()=>setPomboDetalhe(p)}
+                      style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 14px', background:'#1a2840', borderRadius:12, cursor:'pointer', border:'1px solid #1e3050', transition:'all .15s' }}
+                      onMouseOver={e=>e.currentTarget.style.borderColor='#1ed98a'}
+                      onMouseOut={e=>e.currentTarget.style.borderColor='#1e3050'}>
+                      <div style={{ width:40, height:40, borderRadius:10, background:'#141f2e', display:'flex', alignItems:'center', justifyContent:'center', fontSize:20, overflow:'hidden', flexShrink:0 }}>
+                        {p.foto_url?<img src={p.foto_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>:p.emoji||'🐦'}
+                      </div>
+                      <div style={{ flex:1 }}>
+                        <div style={{ fontSize:13, fontWeight:500, color:'#fff' }}>{p.nome}</div>
+                        <div style={{ fontFamily:'JetBrains Mono', fontSize:10, color:'#64748b' }}>{p.anilha}</div>
+                      </div>
+                      <div style={{ fontSize:12, color:'#94a3b8' }}>{p.sexo==='M'?'♂':'♀'} · {p.cor||'—'}</div>
+                      <div style={{ fontFamily:'Barlow Condensed', fontSize:18, fontWeight:700, color:'#1ed98a' }}>{p.percentil||0}%</div>
+                      <span style={{ color:'#475569', fontSize:16 }}>›</span>
+                    </div>
+                  ))}
+                </div>
+            }
+          </div>
+        )}
       </Modal>
     </div>
   )
@@ -1626,7 +1689,7 @@ function Treinos() {
   const EMPTY = { data:new Date().toISOString().slice(0,10), local:'', dist:'', tipo:'Em Linha', pombos_n:'', retorno:'100%', obs:'' }
   const [form, setForm] = useState(EMPTY)
   const sf = (k,v) => setForm(f=>({...f,[k]:v}))
-  
+
   const load = useCallback(async () => {
     setLoading(true)
     try {
@@ -2449,6 +2512,15 @@ function Alimentacao() {
         <div className="form-grid">
           <div className="col-2"><Field label="Nome *"><input className="input" placeholder="Ex: Milho, Cevada..." value={formAlim.nome} onChange={e=>sfA('nome',e.target.value)}/></Field></div>
           <Field label="Tipo"><select className="input" value={formAlim.tipo} onChange={e=>sfA('tipo',e.target.value)}>{['Cereal','Leguminosa','Semente','Suplemento','Outro'].map(t=><option key={t}>{t}</option>)}</select></Field>
+          <div className="col-2">
+            <label className="label" style={{ display:'block', marginBottom:6 }}>Pré-definidos rápidos</label>
+            <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+              {[['Milho','Cereal'],['Cevada','Cereal'],['Trigo','Cereal'],['Ervilha','Leguminosa'],['Girassol','Semente'],['Amendoim','Leguminosa'],['Linho','Semente'],['Cânhamo','Semente'],['Triticale','Cereal'],['Arroz','Cereal'],['Aveia','Cereal'],['Sorgo','Cereal']].map(([n,t])=>(
+                <button key={n} type="button" className="chip" style={{ fontSize:11 }}
+                  onClick={()=>setFormAlim(f=>({...f,nome:n,tipo:t}))}>{n}</button>
+              ))}
+            </div>
+          </div>
           <Field label="Preço/kg (€)"><input className="input" type="number" step="0.01" placeholder="0.45" value={formAlim.preco_kg} onChange={e=>sfA('preco_kg',e.target.value)}/></Field>
           <Field label="Stock inicial (kg)"><input className="input" type="number" placeholder="50" value={formAlim.stock} onChange={e=>sfA('stock',e.target.value)}/></Field>
           <Field label="Stock mínimo (kg)"><input className="input" type="number" placeholder="20" value={formAlim.minimo} onChange={e=>sfA('minimo',e.target.value)}/></Field>
@@ -2459,7 +2531,23 @@ function Alimentacao() {
         footer={<><button className="btn btn-secondary" onClick={()=>setModalRacao(false)}>Cancelar</button><button className="btn btn-primary" onClick={saveRacao}>Guardar</button></>}>
         <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
           <div className="form-grid">
-            <Field label="Nome *"><input className="input" placeholder="Ex: Mistura Competição" value={formRacao.nome} onChange={e=>setFormRacao(f=>({...f,nome:e.target.value}))}/></Field>
+            <div className="col-2">
+            <label className="label" style={{ display:'block', marginBottom:6 }}>Rações comerciais (carregar composição)</label>
+            <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:10 }}>
+              {[
+                {n:'Versele-Laga Superstar',f:'Competição',c:[{n:'Milho',p:38},{n:'Cevada',p:22},{n:'Ervilha',p:18},{n:'Trigo',p:12},{n:'Arroz',p:10}]},
+                {n:'Versele-Laga Breedmaster',f:'Reprodução',c:[{n:'Milho',p:32},{n:'Ervilha',p:28},{n:'Cevada',p:20},{n:'Amendoim',p:12},{n:'Cártamo',p:8}]},
+                {n:'Beyers Olympic',f:'Competição',c:[{n:'Milho',p:40},{n:'Cevada',p:20},{n:'Ervilha',p:20},{n:'Girassol',p:10},{n:'Trigo',p:10}]},
+                {n:'Roehnfried Spezial',f:'Competição',c:[{n:'Milho',p:42},{n:'Cevada',p:20},{n:'Ervilha',p:18},{n:'Triticale',p:12},{n:'Girassol',p:8}]},
+                {n:'DAC Widowhood',f:'Viuvez',c:[{n:'Milho',p:45},{n:'Cevada',p:28},{n:'Ervilha',p:15},{n:'Girassol',p:8},{n:'Trigo',p:4}]},
+                {n:'Muda',f:'Muda',c:[{n:'Milho',p:30},{n:'Cevada',p:30},{n:'Ervilha',p:20},{n:'Linho',p:12},{n:'Cânhamo',p:8}]},
+              ].map(r=>(
+                <button key={r.n} type="button" className="chip" style={{ fontSize:11 }}
+                  onClick={()=>setFormRacao({ nome:r.n, fase:r.f, comps:r.c })}>{r.n}</button>
+              ))}
+            </div>
+          </div>
+          <Field label="Nome *"><input className="input" placeholder="Ex: Mistura Competição" value={formRacao.nome} onChange={e=>setFormRacao(f=>({...f,nome:e.target.value}))}/></Field>
             <Field label="Fase"><select className="input" value={formRacao.fase} onChange={e=>setFormRacao(f=>({...f,fase:e.target.value}))}>{['Competição','Reprodução','Muda','Repouso','Jovens','Viuvez'].map(f=><option key={f}>{f}</option>)}</select></Field>
           </div>
           <div>
@@ -2484,6 +2572,28 @@ function Alimentacao() {
 
       <Modal open={modalProduto} onClose={()=>setModalProduto(false)} title="💊 Novo Produto"
         footer={<><button className="btn btn-secondary" onClick={()=>setModalProduto(false)}>Cancelar</button><button className="btn btn-primary" onClick={saveProduto}>Guardar</button></>}>
+        <div style={{ marginBottom:12 }}>
+          <label className="label" style={{ display:'block', marginBottom:6 }}>Produtos comuns (carregar)</label>
+          <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+            {[
+              {n:'Amprolium 20%',t:'Medicamento',i:'Tricomonose',d:'1g/L',u:'g'},
+              {n:'Ronidazol',t:'Medicamento',i:'Tricomonose',d:'6mg/kg',u:'g'},
+              {n:'Metronidazol',t:'Medicamento',i:'Tricomonose',d:'50mg/kg',u:'g'},
+              {n:'Enrofloxacina',t:'Medicamento',i:'Infecções bacterianas',d:'10mg/kg',u:'ml'},
+              {n:'Tetraciclina',t:'Medicamento',i:'Clamidiose',d:'1g/L',u:'g'},
+              {n:'Fenbendazol',t:'Medicamento',i:'Parasitas internos',d:'50mg/kg',u:'g'},
+              {n:'Vitamina C',t:'Vitamina',i:'Imunidade/Stress',d:'0.5g/L',u:'g'},
+              {n:'Vitamina E+Sel.',t:'Vitamina',i:'Reprodução/Músculo',d:'2ml/L',u:'ml'},
+              {n:'Electrólitos',t:'Suplemento',i:'Recuperação',d:'5g/L',u:'g'},
+              {n:'Probióticos',t:'Suplemento',i:'Flora intestinal',d:'1g/L',u:'g'},
+              {n:'Paramixovírus',t:'Vacina',i:'Newcastle',d:'0.5ml/pombo',u:'doses'},
+              {n:'Salmonela',t:'Vacina',i:'Paratifose',d:'1ml/pombo',u:'doses'},
+            ].map(p=>(
+              <button key={p.n} type="button" className="chip" style={{ fontSize:11 }}
+                onClick={()=>setFormProd(f=>({...f,nome:p.n,tipo:p.t,indicacao:p.i,dose:p.d,unidade:p.u}))}>{p.n}</button>
+            ))}
+          </div>
+        </div>
         <div className="form-grid">
           <div className="col-2"><Field label="Nome *"><input className="input" placeholder="Ex: Amprolium 20%" value={formProd.nome} onChange={e=>sfP('nome',e.target.value)}/></Field></div>
           <Field label="Tipo"><select className="input" value={formProd.tipo} onChange={e=>sfP('tipo',e.target.value)}>{['Medicamento','Vitamina','Suplemento','Vacina','Outro'].map(t=><option key={t}>{t}</option>)}</select></Field>
@@ -3201,7 +3311,12 @@ Sê específico, profissional e usa os dados fornecidos.`
 
       const res = await fetch('https://api.anthropic.com/v1/messages', {
         method:'POST',
-        headers:{ 'Content-Type':'application/json' },
+        headers:{
+          'Content-Type':'application/json',
+          'x-api-key': 'placeholder',
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true'
+        },
         body: JSON.stringify({
           model:'claude-sonnet-4-20250514',
           max_tokens:1000,
@@ -3209,7 +3324,7 @@ Sê específico, profissional e usa os dados fornecidos.`
         })
       })
       const data = await res.json()
-      const texto = data.content?.[0]?.text || 'Erro ao gerar relatório.'
+      const texto = data.content?.[0]?.text || data.error?.message || 'Sem resposta da IA.'
       setTextoIA(texto)
       toast('Relatório IA gerado! ✅','ok')
     } catch(e) { toast('Erro IA: '+e.message,'err') }
@@ -3674,5 +3789,4 @@ function AppContent() {
 
   return user ? <AppLayout /> : <Login />
 }
-
 
