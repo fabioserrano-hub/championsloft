@@ -849,7 +849,7 @@ function Provas() {
 
   useEffect(()=>{ load() },[load])
 
-const hoje = new Date().toISOString().slice(0,10)
+  const hoje = new Date().toISOString().slice(0,10)
   // Prova é "realizada" se a data já passou OU se tem resultados (lugar/vel definidos)
   const passadas = provas.filter(p=>p.data_reg<=hoje || p.lugar || p.vel)
   const futuras = provas.filter(p=>p.data_reg>hoje && !p.lugar && !p.vel)
@@ -1626,7 +1626,7 @@ function Treinos() {
   const EMPTY = { data:new Date().toISOString().slice(0,10), local:'', dist:'', tipo:'Em Linha', pombos_n:'', retorno:'100%', obs:'' }
   const [form, setForm] = useState(EMPTY)
   const sf = (k,v) => setForm(f=>({...f,[k]:v}))
-
+  
   const load = useCallback(async () => {
     setLoading(true)
     try {
@@ -3110,6 +3110,366 @@ function Relatorios() {
   )
 }
 
+function FimEpoca() {
+  const toast = useToast()
+  const [loading, setLoading] = useState(true)
+  const [tab, setTab] = useState('resumo')
+  const [pombos, setPombos] = useState([])
+  const [provas, setProvas] = useState([])
+  const [resultados, setResultados] = useState([])
+  const [analise, setAnalise] = useState(null)
+  const [gerandoIA, setGerandoIA] = useState(false)
+  const [textoIA, setTextoIA] = useState('')
+  const [ano, setAno] = useState(new Date().getFullYear())
+
+  useEffect(() => { load() }, [ano])
+
+  const load = async () => {
+    setLoading(true)
+    try {
+      const [p, pr, rr] = await Promise.all([
+        supabase.from('pigeons').select('*').then(r=>r.data||[]),
+        supabase.from('races').select('*').then(r=>r.data||[]),
+        supabase.from('race_results').select('*, pigeons(nome,anilha,emoji,sexo,esp)').then(r=>r.data||[]),
+      ])
+      setPombos(p); setProvas(pr); setResultados(rr)
+      setAnalise(calcularAnalise(p, pr, rr, ano))
+    } catch(e) { toast('Erro: '+e.message,'err') }
+    finally { setLoading(false) }
+  }
+
+  const calcularAnalise = (pombos, provas, resultados, ano) => {
+    const provasAno = provas.filter(p => new Date(p.data_reg).getFullYear()===ano)
+
+    // Score por pombo
+    const scores = pombos.map(pombo => {
+      const resP = resultados.filter(r => r.pigeon_id===pombo.id && provasAno.find(p=>p.id===r.race_id))
+      if (!resP.length) return { ...pombo, score:pombo.percentil||0, nProvas:pombo.provas||0, resP:[] }
+
+      const mediaPos = resP.reduce((s,r)=>s+(r.posicao||50),0) / resP.length
+      const top10 = resP.filter(r=>(r.posicao||99)<=10).length / resP.length
+      const consistencia = resP.filter(r=>(r.posicao||99)<=30).length / resP.length
+      const score = Math.round(Math.max(0, Math.min(100,
+        (100 - mediaPos) * 0.5 + top10 * 30 + consistencia * 20
+      )))
+      return { ...pombo, score, nProvas:resP.length, mediaPos:Math.round(mediaPos), top10:Math.round(top10*100), resP }
+    }).sort((a,b)=>b.score-a.score)
+
+    // Pombos a dispensar: score<35 e mais de 1 prova
+    const dispensar = scores.filter(p => p.score<35 && p.nProvas>=1 && p.provas>0)
+
+    // Casais recomendados: top machos x top fêmeas
+    const machos = scores.filter(p=>p.sexo==='M'&&p.score>=60).slice(0,5)
+    const femeas = scores.filter(p=>p.sexo==='F'&&p.score>=60).slice(0,5)
+    const casais = []
+    machos.forEach(m => femeas.forEach(f => {
+      if (m.pai!==f.anilha && m.mae!==f.anilha) // evitar consanguinidade directa
+        casais.push({ macho:m, femea:f, score:Math.round((m.score+f.score)/2) })
+    }))
+    casais.sort((a,b)=>b.score-a.score)
+
+    // KPIs época
+    const mediaScore = scores.length ? Math.round(scores.reduce((s,p)=>s+p.score,0)/scores.length) : 0
+    const vitorias = provasAno.filter(p=>p.lugar===1).length
+    const top3 = provasAno.filter(p=>p.lugar&&p.lugar<=3).length
+
+    return { scores, dispensar, casais:casais.slice(0,6), provasAno, mediaScore, vitorias, top3, totalPombos:pombos.length }
+  }
+
+  const gerarRelatorioIA = async () => {
+    if (!analise) return
+    setGerandoIA(true); setTextoIA('')
+    try {
+      const prompt = `És um especialista em columbofilia. Analisa esta época ${ano} e gera um relatório profissional em português de Portugal.
+
+DADOS DA ÉPOCA:
+- Total pombos: ${analise.totalPombos}
+- Provas realizadas: ${analise.provasAno.length}
+- Vitórias: ${analise.vitorias} | Top 3: ${analise.top3}
+- Score médio do efectivo: ${analise.mediaScore}/100
+- Top 5 pombos: ${analise.scores.slice(0,5).map(p=>`${p.nome} (${p.anilha}) — score ${p.score}, ${p.nProvas} provas`).join('; ')}
+- Pombos com baixo desempenho: ${analise.dispensar.map(p=>p.nome).join(', ')||'Nenhum'}
+- Casais recomendados: ${analise.casais.slice(0,3).map(c=>`${c.macho.nome}×${c.femea.nome}`).join(', ')||'Sem dados suficientes'}
+
+Gera um relatório com:
+1. Resumo executivo da época (2-3 parágrafos)
+2. Análise do efectivo (pontos fortes e fracos)
+3. Recomendações para a próxima época
+4. Estratégia de reprodução sugerida
+
+Sê específico, profissional e usa os dados fornecidos.`
+
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json' },
+        body: JSON.stringify({
+          model:'claude-sonnet-4-20250514',
+          max_tokens:1000,
+          messages:[{ role:'user', content:prompt }]
+        })
+      })
+      const data = await res.json()
+      const texto = data.content?.[0]?.text || 'Erro ao gerar relatório.'
+      setTextoIA(texto)
+      toast('Relatório IA gerado! ✅','ok')
+    } catch(e) { toast('Erro IA: '+e.message,'err') }
+    finally { setGerandoIA(false) }
+  }
+
+  const MEDAL = ['🥇','🥈','🥉']
+  const corScore = s => s>=80?'#1ed98a':s>=60?'#facc15':s>=40?'#60a5fa':'#f87171'
+
+  if (loading) return <div style={{ display:'flex', justifyContent:'center', padding:60 }}><Spinner lg/></div>
+
+  return (
+    <div>
+      <div className="section-header">
+        <div>
+          <div className="section-title">🏁 Relatório de Fim de Época</div>
+          <div className="section-sub">Análise completa · Época {ano}</div>
+        </div>
+        <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+          <select className="input" style={{ width:90 }} value={ano} onChange={e=>setAno(parseInt(e.target.value))}>
+            {[2026,2025,2024,2023].map(a=><option key={a}>{a}</option>)}
+          </select>
+          <button className="btn btn-primary" onClick={gerarRelatorioIA} disabled={gerandoIA}>
+            {gerandoIA?<Spinner/>:'🧠'} {gerandoIA?'A analisar...':'Relatório IA'}
+          </button>
+          <button className="btn btn-secondary" onClick={()=>window.print()}>🖨️</button>
+        </div>
+      </div>
+
+      {/* KPIs */}
+      <div className="grid-4 mb-6">
+        <KpiCard icon="🏆" label="Provas" value={analise.provasAno.length} color="text-yellow"/>
+        <KpiCard icon="🥇" label="Vitórias" value={analise.vitorias} color="text-green"/>
+        <KpiCard icon="🎯" label="Top 3" value={analise.top3} color="text-blue"/>
+        <div className="kpi">
+          <div style={{ fontSize:20 }}>📊</div>
+          <div className="kpi-val" style={{ color:corScore(analise.mediaScore) }}>{analise.mediaScore}</div>
+          <div className="kpi-label">Score Médio Efectivo</div>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div style={{ display:'flex', gap:4, background:'#1a2840', borderRadius:10, padding:4, marginBottom:20, overflowX:'auto' }}>
+        {[['resumo','📊 Resumo'],['ranking','🏅 Ranking'],['dispensar','❌ A Dispensar'],['casais','🧬 Casais'],['ia','🧠 Relatório IA']].map(([t,l])=>(
+          <button key={t} onClick={()=>setTab(t)} style={{ padding:'8px 14px', borderRadius:8, fontSize:13, fontWeight:500, cursor:'pointer', border:'none', fontFamily:'inherit', whiteSpace:'nowrap', background:tab===t?'#1ed98a':'none', color:tab===t?'#0a0f14':'#94a3b8' }}>{l}</button>
+        ))}
+      </div>
+
+      {/* RESUMO */}
+      {tab==='resumo' && (
+        <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+          <div className="card card-p">
+            <div style={{ fontWeight:600, color:'#fff', marginBottom:14 }}>🏆 Top 5 Pombos da Época</div>
+            {analise.scores.slice(0,5).map((p,i)=>(
+              <div key={p.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 0', borderBottom:'1px solid #1e3050' }}>
+                <span style={{ fontSize:22, width:28 }}>{MEDAL[i]||`${i+1}º`}</span>
+                <div style={{ width:36, height:36, borderRadius:8, background:'#1a2840', display:'flex', alignItems:'center', justifyContent:'center', fontSize:18, overflow:'hidden', flexShrink:0 }}>
+                  {p.foto_url?<img src={p.foto_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>:p.emoji||'🐦'}
+                </div>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:13, fontWeight:600, color:'#fff' }}>{p.nome}</div>
+                  <div style={{ fontFamily:'JetBrains Mono', fontSize:10, color:'#64748b' }}>{p.anilha} · {p.nProvas} provas</div>
+                </div>
+                <div style={{ textAlign:'right' }}>
+                  <div style={{ fontFamily:'Barlow Condensed', fontSize:24, fontWeight:700, color:corScore(p.score) }}>{p.score}</div>
+                  <div style={{ fontSize:10, color:'#64748b' }}>SCORE</div>
+                </div>
+                <div style={{ width:80 }}>
+                  <div className="progress"><div className="progress-bar" style={{ width:`${p.score}%`, background:corScore(p.score) }}/></div>
+                </div>
+              </div>
+            ))}
+            {analise.scores.length===0&&<div style={{ textAlign:'center', color:'#64748b', fontSize:13 }}>Sem pombos com resultados registados nesta época</div>}
+          </div>
+
+          <div className="grid-2">
+            <div className="card card-p">
+              <div style={{ fontWeight:600, color:'#fff', marginBottom:12 }}>📈 Distribuição de Scores</div>
+              {[['Elite (80-100)','#1ed98a',80,100],['Bom (60-79)','#facc15',60,79],['Médio (40-59)','#60a5fa',40,59],['Fraco (<40)','#f87171',0,39]].map(([label,cor,min,max])=>{
+                const n = analise.scores.filter(p=>p.score>=min&&p.score<=max).length
+                const pct = analise.scores.length ? Math.round(n/analise.scores.length*100) : 0
+                return (
+                  <div key={label} style={{ marginBottom:10 }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, marginBottom:4 }}>
+                      <span style={{ color:'#cbd5e1' }}>{label}</span>
+                      <span style={{ fontWeight:600, color:'#fff' }}>{n} pombos ({pct}%)</span>
+                    </div>
+                    <div className="progress" style={{ height:6 }}><div className="progress-bar" style={{ width:`${pct}%`, background:cor }}/></div>
+                  </div>
+                )
+              })}
+            </div>
+            <div className="card card-p">
+              <div style={{ fontWeight:600, color:'#fff', marginBottom:12 }}>🏆 Provas da Época</div>
+              {analise.provasAno.length===0
+                ? <div style={{ textAlign:'center', color:'#64748b', fontSize:13 }}>Sem provas em {ano}</div>
+                : analise.provasAno.slice(0,6).map(p=>(
+                  <div key={p.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'6px 0', borderBottom:'1px solid #1e3050' }}>
+                    <span style={{ fontFamily:'Barlow Condensed', fontSize:18, fontWeight:700, color:p.lugar===1?'#facc15':'#94a3b8' }}>{p.lugar?p.lugar+'º':'—'}</span>
+                    <div style={{ flex:1 }}>
+                      <div style={{ fontSize:12, fontWeight:500, color:'#fff' }}>{p.nome}</div>
+                      <div style={{ fontSize:11, color:'#64748b' }}>{p.dist}km · {p.local_solta||'—'}</div>
+                    </div>
+                  </div>
+                ))
+              }
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* RANKING */}
+      {tab==='ranking' && (
+        <div className="card" style={{ overflowX:'auto' }}>
+          <table>
+            <thead><tr><th>Pos.</th><th>Pombo</th><th>Anel</th><th>Provas</th><th>Score</th><th>Top 10%</th><th>Pos. Média</th><th>Forma</th></tr></thead>
+            <tbody>
+              {analise.scores.map((p,i)=>(
+                <tr key={p.id}>
+                  <td><span style={{ fontFamily:'Barlow Condensed', fontSize:18, fontWeight:700, color:i===0?'#facc15':i===1?'#cbd5e1':i===2?'#b45309':'#475569' }}>{i+1}º</span></td>
+                  <td>
+                    <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                      <span style={{ fontSize:18 }}>{p.emoji||'🐦'}</span>
+                      <div>
+                        <div style={{ fontSize:13, fontWeight:500, color:'#fff' }}>{p.nome}</div>
+                        <div style={{ fontSize:11, color:'#64748b' }}>{p.sexo==='M'?'♂':'♀'} · {(p.esp||[]).join(', ')||'—'}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td style={{ fontFamily:'JetBrains Mono', fontSize:10, color:'#1ed98a' }}>{p.anilha}</td>
+                  <td style={{ textAlign:'center' }}>{p.nProvas}</td>
+                  <td>
+                    <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                      <div className="progress" style={{ width:60 }}><div className="progress-bar" style={{ width:`${p.score}%`, background:corScore(p.score) }}/></div>
+                      <span style={{ fontFamily:'Barlow Condensed', fontSize:16, fontWeight:700, color:corScore(p.score) }}>{p.score}</span>
+                    </div>
+                  </td>
+                  <td style={{ color:'#facc15', fontWeight:600 }}>{p.top10||0}%</td>
+                  <td style={{ color:'#94a3b8' }}>{p.mediaPos||'—'}</td>
+                  <td>
+                    <div className="progress" style={{ width:60 }}><div className="progress-bar" style={{ width:`${p.forma||50}%`, background:'#60a5fa' }}/></div>
+                  </td>
+                </tr>
+              ))}
+              {analise.scores.length===0&&<tr><td colSpan={8} style={{ textAlign:'center', color:'#64748b', padding:30 }}>Sem dados de desempenho</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* DISPENSAR */}
+      {tab==='dispensar' && (
+        <div>
+          <div style={{ background:'rgba(239,68,68,.08)', border:'1px solid rgba(239,68,68,.2)', borderRadius:12, padding:'12px 16px', marginBottom:16, fontSize:13, color:'#94a3b8' }}>
+            ⚠️ Pombos identificados com score abaixo de 35 e pelo menos 1 prova registada. A decisão final é sempre do columbófilo.
+          </div>
+          {analise.dispensar.length===0
+            ? <EmptyState icon="✅" title="Efectivo saudável!" desc="Nenhum pombo identificado para dispensa com base nos dados actuais"/>
+            : <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                {analise.dispensar.map(p=>(
+                  <div key={p.id} className="card card-p" style={{ display:'flex', alignItems:'center', gap:12, borderColor:'rgba(239,68,68,.2)' }}>
+                    <div style={{ width:40, height:40, borderRadius:10, background:'#1a2840', display:'flex', alignItems:'center', justifyContent:'center', fontSize:20 }}>{p.emoji||'🐦'}</div>
+                    <div style={{ flex:1 }}>
+                      <div style={{ fontSize:13, fontWeight:500, color:'#fff' }}>{p.nome}</div>
+                      <div style={{ fontFamily:'JetBrains Mono', fontSize:10, color:'#64748b' }}>{p.anilha} · {p.nProvas} provas</div>
+                    </div>
+                    <div style={{ textAlign:'right' }}>
+                      <div style={{ fontFamily:'Barlow Condensed', fontSize:22, fontWeight:700, color:'#f87171' }}>{p.score}</div>
+                      <div style={{ fontSize:10, color:'#64748b' }}>SCORE</div>
+                    </div>
+                    <div style={{ fontSize:12, color:'#f87171' }}>❌ Score baixo</div>
+                  </div>
+                ))}
+              </div>
+          }
+        </div>
+      )}
+
+      {/* CASAIS RECOMENDADOS */}
+      {tab==='casais' && (
+        <div>
+          <div style={{ background:'rgba(30,217,138,.08)', border:'1px solid rgba(30,217,138,.2)', borderRadius:12, padding:'12px 16px', marginBottom:16, fontSize:13, color:'#94a3b8' }}>
+            🧬 Casais sugeridos com base no score individual. Prioriza pombos com score ≥60 sem consanguinidade directa.
+          </div>
+          {analise.casais.length===0
+            ? <EmptyState icon="🧬" title="Sem dados suficientes" desc="Necessita de pombos com score ≥60 de ambos os sexos para gerar sugestões"/>
+            : <div className="grid-2">
+                {analise.casais.map((casal,i)=>(
+                  <div key={i} className="card card-p">
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
+                      <div style={{ fontFamily:'Barlow Condensed', fontSize:20, fontWeight:700, color:'#1ed98a' }}>Score {casal.score}</div>
+                      {i<3&&<span style={{ fontSize:18 }}>{MEDAL[i]}</span>}
+                    </div>
+                    <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+                      <div style={{ flex:1, textAlign:'center' }}>
+                        <div style={{ fontSize:18, marginBottom:4 }}>{casal.macho.emoji||'🐦'}</div>
+                        <div style={{ fontSize:12, fontWeight:600, color:'#fff' }}>{casal.macho.nome}</div>
+                        <div style={{ fontFamily:'JetBrains Mono', fontSize:10, color:'#1ed98a' }}>{casal.macho.anilha}</div>
+                        <div style={{ fontSize:11, color:'#60a5fa' }}>♂ Score: {casal.macho.score}</div>
+                      </div>
+                      <div style={{ fontSize:20, color:'#475569' }}>×</div>
+                      <div style={{ flex:1, textAlign:'center' }}>
+                        <div style={{ fontSize:18, marginBottom:4 }}>{casal.femea.emoji||'🐦'}</div>
+                        <div style={{ fontSize:12, fontWeight:600, color:'#fff' }}>{casal.femea.nome}</div>
+                        <div style={{ fontFamily:'JetBrains Mono', fontSize:10, color:'#1ed98a' }}>{casal.femea.anilha}</div>
+                        <div style={{ fontSize:11, color:'#f472b6' }}>♀ Score: {casal.femea.score}</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+          }
+        </div>
+      )}
+
+      {/* RELATÓRIO IA */}
+      {tab==='ia' && (
+        <div>
+          {!textoIA && !gerandoIA && (
+            <div className="card card-p" style={{ textAlign:'center', padding:40 }}>
+              <div style={{ fontSize:48, marginBottom:16 }}>🧠</div>
+              <div style={{ fontSize:16, fontWeight:600, color:'#fff', marginBottom:8 }}>Relatório Inteligente de Época</div>
+              <div style={{ fontSize:13, color:'#64748b', marginBottom:20, maxWidth:400, margin:'0 auto 20px' }}>
+                A IA analisa todos os dados da época e gera um relatório profissional com resumo, análise do efectivo e recomendações para a próxima época.
+              </div>
+              <button className="btn btn-primary" onClick={gerarRelatorioIA} style={{ fontSize:15, padding:'12px 24px' }}>
+                🧠 Gerar Relatório com IA
+              </button>
+            </div>
+          )}
+          {gerandoIA && (
+            <div style={{ textAlign:'center', padding:60 }}>
+              <Spinner lg/>
+              <div style={{ fontSize:13, color:'#64748b', marginTop:16 }}>A IA está a analisar a época {ano}...</div>
+            </div>
+          )}
+          {textoIA && (
+            <div>
+              <div className="card card-p" style={{ marginBottom:12 }}>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
+                  <div style={{ fontWeight:600, color:'#fff' }}>🧠 Análise IA — Época {ano}</div>
+                  <div style={{ display:'flex', gap:8 }}>
+                    <button className="btn btn-secondary btn-sm" onClick={gerarRelatorioIA} disabled={gerandoIA}>🔄 Regenerar</button>
+                    <button className="btn btn-secondary btn-sm" onClick={()=>window.print()}>🖨️ Imprimir</button>
+                  </div>
+                </div>
+                <div style={{ fontSize:13, color:'#cbd5e1', lineHeight:1.8, whiteSpace:'pre-wrap' }}>{textoIA}</div>
+              </div>
+              <div style={{ fontSize:11, color:'#475569', textAlign:'center' }}>
+                Gerado por IA com base nos dados reais da época · ChampionsLoft {ano}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+
 function Documentos() {
   const toast = useToast()
   const [docs, setDocs] = useState([])
@@ -3196,7 +3556,7 @@ const NAV = [
   { section: 'Principal', items: [{ id: 'dashboard', icon: '📊', label: 'Dashboard' }, { id: 'pombos', icon: '🐦', label: 'Pombos' }, { id: 'pombais', icon: '🏠', label: 'Pombais' }] },
   { section: 'Desporto', items: [{ id: 'provas', icon: '🏆', label: 'Provas' }, { id: 'treinos', icon: '🎯', label: 'Treinos' }, { id: 'calendario', icon: '📅', label: 'Calendário' }] },
   { section: 'Gestão', items: [{ id: 'saude', icon: '🏥', label: 'Saúde' }, { id: 'reproducao', icon: '🥚', label: 'Reprodução' }, { id: 'alimentacao', icon: '🌾', label: 'Alimentação' }, { id: 'financas', icon: '💰', label: 'Finanças' }] },
-  { section: 'Análise', items: [{ id: 'relatorios', icon: '📊', label: 'Relatórios' }, { id: 'meteorologia', icon: '🌦️', label: 'Meteorologia' }, { id: 'perfil', icon: '⚙️', label: 'Perfil' }] },
+  { section: 'Análise', items: [{ id: 'relatorios', icon: '📊', label: 'Relatórios' }, { id: 'fimepoca', icon: '🏁', label: 'Fim de Época' }, { id: 'meteorologia', icon: '🌦️', label: 'Meteorologia' }, { id: 'perfil', icon: '⚙️', label: 'Perfil' }] },
 ]
 
 // ─── APP LAYOUT ───────────────────────────────────────
@@ -3224,6 +3584,7 @@ function AppLayout() {
       case 'alimentacao':   return <Alimentacao />
       case 'calendario':  return <Calendario />
       case 'relatorios':  return <Relatorios />
+      case 'fimepoca':     return <FimEpoca />
       case 'meteorologia':return <Meteorologia />
       default:            return <Dashboard nav={nav} />
     }
@@ -3313,4 +3674,5 @@ function AppContent() {
 
   return user ? <AppLayout /> : <Login />
 }
+
 
