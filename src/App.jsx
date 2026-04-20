@@ -1,12 +1,4 @@
-Pré-visualização de Arquivo
-
-Baixar
-
-Salvar no AI Drive
-
-Caminho do Arquivo
-/mnt/user-data/outputs/App.txt
-Copyimport { useState, useEffect, useCallback, createContext, useContext } from 'react'
+import { useState, useEffect, useCallback, createContext, useContext } from 'react'
 import { createClient } from '@supabase/supabase-js'
 
 // ─── SUPABASE ────────────────────────────────────────
@@ -1553,4 +1545,3 @@ function AppContent() {
 
   return user ? <AppLayout /> : <Login />
 }
-Copy
