@@ -2158,7 +2158,7 @@ function Alimentacao() {
         supabase.from('lofts').select('*').order('nome').then(r=>r.data||[]),
         supabase.from('alimentos').select('*').order('nome').then(r=>r.data||[]),
         supabase.from('racoes').select('*').order('nome').then(r=>r.data||[]),
-        supabase.from('tratamentos').select('*').order('nome').then(r=>r.data||[]),
+        supabase.from('tratamentos').select('*').order('created_at').then(r=>(r.data||[]).map(p=>({...p, nome:p.nome||p.produto||''}))),
         supabase.from('planos_tratamento').select('*').order('created_at',{ascending:false}).then(r=>r.data||[]),
       ])
       setPombais(pb); setAlimentos(al); setRacoes(ra); setProdutos(pr); setPlanos(pl)
@@ -2216,7 +2216,7 @@ function Alimentacao() {
     if (!formProd.nome.trim()) { toast('Nome obrigatório','warn'); return }
     try {
       const { data: { user } } = await supabase.auth.getUser()
-      const { error } = await supabase.from('tratamentos').insert({ nome:formProd.nome.trim(), tipo:formProd.tipo, indicacao:formProd.indicacao, dose:formProd.dose, stock:parseFloat(formProd.stock)||0, unidade:formProd.unidade, user_id:user.id })
+      const { error } = await supabase.from('tratamentos').insert({ nome:formProd.nome.trim(), produto:formProd.nome.trim(), tipo:formProd.tipo, indicacao:formProd.indicacao, dose:formProd.dose, stock:parseFloat(formProd.stock)||0, unidade:formProd.unidade, user_id:user.id })
       if (error) throw error
       toast('Produto adicionado!','ok'); setModalProduto(false); setFormProd({ nome:'',tipo:'Medicamento',indicacao:'',dose:'',stock:'',unidade:'g' }); load()
     } catch(e) { toast('Erro: '+e.message,'err') }
