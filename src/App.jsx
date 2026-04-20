@@ -236,6 +236,10 @@ function Login() {
   const [form, setForm] = useState({ email: '', password: '', nome: '' })
   const sf = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
+  const [termosAceites, setTermosAceites] = useState(false)
+  const [showTermos, setShowTermos] = useState(false)
+  const [showPrivacidade, setShowPrivacidade] = useState(false)
+
   const submit = async (e) => {
     e.preventDefault(); setLoading(true)
     try {
@@ -243,6 +247,7 @@ function Login() {
         await signIn(form.email, form.password)
       } else {
         if (!form.nome.trim()) { toast('Nome obrigatório', 'warn'); return }
+        if (!termosAceites) { toast('Deve aceitar os Termos e Política de Privacidade', 'warn'); setLoading(false); return }
         await signUp(form.email, form.password, { nome: form.nome })
         toast('Conta criada! Verifique o seu email.', 'ok')
         setMode('login')
@@ -285,12 +290,87 @@ function Login() {
           <Field label="Password *">
             <input className="input" type="password" placeholder="••••••••" value={form.password} onChange={e => sf('password', e.target.value)} required minLength={6} />
           </Field>
+          {mode === 'register' && (
+            <div style={{ display:'flex', alignItems:'flex-start', gap:10 }}>
+              <input type="checkbox" id="termos" checked={termosAceites} onChange={e=>setTermosAceites(e.target.checked)} style={{ marginTop:2, flexShrink:0, accentColor:'#1ed98a', width:16, height:16 }}/>
+              <label htmlFor="termos" style={{ fontSize:12, color:'#94a3b8', lineHeight:1.4 }}>
+                Aceito os{' '}
+                <button type="button" onClick={()=>setShowTermos(true)} style={{ background:'none', border:'none', color:'#1ed98a', cursor:'pointer', fontSize:12, textDecoration:'underline', padding:0 }}>Termos de Utilização</button>
+                {' '}e a{' '}
+                <button type="button" onClick={()=>setShowPrivacidade(true)} style={{ background:'none', border:'none', color:'#1ed98a', cursor:'pointer', fontSize:12, textDecoration:'underline', padding:0 }}>Política de Privacidade</button>
+              </label>
+            </div>
+          )}
           <button type="submit" className="btn btn-primary w-full" style={{ justifyContent: 'center', marginTop: 4 }} disabled={loading}>
             {loading ? <Spinner /> : null}
             {mode === 'login' ? 'Entrar' : 'Criar conta'}
           </button>
         </form>
       </div>
+
+      {/* Modal Termos */}
+      {showTermos && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.8)', zIndex:300, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+          <div style={{ background:'#141f2e', border:'1px solid #1e3050', borderRadius:20, width:'100%', maxWidth:500, maxHeight:'80vh', overflow:'hidden', display:'flex', flexDirection:'column' }}>
+            <div style={{ padding:'16px 20px', borderBottom:'1px solid #1e3050', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+              <div style={{ fontWeight:600, color:'#fff' }}>📋 Termos de Utilização</div>
+              <button className="btn btn-icon" onClick={()=>setShowTermos(false)}>✕</button>
+            </div>
+            <div style={{ padding:'20px', overflowY:'auto', fontSize:13, color:'#94a3b8', lineHeight:1.7 }}>
+              <p><strong style={{ color:'#fff' }}>1. Aceitação dos Termos</strong></p>
+              <p>Ao utilizar o ChampionsLoft, o utilizador aceita os presentes Termos de Utilização. Se não concordar com estes termos, não deverá utilizar o serviço.</p>
+              <p style={{ marginTop:12 }}><strong style={{ color:'#fff' }}>2. Descrição do Serviço</strong></p>
+              <p>O ChampionsLoft é uma plataforma de gestão columbófila que permite registar e gerir pombos, provas, saúde, reprodução e financeiro associado à actividade columbófila.</p>
+              <p style={{ marginTop:12 }}><strong style={{ color:'#fff' }}>3. Conta de Utilizador</strong></p>
+              <p>O utilizador é responsável pela confidencialidade das suas credenciais de acesso e por todas as actividades realizadas na sua conta.</p>
+              <p style={{ marginTop:12 }}><strong style={{ color:'#fff' }}>4. Dados e Privacidade</strong></p>
+              <p>Os dados introduzidos pelo utilizador são armazenados de forma segura. O ChampionsLoft não partilha dados pessoais com terceiros sem consentimento expresso.</p>
+              <p style={{ marginTop:12 }}><strong style={{ color:'#fff' }}>5. Propriedade Intelectual</strong></p>
+              <p>Todo o software, design e conteúdo do ChampionsLoft são propriedade dos seus criadores e estão protegidos por direitos de autor.</p>
+              <p style={{ marginTop:12 }}><strong style={{ color:'#fff' }}>6. Limitação de Responsabilidade</strong></p>
+              <p>O ChampionsLoft não se responsabiliza por perdas de dados resultantes de uso indevido ou falhas técnicas fora do controlo da plataforma.</p>
+              <p style={{ marginTop:12 }}><strong style={{ color:'#fff' }}>7. Alterações aos Termos</strong></p>
+              <p>Reservamos o direito de alterar estes termos. Os utilizadores serão notificados de alterações significativas por email.</p>
+              <p style={{ marginTop:12, color:'#475569', fontSize:11 }}>Última actualização: Abril 2026</p>
+            </div>
+            <div style={{ padding:'12px 20px', borderTop:'1px solid #1e3050' }}>
+              <button className="btn btn-primary w-full" style={{ justifyContent:'center' }} onClick={()=>{ setTermosAceites(true); setShowTermos(false) }}>✅ Aceitar e Fechar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Privacidade */}
+      {showPrivacidade && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.8)', zIndex:300, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+          <div style={{ background:'#141f2e', border:'1px solid #1e3050', borderRadius:20, width:'100%', maxWidth:500, maxHeight:'80vh', overflow:'hidden', display:'flex', flexDirection:'column' }}>
+            <div style={{ padding:'16px 20px', borderBottom:'1px solid #1e3050', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+              <div style={{ fontWeight:600, color:'#fff' }}>🔒 Política de Privacidade</div>
+              <button className="btn btn-icon" onClick={()=>setShowPrivacidade(false)}>✕</button>
+            </div>
+            <div style={{ padding:'20px', overflowY:'auto', fontSize:13, color:'#94a3b8', lineHeight:1.7 }}>
+              <p><strong style={{ color:'#fff' }}>1. Dados Recolhidos</strong></p>
+              <p>Recolhemos apenas os dados necessários para o funcionamento do serviço: nome, email, dados dos pombos e actividade columbófila introduzida pelo utilizador.</p>
+              <p style={{ marginTop:12 }}><strong style={{ color:'#fff' }}>2. Utilização dos Dados</strong></p>
+              <p>Os dados são utilizados exclusivamente para fornecer as funcionalidades da plataforma e melhorar a experiência do utilizador.</p>
+              <p style={{ marginTop:12 }}><strong style={{ color:'#fff' }}>3. Armazenamento Seguro</strong></p>
+              <p>Todos os dados são armazenados em servidores seguros com encriptação. Utilizamos o Supabase como fornecedor de base de dados, em conformidade com o RGPD.</p>
+              <p style={{ marginTop:12 }}><strong style={{ color:'#fff' }}>4. Partilha de Dados</strong></p>
+              <p>Não vendemos nem partilhamos os seus dados pessoais com terceiros para fins comerciais.</p>
+              <p style={{ marginTop:12 }}><strong style={{ color:'#fff' }}>5. Direitos do Utilizador</strong></p>
+              <p>Tem o direito de aceder, corrigir ou eliminar os seus dados a qualquer momento através das definições da conta ou contactando o suporte.</p>
+              <p style={{ marginTop:12 }}><strong style={{ color:'#fff' }}>6. Cookies</strong></p>
+              <p>Utilizamos apenas cookies essenciais para manter a sessão activa. Não utilizamos cookies de rastreamento ou publicidade.</p>
+              <p style={{ marginTop:12 }}><strong style={{ color:'#fff' }}>7. Contacto</strong></p>
+              <p>Para questões relacionadas com privacidade, contacte-nos através do suporte da plataforma.</p>
+              <p style={{ marginTop:12, color:'#475569', fontSize:11 }}>Última actualização: Abril 2026 · Conforme RGPD</p>
+            </div>
+            <div style={{ padding:'12px 20px', borderTop:'1px solid #1e3050' }}>
+              <button className="btn btn-primary w-full" style={{ justifyContent:'center' }} onClick={()=>{ setTermosAceites(true); setShowPrivacidade(false) }}>✅ Aceitar e Fechar</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -769,7 +849,7 @@ function Provas() {
 
   useEffect(()=>{ load() },[load])
 
-  const hoje = new Date().toISOString().slice(0,10)
+const hoje = new Date().toISOString().slice(0,10)
   // Prova é "realizada" se a data já passou OU se tem resultados (lugar/vel definidos)
   const passadas = provas.filter(p=>p.data_reg<=hoje || p.lugar || p.vel)
   const futuras = provas.filter(p=>p.data_reg>hoje && !p.lugar && !p.vel)
@@ -1406,7 +1486,11 @@ function Perfil() {
   const toast = useToast()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [form, setForm] = useState({ nome: '', tel: '', fed: '', org: '', pombal_nome: '', pombal_morada: '', pombal_lat: '', pombal_lon: '' })
+  const [fotoPerfilFile, setFotoPerfilFile] = useState(null)
+  const [fotoPombalFile, setFotoPombalFile] = useState(null)
+  const [fotoPerfilPreview, setFotoPerfilPreview] = useState(null)
+  const [fotoPombalPreview, setFotoPombalPreview] = useState(null)
+  const [form, setForm] = useState({ nome:'', tel:'', fed:'', org:'', pombal_nome:'', pombal_morada:'', pombal_lat:'', pombal_lon:'', foto_perfil_url:'', foto_pombal_url:'' })
   const sf = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
   useEffect(() => {
@@ -1414,31 +1498,52 @@ function Perfil() {
       setLoading(true)
       try {
         const p = await db.getPerfil()
-        if (p) setForm({ nome: p.nome || '', tel: p.tel || '', fed: p.fed || '', org: p.org || '', pombal_nome: p.pombal_nome || '', pombal_morada: p.pombal_morada || '', pombal_lat: String(p.pombal_lat || ''), pombal_lon: String(p.pombal_lon || '') })
+        if (p) setForm({ nome:p.nome||'', tel:p.tel||'', fed:p.fed||'', org:p.org||'', pombal_nome:p.pombal_nome||'', pombal_morada:p.pombal_morada||'', pombal_lat:String(p.pombal_lat||''), pombal_lon:String(p.pombal_lon||''), foto_perfil_url:p.foto_perfil_url||'', foto_pombal_url:p.foto_pombal_url||'' })
         else setForm(f => ({ ...f, nome: user?.user_metadata?.nome || '' }))
-      } catch (e) { }
+      } catch(e) {}
       finally { setLoading(false) }
     }
     load()
   }, [user])
 
+  const uploadFoto = async (file, path) => {
+    const ext = file.name.split('.').pop()
+    const fullPath = `${path}.${ext}`
+    const { error } = await supabase.storage.from('fotos').upload(fullPath, file, { upsert: true })
+    if (error) throw error
+    const { data } = supabase.storage.from('fotos').getPublicUrl(fullPath)
+    return data.publicUrl
+  }
+
   const save = async () => {
     if (!form.nome.trim()) { toast('Nome obrigatório', 'warn'); return }
     setSaving(true)
     try {
-      await db.savePerfil({ nome: form.nome, tel: form.tel, fed: form.fed, org: form.org, pombal_nome: form.pombal_nome, pombal_morada: form.pombal_morada, pombal_lat: form.pombal_lat ? parseFloat(form.pombal_lat) : null, pombal_lon: form.pombal_lon ? parseFloat(form.pombal_lon) : null })
-      toast('Perfil guardado na cloud! ✅', 'ok')
-    } catch (e) { toast('Erro: ' + e.message, 'err') }
+      let foto_perfil_url = form.foto_perfil_url
+      let foto_pombal_url = form.foto_pombal_url
+      const uid = user?.id
+      if (fotoPerfilFile && uid) {
+        try { foto_perfil_url = await uploadFoto(fotoPerfilFile, `perfis/${uid}/columbofilo`) }
+        catch(e) { toast('Foto perfil não guardada: ' + e.message, 'warn') }
+      }
+      if (fotoPombalFile && uid) {
+        try { foto_pombal_url = await uploadFoto(fotoPombalFile, `perfis/${uid}/pombal`) }
+        catch(e) { toast('Foto pombal não guardada: ' + e.message, 'warn') }
+      }
+      await db.savePerfil({ nome:form.nome, tel:form.tel, fed:form.fed, org:form.org, pombal_nome:form.pombal_nome, pombal_morada:form.pombal_morada, pombal_lat:form.pombal_lat?parseFloat(form.pombal_lat):null, pombal_lon:form.pombal_lon?parseFloat(form.pombal_lon):null, foto_perfil_url, foto_pombal_url })
+      setForm(f => ({ ...f, foto_perfil_url, foto_pombal_url }))
+      toast('Perfil guardado! ✅', 'ok')
+    } catch(e) { toast('Erro: ' + e.message, 'err') }
     finally { setSaving(false) }
   }
 
-  if (loading) return <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}><Spinner lg /></div>
+  if (loading) return <div style={{ display:'flex', justifyContent:'center', padding:60 }}><Spinner lg /></div>
 
   return (
     <div>
       <div className="section-header">
         <div><div className="section-title">Perfil</div><div className="section-sub">{user?.email}</div></div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display:'flex', gap:8 }}>
           <button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? <Spinner /> : '💾'} Guardar</button>
           <button className="btn btn-secondary" onClick={signOut}>Sair</button>
         </div>
@@ -1446,49 +1551,59 @@ function Perfil() {
 
       <div className="grid-2">
         <div className="card card-p">
-          <div style={{ fontWeight: 600, color: '#fff', marginBottom: 16 }}>👤 Dados Pessoais</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div style={{ fontWeight:600, color:'#fff', marginBottom:16 }}>👤 Dados Pessoais</div>
+          <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+            {/* Foto perfil */}
             <div style={{ display:'flex', alignItems:'center', gap:14 }}>
               <div onClick={()=>document.getElementById('foto-perfil-up').click()}
-                style={{ width:72, height:72, borderRadius:14, border:'2px dashed #243860', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden', cursor:'pointer', flexShrink:0, background:'#1a2840' }}>
-                {(fotoPerfilPreview||form.foto_perfil_url) ? <img src={fotoPerfilPreview||form.foto_perfil_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}/> : <span style={{ fontSize:28 }}>👤</span>}
+                style={{ width:80, height:80, borderRadius:14, border:'2px dashed #243860', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden', cursor:'pointer', flexShrink:0, background:'#1a2840', position:'relative' }}>
+                {(fotoPerfilPreview||form.foto_perfil_url)
+                  ? <img src={fotoPerfilPreview||form.foto_perfil_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>
+                  : <span style={{ fontSize:32 }}>👤</span>}
+                <div style={{ position:'absolute', bottom:4, right:4, background:'#1ed98a', borderRadius:'50%', width:20, height:20, display:'flex', alignItems:'center', justifyContent:'center', fontSize:12 }}>📷</div>
               </div>
               <div>
-                <input type="file" id="foto-perfil-up" accept="image/*" style={{ display:'none' }} onChange={e=>{ const f=e.target.files[0]; if(f){setFotoPerfilFile(f);setFotoPerfilPreview(URL.createObjectURL(f))} }}/>
-                <button className="btn btn-secondary btn-sm" onClick={()=>document.getElementById('foto-perfil-up').click()}>📸 Foto</button>
-                <div style={{ fontSize:11, color:'#64748b', marginTop:4 }}>Foto do columbófilo</div>
+                <input type="file" id="foto-perfil-up" accept="image/*" style={{ display:'none' }}
+                  onChange={e=>{ const f=e.target.files[0]; if(f){setFotoPerfilFile(f);setFotoPerfilPreview(URL.createObjectURL(f))} }}/>
+                <div style={{ fontSize:13, fontWeight:500, color:'#fff' }}>Foto do columbófilo</div>
+                <div style={{ fontSize:11, color:'#64748b', marginTop:2 }}>Toque na imagem para alterar</div>
               </div>
             </div>
-            <Field label="Nome Completo *"><input className="input" value={form.nome} onChange={e => sf('nome', e.target.value)} /></Field>
-            <Field label="Email"><input className="input" value={user?.email} disabled style={{ opacity: .6 }} /></Field>
-            <Field label="Telefone"><input className="input" placeholder="+351 9XX XXX XXX" value={form.tel} onChange={e => sf('tel', e.target.value)} /></Field>
-            <Field label="Nº Federativo"><input className="input" placeholder="FCP-2026-XXXX" value={form.fed} onChange={e => sf('fed', e.target.value)} /></Field>
-            <Field label="Organização / Clube"><input className="input" placeholder="Sociedade Columbófila..." value={form.org} onChange={e => sf('org', e.target.value)} /></Field>
+            <Field label="Nome Completo *"><input className="input" value={form.nome} onChange={e=>sf('nome',e.target.value)}/></Field>
+            <Field label="Email"><input className="input" value={user?.email} disabled style={{ opacity:.6 }}/></Field>
+            <Field label="Telefone"><input className="input" placeholder="+351 9XX XXX XXX" value={form.tel} onChange={e=>sf('tel',e.target.value)}/></Field>
+            <Field label="Nº Federativo"><input className="input" placeholder="FCP-2026-XXXX" value={form.fed} onChange={e=>sf('fed',e.target.value)}/></Field>
+            <Field label="Organização / Clube"><input className="input" placeholder="Sociedade Columbófila..." value={form.org} onChange={e=>sf('org',e.target.value)}/></Field>
           </div>
         </div>
 
         <div className="card card-p">
-          <div style={{ fontWeight: 600, color: '#fff', marginBottom: 16 }}>🏠 Dados do Pombal</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div style={{ fontWeight:600, color:'#fff', marginBottom:16 }}>🏠 Dados do Pombal</div>
+          <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+            {/* Foto pombal */}
             <div style={{ display:'flex', alignItems:'center', gap:14 }}>
               <div onClick={()=>document.getElementById('foto-pombal-up').click()}
-                style={{ width:72, height:72, borderRadius:14, border:'2px dashed #243860', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden', cursor:'pointer', flexShrink:0, background:'#1a2840' }}>
-                {(fotoPombalPreview||form.foto_pombal_url) ? <img src={fotoPombalPreview||form.foto_pombal_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}/> : <span style={{ fontSize:28 }}>🏠</span>}
+                style={{ width:80, height:80, borderRadius:14, border:'2px dashed #243860', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden', cursor:'pointer', flexShrink:0, background:'#1a2840', position:'relative' }}>
+                {(fotoPombalPreview||form.foto_pombal_url)
+                  ? <img src={fotoPombalPreview||form.foto_pombal_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>
+                  : <span style={{ fontSize:32 }}>🏠</span>}
+                <div style={{ position:'absolute', bottom:4, right:4, background:'#1ed98a', borderRadius:'50%', width:20, height:20, display:'flex', alignItems:'center', justifyContent:'center', fontSize:12 }}>📷</div>
               </div>
               <div>
-                <input type="file" id="foto-pombal-up" accept="image/*" style={{ display:'none' }} onChange={e=>{ const f=e.target.files[0]; if(f){setFotoPombalFile(f);setFotoPombalPreview(URL.createObjectURL(f))} }}/>
-                <button className="btn btn-secondary btn-sm" onClick={()=>document.getElementById('foto-pombal-up').click()}>📸 Foto</button>
-                <div style={{ fontSize:11, color:'#64748b', marginTop:4 }}>Foto do pombal</div>
+                <input type="file" id="foto-pombal-up" accept="image/*" style={{ display:'none' }}
+                  onChange={e=>{ const f=e.target.files[0]; if(f){setFotoPombalFile(f);setFotoPombalPreview(URL.createObjectURL(f))} }}/>
+                <div style={{ fontSize:13, fontWeight:500, color:'#fff' }}>Foto do pombal</div>
+                <div style={{ fontSize:11, color:'#64748b', marginTop:2 }}>Toque na imagem para alterar</div>
               </div>
             </div>
-            <Field label="Nome do Pombal"><input className="input" placeholder="Pombal da Quinta..." value={form.pombal_nome} onChange={e => sf('pombal_nome', e.target.value)} /></Field>
-            <Field label="Morada"><input className="input" placeholder="Localidade, Concelho" value={form.pombal_morada} onChange={e => sf('pombal_morada', e.target.value)} /></Field>
-            <Field label="Latitude GPS"><input className="input" placeholder="38.80234" value={form.pombal_lat} onChange={e => sf('pombal_lat', e.target.value)} /></Field>
-            <Field label="Longitude GPS"><input className="input" placeholder="-9.38142" value={form.pombal_lon} onChange={e => sf('pombal_lon', e.target.value)} /></Field>
+            <Field label="Nome do Pombal"><input className="input" placeholder="Pombal da Quinta..." value={form.pombal_nome} onChange={e=>sf('pombal_nome',e.target.value)}/></Field>
+            <Field label="Morada"><input className="input" placeholder="Localidade, Concelho" value={form.pombal_morada} onChange={e=>sf('pombal_morada',e.target.value)}/></Field>
+            <Field label="Latitude GPS"><input className="input" placeholder="38.80234" value={form.pombal_lat} onChange={e=>sf('pombal_lat',e.target.value)}/></Field>
+            <Field label="Longitude GPS"><input className="input" placeholder="-9.38142" value={form.pombal_lon} onChange={e=>sf('pombal_lon',e.target.value)}/></Field>
             {form.pombal_lat && form.pombal_lon && (
-              <div style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid #243860', height: 140 }}>
-                <iframe width="100%" height="100%" frameBorder="0" style={{ display: 'block' }}
-                  src={`https://maps.google.com/maps?q=${form.pombal_lat},${form.pombal_lon}&z=14&output=embed`} />
+              <div style={{ borderRadius:10, overflow:'hidden', border:'1px solid #243860', height:140 }}>
+                <iframe width="100%" height="100%" frameBorder="0" style={{ display:'block' }}
+                  src={`https://maps.google.com/maps?q=${form.pombal_lat},${form.pombal_lon}&z=14&output=embed`}/>
               </div>
             )}
           </div>
@@ -1940,69 +2055,246 @@ function Reproducao() {
 
 function Alimentacao() {
   const toast = useToast()
-  const [tab, setTab] = useState('racoes')
-  const [racoes, setRacoes] = useState([
-    { id:1, nome:'Mistura Competição', fase:'Competição', stock:180, min:50, comps:[{n:'Milho',p:40},{n:'Cevada',p:25},{n:'Ervilha',p:20},{n:'Girassol',p:15}] },
-    { id:2, nome:'Mistura Reprodução', fase:'Reprodução', stock:90, min:30, comps:[{n:'Milho',p:30},{n:'Ervilha',p:30},{n:'Cevada',p:20},{n:'Amendoim',p:20}] },
-  ])
-  const [modal, setModal] = useState(false)
-  const [form, setForm] = useState({ nome:'', fase:'Competição', stock:'', min:'50' })
-  const sf = (k,v) => setForm(f=>({...f,[k]:v}))
+  const [tab, setTab] = useState('stock')
+  const [pombais, setPombais] = useState([])
+  const [loading, setLoading] = useState(true)
 
-  const COMERCIAIS = [
-    { nome:'Versele-Laga Superstar', marca:'Versele-Laga', fase:'Competição', comps:[{n:'Milho',p:38},{n:'Cevada',p:22},{n:'Ervilha',p:18},{n:'Trigo',p:12},{n:'Arroz',p:10}] },
-    { nome:'Versele-Laga Breedmaster', marca:'Versele-Laga', fase:'Reprodução', comps:[{n:'Milho',p:32},{n:'Ervilha',p:28},{n:'Cevada',p:20},{n:'Amendoim',p:12},{n:'Cártamo',p:8}] },
-    { nome:'Beyers Olympic', marca:'Beyers', fase:'Competição', comps:[{n:'Milho',p:40},{n:'Cevada',p:20},{n:'Ervilha',p:20},{n:'Girassol',p:10},{n:'Trigo',p:10}] },
-    { nome:'Roehnfried Spezial', marca:'Roehnfried', fase:'Competição', comps:[{n:'Milho',p:42},{n:'Cevada',p:20},{n:'Ervilha',p:18},{n:'Triticale',p:12},{n:'Girassol',p:8}] },
-    { nome:'DAC Widowhood', marca:'DAC', fase:'Viuvez', comps:[{n:'Milho',p:45},{n:'Cevada',p:28},{n:'Ervilha',p:15},{n:'Girassol',p:8},{n:'Trigo',p:4}] },
-    { nome:'Mistura de Muda', marca:'Própria', fase:'Muda', comps:[{n:'Milho',p:30},{n:'Cevada',p:30},{n:'Ervilha',p:20},{n:'Linho',p:12},{n:'Cânhamo',p:8}] },
-  ]
+  // Stock de alimentos
+  const [alimentos, setAlimentos] = useState([])
+  const [modalAlimento, setModalAlimento] = useState(false)
+  const [formAlim, setFormAlim] = useState({ nome:'', tipo:'Cereal', stock:'', minimo:'20', preco_kg:'' })
+  const sfA = (k,v) => setFormAlim(f=>({...f,[k]:v}))
 
-  const addRacao = () => {
-    if (!form.nome.trim()) { toast('Nome obrigatório','warn'); return }
-    setRacoes(r=>[...r, { id:Date.now(), nome:form.nome, fase:form.fase, stock:parseInt(form.stock)||0, min:parseInt(form.min)||50, comps:[] }])
-    toast('Ração adicionada!','ok'); setModal(false)
+  // Rações
+  const [racoes, setRacoes] = useState([])
+  const [modalRacao, setModalRacao] = useState(false)
+  const [formRacao, setFormRacao] = useState({ nome:'', fase:'Competição', comps:[] })
+  const [novoComp, setNovoComp] = useState({ nome:'', pct:'' })
+
+  // Tratamentos - produtos
+  const [produtos, setProdutos] = useState([])
+  const [modalProduto, setModalProduto] = useState(false)
+  const [formProd, setFormProd] = useState({ nome:'', tipo:'Medicamento', indicacao:'', dose:'', stock:'', unidade:'g' })
+  const sfP = (k,v) => setFormProd(f=>({...f,[k]:v}))
+
+  // Planos tratamento
+  const [planos, setPlanos] = useState([])
+  const [modalPlano, setModalPlano] = useState(false)
+  const [formPlano, setFormPlano] = useState({ produto:'', pombal:'', dose:'', via:'Água', n_pombos:'', inicio:new Date().toISOString().slice(0,10), fim:'', estado:'ativo' })
+  const sfPl = (k,v) => setFormPlano(f=>({...f,[k]:v}))
+
+  // Calculadora
+  const [calc, setCalc] = useState({ produto:'', pombal:'', n_pombos:'', dose_pombo:'', racao_pombo:'80', litros:'10' })
+  const sfC = (k,v) => setCalc(f=>({...f,[k]:v}))
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      const [pb, al, ra, pr, pl] = await Promise.all([
+        supabase.from('lofts').select('*').order('nome').then(r=>r.data||[]),
+        supabase.from('alimentos').select('*').order('nome').then(r=>r.data||[]),
+        supabase.from('racoes').select('*').order('nome').then(r=>r.data||[]),
+        supabase.from('tratamentos').select('*').order('nome').then(r=>r.data||[]),
+        supabase.from('planos_tratamento').select('*').order('created_at',{ascending:false}).then(r=>r.data||[]),
+      ])
+      setPombais(pb); setAlimentos(al); setRacoes(ra); setProdutos(pr); setPlanos(pl)
+    } catch(e) { toast('Erro: '+e.message,'err') }
+    finally { setLoading(false) }
+  },[])
+
+  useEffect(()=>{ load() },[load])
+
+  // ── Alimentos CRUD
+  const saveAlimento = async () => {
+    if (!formAlim.nome.trim()) { toast('Nome obrigatório','warn'); return }
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      const { error } = await supabase.from('alimentos').insert({ nome:formAlim.nome.trim(), tipo:formAlim.tipo, stock:parseFloat(formAlim.stock)||0, minimo:parseFloat(formAlim.minimo)||20, preco_kg:parseFloat(formAlim.preco_kg)||0, user_id:user.id })
+      if (error) throw error
+      toast('Alimento adicionado!','ok'); setModalAlimento(false); setFormAlim({ nome:'',tipo:'Cereal',stock:'',minimo:'20',preco_kg:'' }); load()
+    } catch(e) { toast('Erro: '+e.message,'err') }
   }
 
-  const addComercial = (r) => {
-    setRacoes(prev=>[...prev, { id:Date.now(), ...r, stock:0, min:20 }])
-    toast(`${r.nome} adicionada!`,'ok')
+  const updateStock = async (id, delta) => {
+    const al = alimentos.find(a=>a.id===id); if (!al) return
+    const novo = Math.max(0, (al.stock||0)+delta)
+    await supabase.from('alimentos').update({ stock:novo }).eq('id',id)
+    load()
   }
 
-  const delRacao = (id) => { setRacoes(r=>r.filter(x=>x.id!==id)); toast('Removida','ok') }
+  const delAlimento = async (id) => {
+    await supabase.from('alimentos').delete().eq('id',id); load()
+  }
+
+  // ── Rações CRUD
+  const saveRacao = async () => {
+    if (!formRacao.nome.trim()) { toast('Nome obrigatório','warn'); return }
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      const { error } = await supabase.from('racoes').insert({ nome:formRacao.nome.trim(), fase:formRacao.fase, componentes:formRacao.comps, user_id:user.id })
+      if (error) throw error
+      toast('Ração criada!','ok'); setModalRacao(false); setFormRacao({ nome:'',fase:'Competição',comps:[] }); load()
+    } catch(e) { toast('Erro: '+e.message,'err') }
+  }
+
+  const addComp = () => {
+    if (!novoComp.nome||!novoComp.pct) return
+    setFormRacao(f=>({ ...f, comps:[...f.comps, { n:novoComp.nome, p:parseInt(novoComp.pct) }] }))
+    setNovoComp({ nome:'',pct:'' })
+  }
+
+  const delRacao = async (id) => {
+    await supabase.from('racoes').delete().eq('id',id); load()
+  }
+
+  // ── Produtos CRUD
+  const saveProduto = async () => {
+    if (!formProd.nome.trim()) { toast('Nome obrigatório','warn'); return }
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      const { error } = await supabase.from('tratamentos').insert({ nome:formProd.nome.trim(), tipo:formProd.tipo, indicacao:formProd.indicacao, dose:formProd.dose, stock:parseFloat(formProd.stock)||0, unidade:formProd.unidade, user_id:user.id })
+      if (error) throw error
+      toast('Produto adicionado!','ok'); setModalProduto(false); setFormProd({ nome:'',tipo:'Medicamento',indicacao:'',dose:'',stock:'',unidade:'g' }); load()
+    } catch(e) { toast('Erro: '+e.message,'err') }
+  }
+
+  const updateStockProd = async (id, delta) => {
+    const pr = produtos.find(p=>p.id===id); if (!pr) return
+    const novo = Math.max(0, (pr.stock||0)+delta)
+    await supabase.from('tratamentos').update({ stock:novo }).eq('id',id)
+    load()
+  }
+
+  const delProduto = async (id) => {
+    await supabase.from('tratamentos').delete().eq('id',id); load()
+  }
+
+  // ── Planos CRUD
+  const savePlano = async () => {
+    if (!formPlano.produto) { toast('Produto obrigatório','warn'); return }
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      const { error } = await supabase.from('planos_tratamento').insert({ produto:formPlano.produto, pombal:formPlano.pombal, dose:formPlano.dose, via:formPlano.via, n_pombos:parseInt(formPlano.n_pombos)||null, inicio:formPlano.inicio, fim:formPlano.fim||null, estado:formPlano.estado, user_id:user.id })
+      if (error) throw error
+      toast('Plano criado!','ok'); setModalPlano(false); load()
+    } catch(e) { toast('Erro: '+e.message,'err') }
+  }
+
+  const delPlano = async (id) => {
+    await supabase.from('planos_tratamento').delete().eq('id',id); load()
+  }
+
+  // ── Calculadora
+  const produtoCalc = produtos.find(p=>p.nome===calc.produto)
+  const totalProduto = calc.n_pombos && calc.dose_pombo ? (parseFloat(calc.n_pombos)*parseFloat(calc.dose_pombo)).toFixed(1) : 0
+  const totalRacao = calc.n_pombos && calc.racao_pombo ? (parseFloat(calc.n_pombos)*parseFloat(calc.racao_pombo)/1000).toFixed(2) : 0
+  const concAgua = calc.litros && totalProduto ? (totalProduto/parseFloat(calc.litros)).toFixed(1) : 0
+
+  const CORES_COMP = ['#1ed98a','#C9A44A','#2E7DD4','#D94F4F','#6C4FBB','#E07B39']
+  const totalKgStock = alimentos.reduce((s,a)=>s+(a.stock||0),0)
+  const alertasStock = alimentos.filter(a=>(a.stock||0)<(a.minimo||20)).length
+  const planosAtivos = planos.filter(p=>p.estado==='ativo').length
 
   return (
     <div>
       <div className="section-header">
-        <div><div className="section-title">Alimentação</div></div>
+        <div><div className="section-title">Alimentação & Tratamento</div></div>
       </div>
-      <div style={{ display:'flex', gap:4, background:'#1a2840', borderRadius:10, padding:4, marginBottom:20, width:'fit-content' }}>
-        {[['racoes','🌾 Rações'],['comerciais','🛍️ Mercado']].map(([t,l])=>(
-          <button key={t} onClick={()=>setTab(t)} style={{ padding:'8px 16px', borderRadius:8, fontSize:13, fontWeight:500, cursor:'pointer', border:'none', fontFamily:'inherit', background:tab===t?'#1ed98a':'none', color:tab===t?'#0a0f14':'#94a3b8' }}>{l}</button>
+
+      {/* Tabs */}
+      <div style={{ display:'flex', gap:4, background:'#1a2840', borderRadius:10, padding:4, marginBottom:20, overflowX:'auto' }}>
+        {[['stock','🌾 Stock'],['racoes','🥣 Rações'],['tratamento','💊 Tratamento'],['calculadora','🧮 Calculadora'],['historico','📋 Histórico']].map(([t,l])=>(
+          <button key={t} onClick={()=>setTab(t)} style={{ padding:'8px 14px', borderRadius:8, fontSize:13, fontWeight:500, cursor:'pointer', border:'none', fontFamily:'inherit', whiteSpace:'nowrap', background:tab===t?'#1ed98a':'none', color:tab===t?'#0a0f14':'#94a3b8' }}>{l}</button>
         ))}
       </div>
+
+      {loading && tab!=='calculadora' ? <div style={{ display:'flex', justifyContent:'center', padding:60 }}><Spinner lg/></div> : <>
+
+      {/* ── STOCK ── */}
+      {tab==='stock' && (
+        <div>
+          <div className="grid-4 mb-6">
+            <KpiCard icon="🌾" label="Alimentos Ativos" value={alimentos.length} color="text-green"/>
+            <KpiCard icon="⚖️" label="Kg em Stock" value={totalKgStock.toFixed(0)+'kg'} color="text-blue"/>
+            <KpiCard icon="⚠️" label="Alertas Stock" value={alertasStock} color={alertasStock>0?'text-red':'text-green'}/>
+            <KpiCard icon="💊" label="Planos Activos" value={planosAtivos} color="text-yellow"/>
+          </div>
+          <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:12 }}>
+            <button className="btn btn-primary" onClick={()=>setModalAlimento(true)}>＋ Novo Alimento</button>
+          </div>
+          {alimentos.length===0 ? <EmptyState icon="🌾" title="Sem alimentos" desc="Adicione os ingredientes das suas rações" action={<button className="btn btn-primary" onClick={()=>setModalAlimento(true)}>＋ Novo Alimento</button>}/>
+          : <div className="card" style={{ overflowX:'auto' }}>
+              <table>
+                <thead><tr><th>Alimento</th><th>Tipo</th><th>Stock</th><th>Mínimo</th><th>Preço/kg</th><th>Estado</th><th>Acções</th></tr></thead>
+                <tbody>
+                  {alimentos.map(a=>{
+                    const baixo = (a.stock||0)<(a.minimo||20)
+                    return (
+                      <tr key={a.id}>
+                        <td style={{ fontWeight:500 }}>{a.nome}{baixo&&<span style={{ marginLeft:6, fontSize:10, background:'rgba(239,68,68,.1)', color:'#f87171', padding:'1px 6px', borderRadius:4 }}>⚠️ MÍNIMO</span>}</td>
+                        <td><Badge>{a.tipo}</Badge></td>
+                        <td style={{ fontFamily:'Barlow Condensed', fontSize:16, fontWeight:700, color:baixo?'#f87171':'#fff' }}>{a.stock}kg</td>
+                        <td style={{ color:'#64748b' }}>{a.minimo}kg</td>
+                        <td style={{ color:'#94a3b8' }}>{a.preco_kg?a.preco_kg+'€/kg':'—'}</td>
+                        <td><Badge v={baixo?'red':'green'}>{baixo?'ALERTA':'OK'}</Badge></td>
+                        <td>
+                          <div style={{ display:'flex', gap:4 }}>
+                            <button className="btn btn-secondary btn-sm" onClick={()=>updateStock(a.id,5)}>+5kg</button>
+                            <button className="btn btn-secondary btn-sm" onClick={()=>updateStock(a.id,-5)}>-5kg</button>
+                            <button className="btn btn-icon btn-sm" onClick={()=>delAlimento(a.id)}>🗑️</button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          }
+        </div>
+      )}
+
+      {/* ── RAÇÕES ── */}
       {tab==='racoes' && (
         <div>
-          <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:16 }}>
-            <button className="btn btn-primary" onClick={()=>setModal(true)}>＋ Nova Ração</button>
+          <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:12 }}>
+            <button className="btn btn-primary" onClick={()=>{ setFormRacao({ nome:'',fase:'Competição',comps:[] }); setModalRacao(true) }}>＋ Nova Ração</button>
           </div>
-          {racoes.length===0 ? <EmptyState icon="🌾" title="Sem rações" desc="Adicione uma ração" />
-          : <div className="grid-2">
-              {racoes.map(r => {
-                const baixo = r.stock < r.min
-                const pct = Math.min(r.stock/Math.max(r.min*2,1)*100, 100)
+          {racoes.length===0 ? <EmptyState icon="🥣" title="Sem rações" desc="Crie as composições das suas misturas" action={<button className="btn btn-primary" onClick={()=>setModalRacao(true)}>＋ Nova Ração</button>}/>
+          : <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+              {racoes.map(r=>{
+                const comps = r.componentes||[]
+                const total = comps.reduce((s,c)=>s+c.p,0)||1
+                let offset = 0
                 return (
-                  <div key={r.id} className="card card-p" style={{ border: baixo?'1px solid rgba(239,68,68,.3)':'1px solid #1e3050' }}>
+                  <div key={r.id} className="card card-p">
                     <div style={{ display:'flex', justifyContent:'space-between', marginBottom:10 }}>
-                      <div><div style={{ fontWeight:600, color:'#fff' }}>{r.nome}</div><div style={{ fontSize:12, color:'#64748b' }}>{r.fase}</div></div>
-                      <button className="btn btn-icon btn-sm" onClick={()=>delRacao(r.id)}>🗑️</button>
+                      <div><div style={{ fontWeight:600, color:'#fff', fontSize:15 }}>{r.nome}</div><div style={{ fontSize:12, color:'#64748b' }}>{r.fase}</div></div>
+                      <div style={{ display:'flex', gap:6 }}>
+                        <button className="btn btn-secondary btn-sm" onClick={()=>window.print()}>🖨️</button>
+                        <button className="btn btn-icon btn-sm" onClick={()=>delRacao(r.id)}>🗑️</button>
+                      </div>
                     </div>
-                    <div style={{ display:'flex', justifyContent:'space-between', fontSize:13, marginBottom:6 }}>
-                      <span style={{ color:'#94a3b8' }}>Stock</span>
-                      <span style={{ fontWeight:600, color:baixo?'#f87171':'#fff' }}>{r.stock}kg {baixo&&<span style={{ fontSize:11 }}>⚠️ mín:{r.min}kg</span>}</span>
-                    </div>
-                    <div className="progress"><div className="progress-bar" style={{ width:`${pct}%`, background:baixo?'#f87171':'#1ed98a' }}/></div>
-                    {r.comps?.length>0 && <div style={{ display:'flex', flexWrap:'wrap', gap:4, marginTop:10 }}>{r.comps.map(c=><span key={c.n} className="badge badge-gray" style={{ fontSize:10 }}>{c.n} {c.p}%</span>)}</div>}
+                    {comps.length>0&&(
+                      <>
+                        {/* Barra colorida */}
+                        <div style={{ height:20, borderRadius:8, overflow:'hidden', display:'flex', marginBottom:8 }}>
+                          {comps.map((comp,i)=>(
+                            <div key={i} style={{ width:`${comp.p/total*100}%`, background:CORES_COMP[i%CORES_COMP.length] }}/>
+                          ))}
+                        </div>
+                        {/* Legenda */}
+                        <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
+                          {comps.map((comp,i)=>(
+                            <div key={i} style={{ display:'flex', alignItems:'center', gap:4, fontSize:12, color:'#cbd5e1' }}>
+                              <div style={{ width:10, height:10, borderRadius:2, background:CORES_COMP[i%CORES_COMP.length] }}/>
+                              {comp.n}: <strong>{comp.p}%</strong>
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    )}
                   </div>
                 )
               })}
@@ -2010,37 +2302,214 @@ function Alimentacao() {
           }
         </div>
       )}
-      {tab==='comerciais' && (
+
+      {/* ── TRATAMENTO ── */}
+      {tab==='tratamento' && (
         <div>
-          <p style={{ fontSize:13, color:'#64748b', marginBottom:16 }}>Rações comerciais disponíveis no mercado. Toque em + para adicionar à sua lista.</p>
-          <div className="grid-2">
-            {COMERCIAIS.map((r,i)=>(
-              <div key={i} className="card card-p">
-                <div style={{ display:'flex', justifyContent:'space-between', marginBottom:8 }}>
-                  <div><div style={{ fontWeight:500, color:'#fff', fontSize:13 }}>{r.nome}</div><div style={{ fontSize:11, color:'#64748b' }}>{r.marca} · {r.fase}</div></div>
-                  <button className="btn btn-primary btn-sm" onClick={()=>addComercial(r)}>＋</button>
-                </div>
-                <div style={{ display:'flex', flexWrap:'wrap', gap:4 }}>{r.comps.map(c=><span key={c.n} className="badge badge-gray" style={{ fontSize:10 }}>{c.n} {c.p}%</span>)}</div>
-              </div>
-            ))}
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
+            <div style={{ fontWeight:600, color:'#fff' }}>💊 Produtos & Stock</div>
+            <button className="btn btn-primary" onClick={()=>{ setFormProd({ nome:'',tipo:'Medicamento',indicacao:'',dose:'',stock:'',unidade:'g' }); setModalProduto(true) }}>＋ Novo Produto</button>
           </div>
+          {produtos.length===0 ? <EmptyState icon="💊" title="Sem produtos" desc="Adicione medicamentos, vitaminas e suplementos"/>
+          : <div className="grid-2" style={{ marginBottom:20 }}>
+              {produtos.map(p=>(
+                <div key={p.id} className="card card-p">
+                  <div style={{ display:'flex', justifyContent:'space-between', marginBottom:8 }}>
+                    <div>
+                      <div style={{ fontWeight:500, color:'#fff' }}>{p.nome}</div>
+                      <div style={{ fontSize:12, color:'#64748b' }}>{p.tipo}{p.indicacao?' · '+p.indicacao:''}</div>
+                      {p.dose&&<div style={{ fontSize:11, color:'#94a3b8' }}>Dose: {p.dose}</div>}
+                    </div>
+                    <Badge v="green">OK</Badge>
+                  </div>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                    <div style={{ fontFamily:'Barlow Condensed', fontSize:22, fontWeight:700, color:'#1ed98a' }}>{p.stock} {p.unidade}</div>
+                    <div style={{ display:'flex', gap:4 }}>
+                      <button className="btn btn-secondary btn-sm" onClick={()=>updateStockProd(p.id,10)}>＋ Stock</button>
+                      <button className="btn btn-primary btn-sm" onClick={()=>{ setFormPlano(f=>({...f,produto:p.nome})); setModalPlano(true) }}>Planear</button>
+                      <button className="btn btn-icon btn-sm" onClick={()=>delProduto(p.id)}>🗑️</button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          }
+          {/* Plano activo */}
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
+            <div style={{ fontWeight:600, color:'#fff' }}>📋 Plano Activo</div>
+            <button className="btn btn-secondary" onClick={()=>setModalPlano(true)}>＋ Novo Tratamento</button>
+          </div>
+          {planos.filter(p=>p.estado==='ativo').length===0
+            ? <div style={{ textAlign:'center', color:'#64748b', fontSize:13, padding:'20px 0' }}>Sem tratamentos activos</div>
+            : <div className="card" style={{ overflowX:'auto' }}>
+                <table>
+                  <thead><tr><th>Pombal/Grupo</th><th>Produto</th><th>Dose</th><th>Via</th><th>Nº Pombos</th><th>Total</th><th>Início</th><th>Fim</th><th>Estado</th><th></th></tr></thead>
+                  <tbody>
+                    {planos.filter(p=>p.estado==='ativo').map(p=>(
+                      <tr key={p.id}>
+                        <td style={{ fontWeight:500 }}>{p.pombal||'Todos'}</td>
+                        <td>{p.produto}</td>
+                        <td style={{ fontFamily:'JetBrains Mono', fontSize:11 }}>{p.dose}</td>
+                        <td><Badge>{p.via}</Badge></td>
+                        <td>{p.n_pombos||'—'}</td>
+                        <td style={{ color:'#1ed98a', fontWeight:500 }}>
+                          {p.dose&&p.n_pombos ? (parseFloat(p.dose)*p.n_pombos).toFixed(1)+(p.dose.includes('ml')?'ml':'g') : '—'}
+                        </td>
+                        <td style={{ color:'#64748b', fontSize:12 }}>{p.inicio?new Date(p.inicio).toLocaleDateString('pt-PT'):'—'}</td>
+                        <td style={{ color:'#64748b', fontSize:12 }}>{p.fim?new Date(p.fim).toLocaleDateString('pt-PT'):'—'}</td>
+                        <td><Badge v="green">ATIVO</Badge></td>
+                        <td><button className="btn btn-icon btn-sm" onClick={()=>delPlano(p.id)}>🗑️</button></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+          }
         </div>
       )}
-      <Modal open={modal} onClose={()=>setModal(false)} title="🌾 Nova Ração"
-        footer={<><button className="btn btn-secondary" onClick={()=>setModal(false)}>Cancelar</button><button className="btn btn-primary" onClick={addRacao}>Adicionar</button></>}>
-        <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-          <Field label="Nome *"><input className="input" placeholder="Ex: Mistura Competição" value={form.nome} onChange={e=>sf('nome',e.target.value)} /></Field>
-          <Field label="Fase"><select className="input" value={form.fase} onChange={e=>sf('fase',e.target.value)}>{['Competição','Reprodução','Muda','Repouso','Geral','Viuvez'].map(f=><option key={f}>{f}</option>)}</select></Field>
-          <div className="form-grid">
-            <Field label="Stock (kg)"><input className="input" type="number" value={form.stock} onChange={e=>sf('stock',e.target.value)} /></Field>
-            <Field label="Mínimo (kg)"><input className="input" type="number" value={form.min} onChange={e=>sf('min',e.target.value)} /></Field>
+
+      {/* ── CALCULADORA ── */}
+      {tab==='calculadora' && (
+        <div>
+          <div className="card card-p" style={{ marginBottom:16 }}>
+            <div style={{ fontWeight:600, color:'#fff', marginBottom:16 }}>🧮 Calculadora de Dosagem</div>
+            <div className="form-grid">
+              <Field label="Produto">
+                <select className="input" value={calc.produto} onChange={e=>sfC('produto',e.target.value)}>
+                  <option value="">— Seleccionar —</option>
+                  {produtos.map(p=><option key={p.id}>{p.nome}</option>)}
+                </select>
+              </Field>
+              <Field label="Pombal">
+                <select className="input" value={calc.pombal} onChange={e=>{ sfC('pombal',e.target.value); const pb=pombais.find(p=>p.nome===e.target.value); if(pb) sfC('n_pombos',String(pb.cap||'')) }}>
+                  <option value="">— Seleccionar —</option>
+                  {pombais.map(p=><option key={p.id}>{p.nome}</option>)}
+                </select>
+              </Field>
+              <Field label="Nº Pombos (editável)"><input className="input" type="number" value={calc.n_pombos} onChange={e=>sfC('n_pombos',e.target.value)}/></Field>
+              <Field label="Dose por Pombo (g ou ml)"><input className="input" type="number" step="0.1" placeholder={produtoCalc?.dose||'1'} value={calc.dose_pombo} onChange={e=>sfC('dose_pombo',e.target.value)}/></Field>
+              <Field label="Ração por Pombo (g)"><input className="input" type="number" value={calc.racao_pombo} onChange={e=>sfC('racao_pombo',e.target.value)}/></Field>
+              <Field label="Litros de Água"><input className="input" type="number" value={calc.litros} onChange={e=>sfC('litros',e.target.value)}/></Field>
+            </div>
           </div>
+          {calc.n_pombos && calc.dose_pombo && (
+            <div className="card card-p">
+              <div className="grid-3" style={{ marginBottom:16 }}>
+                <div style={{ textAlign:'center' }}>
+                  <div style={{ fontFamily:'Barlow Condensed', fontSize:36, fontWeight:700, color:'#facc15' }}>{totalProduto}g</div>
+                  <div style={{ fontSize:11, color:'#64748b', textTransform:'uppercase' }}>Total Produto</div>
+                </div>
+                <div style={{ textAlign:'center' }}>
+                  <div style={{ fontFamily:'Barlow Condensed', fontSize:36, fontWeight:700, color:'#1ed98a' }}>{totalRacao}kg</div>
+                  <div style={{ fontSize:11, color:'#64748b', textTransform:'uppercase' }}>Total Ração</div>
+                </div>
+                <div style={{ textAlign:'center' }}>
+                  <div style={{ fontFamily:'Barlow Condensed', fontSize:36, fontWeight:700, color:'#60a5fa' }}>{concAgua}g/L</div>
+                  <div style={{ fontSize:11, color:'#64748b', textTransform:'uppercase' }}>Conc. Água</div>
+                </div>
+              </div>
+              <div style={{ background:'#1a2840', borderRadius:10, padding:'12px 16px', fontSize:13, color:'#94a3b8', marginBottom:12 }}>
+                Dissolver <strong style={{ color:'#fff' }}>{totalProduto}g</strong> em <strong style={{ color:'#fff' }}>{calc.litros}L</strong> de água. Ração: <strong style={{ color:'#fff' }}>{calc.racao_pombo}g/pombo</strong> = <strong style={{ color:'#1ed98a' }}>{totalRacao}kg</strong> total para {calc.n_pombos} pombos.
+              </div>
+              <button className="btn btn-primary" onClick={()=>{ setFormPlano(f=>({...f,produto:calc.produto,pombal:calc.pombal,dose:calc.dose_pombo+'g',n_pombos:calc.n_pombos})); setTab('tratamento'); setModalPlano(true) }}>
+                📋 Guardar no Plano
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── HISTÓRICO ── */}
+      {tab==='historico' && (
+        <div>
+          <div style={{ fontWeight:600, color:'#fff', marginBottom:12 }}>📋 Histórico de Tratamentos</div>
+          {planos.length===0 ? <EmptyState icon="📋" title="Sem histórico" desc="Os tratamentos registados aparecerão aqui"/>
+          : <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+              {planos.map(p=>(
+                <div key={p.id} className="card card-p" style={{ display:'flex', alignItems:'center', gap:12 }}>
+                  <div style={{ width:8, height:40, borderRadius:4, background:p.estado==='ativo'?'#1ed98a':'#475569', flexShrink:0 }}/>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontWeight:500, color:'#fff' }}>{p.pombal||'Todos'} — {p.produto}</div>
+                    <div style={{ fontSize:12, color:'#64748b' }}>{p.dose} · {p.via} · {p.n_pombos||'?'} pombos · {p.inicio?new Date(p.inicio).toLocaleDateString('pt-PT'):'—'} → {p.fim?new Date(p.fim).toLocaleDateString('pt-PT'):'—'}</div>
+                  </div>
+                  <Badge v={p.estado==='ativo'?'green':'gray'}>{p.estado}</Badge>
+                  <button className="btn btn-icon btn-sm" onClick={()=>delPlano(p.id)}>🗑️</button>
+                </div>
+              ))}
+            </div>
+          }
+        </div>
+      )}
+
+      </>}
+
+      {/* Modais */}
+      <Modal open={modalAlimento} onClose={()=>setModalAlimento(false)} title="🌾 Novo Alimento"
+        footer={<><button className="btn btn-secondary" onClick={()=>setModalAlimento(false)}>Cancelar</button><button className="btn btn-primary" onClick={saveAlimento}>Guardar</button></>}>
+        <div className="form-grid">
+          <div className="col-2"><Field label="Nome *"><input className="input" placeholder="Ex: Milho, Cevada..." value={formAlim.nome} onChange={e=>sfA('nome',e.target.value)}/></Field></div>
+          <Field label="Tipo"><select className="input" value={formAlim.tipo} onChange={e=>sfA('tipo',e.target.value)}>{['Cereal','Leguminosa','Semente','Suplemento','Outro'].map(t=><option key={t}>{t}</option>)}</select></Field>
+          <Field label="Preço/kg (€)"><input className="input" type="number" step="0.01" placeholder="0.45" value={formAlim.preco_kg} onChange={e=>sfA('preco_kg',e.target.value)}/></Field>
+          <Field label="Stock inicial (kg)"><input className="input" type="number" placeholder="50" value={formAlim.stock} onChange={e=>sfA('stock',e.target.value)}/></Field>
+          <Field label="Stock mínimo (kg)"><input className="input" type="number" placeholder="20" value={formAlim.minimo} onChange={e=>sfA('minimo',e.target.value)}/></Field>
+        </div>
+      </Modal>
+
+      <Modal open={modalRacao} onClose={()=>setModalRacao(false)} title="🥣 Nova Ração" wide
+        footer={<><button className="btn btn-secondary" onClick={()=>setModalRacao(false)}>Cancelar</button><button className="btn btn-primary" onClick={saveRacao}>Guardar</button></>}>
+        <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+          <div className="form-grid">
+            <Field label="Nome *"><input className="input" placeholder="Ex: Mistura Competição" value={formRacao.nome} onChange={e=>setFormRacao(f=>({...f,nome:e.target.value}))}/></Field>
+            <Field label="Fase"><select className="input" value={formRacao.fase} onChange={e=>setFormRacao(f=>({...f,fase:e.target.value}))}>{['Competição','Reprodução','Muda','Repouso','Jovens','Viuvez'].map(f=><option key={f}>{f}</option>)}</select></Field>
+          </div>
+          <div>
+            <label className="label" style={{ display:'block', marginBottom:6 }}>Componentes</label>
+            <div style={{ display:'flex', gap:8, marginBottom:8 }}>
+              <input className="input" placeholder="Ex: Milho" value={novoComp.nome} onChange={e=>setNovoComp(f=>({...f,nome:e.target.value}))} style={{ flex:2 }}/>
+              <input className="input" type="number" placeholder="%" value={novoComp.pct} onChange={e=>setNovoComp(f=>({...f,pct:e.target.value}))} style={{ flex:1 }}/>
+              <button className="btn btn-primary" onClick={addComp}>＋</button>
+            </div>
+            {formRacao.comps.map((comp,i)=>(
+              <div key={i} style={{ display:'flex', alignItems:'center', gap:8, padding:'4px 0' }}>
+                <div style={{ width:10, height:10, borderRadius:2, background:CORES_COMP[i%CORES_COMP.length] }}/>
+                <span style={{ flex:1, fontSize:13, color:'#cbd5e1' }}>{comp.n}</span>
+                <span style={{ fontWeight:600, color:'#fff' }}>{comp.p}%</span>
+                <button className="btn btn-icon btn-sm" onClick={()=>setFormRacao(f=>({...f,comps:f.comps.filter((_,j)=>j!==i)}))}>✕</button>
+              </div>
+            ))}
+            {formRacao.comps.length>0&&<div style={{ fontSize:12, color:formRacao.comps.reduce((s,c)=>s+c.p,0)===100?'#1ed98a':'#f87171', marginTop:6 }}>Total: {formRacao.comps.reduce((s,c)=>s+c.p,0)}% {formRacao.comps.reduce((s,c)=>s+c.p,0)!==100&&'(deve ser 100%)'}</div>}
+          </div>
+        </div>
+      </Modal>
+
+      <Modal open={modalProduto} onClose={()=>setModalProduto(false)} title="💊 Novo Produto"
+        footer={<><button className="btn btn-secondary" onClick={()=>setModalProduto(false)}>Cancelar</button><button className="btn btn-primary" onClick={saveProduto}>Guardar</button></>}>
+        <div className="form-grid">
+          <div className="col-2"><Field label="Nome *"><input className="input" placeholder="Ex: Amprolium 20%" value={formProd.nome} onChange={e=>sfP('nome',e.target.value)}/></Field></div>
+          <Field label="Tipo"><select className="input" value={formProd.tipo} onChange={e=>sfP('tipo',e.target.value)}>{['Medicamento','Vitamina','Suplemento','Vacina','Outro'].map(t=><option key={t}>{t}</option>)}</select></Field>
+          <Field label="Indicação"><input className="input" placeholder="Ex: Tricomonose" value={formProd.indicacao} onChange={e=>sfP('indicacao',e.target.value)}/></Field>
+          <Field label="Dose recomendada"><input className="input" placeholder="Ex: 1g/L" value={formProd.dose} onChange={e=>sfP('dose',e.target.value)}/></Field>
+          <Field label="Stock"><input className="input" type="number" value={formProd.stock} onChange={e=>sfP('stock',e.target.value)}/></Field>
+          <Field label="Unidade"><select className="input" value={formProd.unidade} onChange={e=>sfP('unidade',e.target.value)}>{['g','ml','comprimidos','doses','L'].map(u=><option key={u}>{u}</option>)}</select></Field>
+        </div>
+      </Modal>
+
+      <Modal open={modalPlano} onClose={()=>setModalPlano(false)} title="📋 Novo Tratamento"
+        footer={<><button className="btn btn-secondary" onClick={()=>setModalPlano(false)}>Cancelar</button><button className="btn btn-primary" onClick={savePlano}>Guardar</button></>}>
+        <div className="form-grid">
+          <div className="col-2"><Field label="Produto *"><select className="input" value={formPlano.produto} onChange={e=>sfPl('produto',e.target.value)}><option value="">— Seleccionar —</option>{produtos.map(p=><option key={p.id}>{p.nome}</option>)}</select></Field></div>
+          <Field label="Pombal"><select className="input" value={formPlano.pombal} onChange={e=>sfPl('pombal',e.target.value)}><option value="">Todos</option>{pombais.map(p=><option key={p.id}>{p.nome}</option>)}</select></Field>
+          <Field label="Via"><select className="input" value={formPlano.via} onChange={e=>sfPl('via',e.target.value)}>{['Água','Ração','Injecção','Tópico'].map(v=><option key={v}>{v}</option>)}</select></Field>
+          <Field label="Dose"><input className="input" placeholder="Ex: 1g" value={formPlano.dose} onChange={e=>sfPl('dose',e.target.value)}/></Field>
+          <Field label="Nº Pombos"><input className="input" type="number" value={formPlano.n_pombos} onChange={e=>sfPl('n_pombos',e.target.value)}/></Field>
+          <Field label="Início"><input className="input" type="date" value={formPlano.inicio} onChange={e=>sfPl('inicio',e.target.value)}/></Field>
+          <Field label="Fim"><input className="input" type="date" value={formPlano.fim} onChange={e=>sfPl('fim',e.target.value)}/></Field>
+          <Field label="Estado"><select className="input" value={formPlano.estado} onChange={e=>sfPl('estado',e.target.value)}><option value="ativo">Ativo</option><option value="concluido">Concluído</option><option value="pausado">Pausado</option></select></Field>
         </div>
       </Modal>
     </div>
   )
 }
-
 
 function Calendario() {
   const toast = useToast()
