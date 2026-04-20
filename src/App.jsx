@@ -477,8 +477,12 @@ function Pombos() {
         <button className="btn btn-primary" onClick={openNew}>＋ Novo Pombo</button>
       </div>
 
-      <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
-        <input className="input" style={{ flex: 1, minWidth: 200 }} placeholder="🔍 Pesquisar..." value={search} onChange={e => setSearch(e.target.value)} />
+      <div style={{ display:'flex', flexDirection:'column', gap:10, marginBottom:16 }}>
+        <input className="input" placeholder="🔍 Pesquisar por nome ou anel..." value={search} onChange={e=>setSearch(e.target.value)} />
+        <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+          {FILTROS.map(f=><button key={f.id} onClick={()=>setFiltro(f.id)} className={`chip${filtro===f.id?' active':''}`} style={{ fontSize:11 }}>{f.label}</button>)}
+        </div>
+        <div style={{ fontSize:12, color:'#64748b' }}>{filtered.length} pombo(s)</div>
       </div>
 
       {loading ? <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}><Spinner lg /></div>
@@ -692,6 +696,20 @@ function Pombais() {
                     </div>
                     <div className="progress"><div className="progress-bar" style={{ width: `${Math.min(pct, 100)}%`, background: bar }} /></div>
                     {pb.loc && <div style={{ fontSize: 11, color: '#64748b', marginTop: 8 }}>📍 {pb.loc}</div>}
+                    {n>0&&(
+                      <div style={{ marginTop:10, paddingTop:10, borderTop:'1px solid #1e3050' }}>
+                        <div style={{ fontSize:11, color:'#94a3b8', marginBottom:6 }}>Pombos ({n}):</div>
+                        <div style={{ display:'flex', flexWrap:'wrap', gap:4 }}>
+                          {pombos.filter(p=>p.pombal===pb.nome).slice(0,8).map(p=>(
+                            <div key={p.id} style={{ display:'flex', alignItems:'center', gap:3, background:'#1a2840', borderRadius:6, padding:'2px 8px', fontSize:11 }}>
+                              <span>{p.emoji}</span>
+                              <span style={{ color:'#cbd5e1' }}>{p.nome}</span>
+                            </div>
+                          ))}
+                          {n>8&&<div style={{ fontSize:11, color:'#64748b' }}>+{n-8} mais</div>}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )
               })}
@@ -723,7 +741,6 @@ function Pombais() {
   )
 }
 
-// ─── PROVAS PAGE ──────────────────────────────────────
 function Provas() {
   const toast = useToast()
   const [provas, setProvas] = useState([])
@@ -732,14 +749,20 @@ function Provas() {
   const [saving, setSaving] = useState(false)
   const [confirm, setConfirm] = useState(null)
   const [tab, setTab] = useState('lista')
-  const [filtroTipo, setFiltroTipo] = useState('todas')
-  const EMPTY = { nome:'', data:new Date().toISOString().slice(0,10), dist:'', tipo:'Fundo', local_solta:'', lugar:'', vel:'', n_pombos:'' }
+  const [provaSelect, setProvaSelect] = useState('')
+  const [resultados, setResultados] = useState([]) // [{anel, nome, hora, pos}]
+  const [encestados, setEncestados] = useState([]) // [pombo_id]
+  const [pombos, setPombos] = useState([])
+  const EMPTY = { nome:'', data:new Date().toISOString().slice(0,10), dist:'', tipo:'Fundo', local_solta:'', lat_solta:'', lon_solta:'', lugar:'', vel:'', n_pombos:'' }
   const [form, setForm] = useState(EMPTY)
   const sf = (k,v) => setForm(f=>({...f,[k]:v}))
 
   const load = useCallback(async () => {
     setLoading(true)
-    try { setProvas(await db.getProvas()) }
+    try {
+      const [p, po] = await Promise.all([db.getProvas(), db.getPombos()])
+      setProvas(p); setPombos(po)
+    }
     catch(e) { toast('Erro: '+e.message,'err') }
     finally { setLoading(false) }
   },[])
@@ -749,6 +772,12 @@ function Provas() {
   const hoje = new Date().toISOString().slice(0,10)
   const passadas = provas.filter(p=>p.data_reg<=hoje)
   const futuras = provas.filter(p=>p.data_reg>hoje)
+  const provaAtual = provas.find(p=>p.id===provaSelect)
+
+  const [fotoPerfilFile, setFotoPerfilFile] = useState(null)
+  const [fotoPombalFile, setFotoPombalFile] = useState(null)
+  const [fotoPerfilPreview, setFotoPerfilPreview] = useState(null)
+  const [fotoPombalPreview, setFotoPombalPreview] = useState(null)
 
   const save = async () => {
     if (!form.nome.trim()) { toast('Nome obrigatório','warn'); return }
@@ -765,8 +794,19 @@ function Provas() {
     catch(e) { toast('Erro: '+e.message,'err') }
   }
 
+  const addResultado = () => {
+    setResultados(r=>[...r, { id:Date.now(), anel:'', nome:'', hora:'', vel:'', coef:'' }])
+  }
+  const updateRes = (id, k, v) => setResultados(r=>r.map(x=>x.id===id?{...x,[k]:v}:x))
+  const removeRes = (id) => setResultados(r=>r.filter(x=>x.id!==id))
+
+  const toggleEncestado = (id) => setEncestados(e=>e.includes(id)?e.filter(x=>x!==id):[...e,id])
+  const selectAll = () => setEncestados(pombos.map(p=>p.id))
+  const selectNone = () => setEncestados([])
+  const selectEsp = (esp) => setEncestados(pombos.filter(p=>(p.esp||[]).includes(esp)).map(p=>p.id))
+
   const ProvaRow = ({ p }) => (
-    <tr>
+    <tr style={{ cursor:'pointer' }} onClick={()=>{ setProvaSelect(p.id); setTab('resultados') }}>
       <td style={{ color:'#64748b', fontSize:12 }}>{new Date(p.data_reg).toLocaleDateString('pt-PT')}</td>
       <td style={{ fontWeight:500 }}>{p.nome}</td>
       <td><Badge v="blue">{p.tipo?.replace(/_/g,' ')}</Badge></td>
@@ -774,7 +814,7 @@ function Provas() {
       <td style={{ color:'#94a3b8', fontSize:12 }}>{p.local_solta||'—'}</td>
       <td><span style={{ fontFamily:'Barlow Condensed', fontSize:18, fontWeight:700, color:p.lugar===1?'#facc15':p.lugar===2?'#cbd5e1':p.lugar===3?'#b45309':'#94a3b8' }}>{p.lugar?p.lugar+'º':'—'}</span></td>
       <td style={{ fontFamily:'JetBrains Mono', fontSize:11, color:'#1ed98a' }}>{p.vel||'—'}</td>
-      <td><button className="btn btn-icon btn-sm" onClick={()=>setConfirm(p)}>🗑️</button></td>
+      <td onClick={e=>e.stopPropagation()}><button className="btn btn-icon btn-sm" onClick={()=>setConfirm(p)}>🗑️</button></td>
     </tr>
   )
 
@@ -792,26 +832,190 @@ function Provas() {
       </div>
 
       {/* Tabs */}
-      <div style={{ display:'flex', gap:4, background:'#1a2840', borderRadius:10, padding:4, marginBottom:16, width:'fit-content' }}>
-        {[['lista','📋 Todas'],['passadas','✅ Realizadas'],['futuras','📅 Agendadas']].map(([t,l])=>(
-          <button key={t} onClick={()=>setTab(t)} style={{ padding:'8px 14px', borderRadius:8, fontSize:13, fontWeight:500, cursor:'pointer', border:'none', fontFamily:'inherit', background:tab===t?'#1ed98a':'none', color:tab===t?'#0a0f14':'#94a3b8' }}>{l}</button>
+      <div style={{ display:'flex', gap:4, background:'#1a2840', borderRadius:10, padding:4, marginBottom:16, overflowX:'auto' }}>
+        {[['lista','📋 Lista'],['resultados','🏅 Resultados'],['encestamento','📦 Encestamento'],['mapa','🗺️ Mapa']].map(([t,l])=>(
+          <button key={t} onClick={()=>setTab(t)} style={{ padding:'8px 14px', borderRadius:8, fontSize:13, fontWeight:500, cursor:'pointer', border:'none', fontFamily:'inherit', whiteSpace:'nowrap', background:tab===t?'#1ed98a':'none', color:tab===t?'#0a0f14':'#94a3b8' }}>{l}</button>
         ))}
       </div>
 
-      {loading ? <div style={{ display:'flex', justifyContent:'center', padding:60 }}><Spinner lg/></div>
-        : (()=>{
-            const lista = tab==='passadas'?passadas:tab==='futuras'?futuras:provas
-            if (lista.length===0) return <EmptyState icon="🏆" title={tab==='futuras'?"Sem provas agendadas":"Sem provas"} desc={tab==='futuras'?"Registe uma prova futura":"Registe a primeira prova"} action={<button className="btn btn-primary" onClick={()=>setModal(true)}>＋ Nova Prova</button>}/>
-            return (
-              <div className="card" style={{ overflowX:'auto' }}>
+      {/* Tab: Lista */}
+      {tab==='lista' && (
+        loading ? <div style={{ display:'flex', justifyContent:'center', padding:60 }}><Spinner lg/></div>
+        : <>
+            {futuras.length>0&&(
+              <div style={{ marginBottom:16 }}>
+                <div style={{ fontSize:13, fontWeight:600, color:'#60a5fa', marginBottom:8 }}>📅 Agendadas</div>
+                <div className="card" style={{ overflowX:'auto' }}>
+                  <table>
+                    <thead><tr><th>Data</th><th>Prova</th><th>Tipo</th><th>Dist.</th><th>Local Solta</th><th>Lugar</th><th>Vel.</th><th></th></tr></thead>
+                    <tbody>{futuras.map(p=><ProvaRow key={p.id} p={p}/>)}</tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+            <div style={{ fontSize:13, fontWeight:600, color:'#94a3b8', marginBottom:8 }}>✅ Realizadas</div>
+            {passadas.length===0 ? <EmptyState icon="🏆" title="Sem provas" desc="Registe a primeira prova" action={<button className="btn btn-primary" onClick={()=>setModal(true)}>＋ Nova Prova</button>}/>
+            : <div className="card" style={{ overflowX:'auto' }}>
                 <table>
                   <thead><tr><th>Data</th><th>Prova</th><th>Tipo</th><th>Dist.</th><th>Local Solta</th><th>Lugar</th><th>Vel.</th><th></th></tr></thead>
-                  <tbody>{lista.map(p=><ProvaRow key={p.id} p={p}/>)}</tbody>
+                  <tbody>{passadas.map(p=><ProvaRow key={p.id} p={p}/>)}</tbody>
                 </table>
               </div>
-            )
-          })()
-      }
+            }
+          </>
+      )}
+
+      {/* Tab: Resultados */}
+      {tab==='resultados' && (
+        <div>
+          <div style={{ marginBottom:16 }}>
+            <Field label="Seleccionar Prova">
+              <select className="input" value={provaSelect} onChange={e=>setProvaSelect(e.target.value)}>
+                <option value="">— Seleccionar prova —</option>
+                {provas.map(p=><option key={p.id} value={p.id}>{p.nome} ({new Date(p.data_reg).toLocaleDateString('pt-PT')})</option>)}
+              </select>
+            </Field>
+          </div>
+          {provaAtual&&(
+            <div style={{ marginBottom:12, padding:12, background:'#1a2840', borderRadius:10, fontSize:13, color:'#94a3b8' }}>
+              📍 {provaAtual.local_solta||'—'} · {provaAtual.dist}km · {provaAtual.tipo?.replace(/_/g,' ')}
+            </div>
+          )}
+          {/* Upload folha */}
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:16 }}>
+            <label style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'20px 16px', background:'#141f2e', border:'2px dashed #243860', borderRadius:14, cursor:'pointer', gap:8 }}>
+              <span style={{ fontSize:32 }}>📄</span>
+              <span style={{ fontSize:13, fontWeight:500, color:'#cbd5e1' }}>Carregar folha</span>
+              <span style={{ fontSize:11, color:'#64748b' }}>PDF ou Excel</span>
+              <input type="file" accept=".pdf,.xlsx,.xls,.csv" style={{ display:'none' }} onChange={e=>{ if(e.target.files[0]) toast('Ficheiro: '+e.target.files[0].name+' (processamento manual)','info') }}/>
+            </label>
+            <label style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'20px 16px', background:'#141f2e', border:'2px dashed #243860', borderRadius:14, cursor:'pointer', gap:8 }}>
+              <span style={{ fontSize:32 }}>📷</span>
+              <span style={{ fontSize:13, fontWeight:500, color:'#cbd5e1' }}>Foto da folha</span>
+              <span style={{ fontSize:11, color:'#64748b' }}>JPG ou PNG</span>
+              <input type="file" accept="image/*" capture="environment" style={{ display:'none' }} onChange={e=>{ if(e.target.files[0]) toast('Foto recebida: '+e.target.files[0].name,'info') }}/>
+            </label>
+          </div>
+          {/* Tabela manual */}
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
+            <div style={{ fontWeight:600, color:'#fff', fontSize:13 }}>🏠 Ordem de Chegada ao Pombal</div>
+            <button className="btn btn-secondary btn-sm" onClick={addResultado}>＋ Adicionar</button>
+          </div>
+          {resultados.length===0
+            ? <div style={{ textAlign:'center', color:'#64748b', fontSize:13, padding:'20px 0' }}>Adicione resultados manualmente ou carregue a folha de chegada</div>
+            : <div className="card" style={{ overflowX:'auto' }}>
+                <table>
+                  <thead><tr><th>Pos.</th><th>Anel</th><th>Nome</th><th>Hora Chegada</th><th>Vel. (m/min)</th><th>Coef. %</th><th></th></tr></thead>
+                  <tbody>
+                    {resultados.map((r,i)=>(
+                      <tr key={r.id}>
+                        <td><span style={{ fontFamily:'Barlow Condensed', fontSize:18, fontWeight:700, color:i===0?'#facc15':i===1?'#cbd5e1':i===2?'#b45309':'#94a3b8' }}>{i+1}º</span></td>
+                        <td><input className="input" style={{ width:130, fontSize:11, padding:'4px 8px' }} placeholder="PT-2026-00000" value={r.anel} onChange={e=>updateRes(r.id,'anel',e.target.value)}/></td>
+                        <td><input className="input" style={{ width:120, padding:'4px 8px', fontSize:12 }} placeholder="Nome" value={r.nome} onChange={e=>updateRes(r.id,'nome',e.target.value)}/></td>
+                        <td><input className="input" style={{ width:100, padding:'4px 8px', fontSize:12 }} placeholder="14:32:15" value={r.hora} onChange={e=>updateRes(r.id,'hora',e.target.value)}/></td>
+                        <td><input className="input" style={{ width:80, padding:'4px 8px', fontSize:12 }} placeholder="1382" value={r.vel} onChange={e=>updateRes(r.id,'vel',e.target.value)}/></td>
+                        <td><input className="input" style={{ width:70, padding:'4px 8px', fontSize:12 }} placeholder="91.4" value={r.coef} onChange={e=>updateRes(r.id,'coef',e.target.value)}/></td>
+                        <td><button className="btn btn-icon btn-sm" onClick={()=>removeRes(r.id)}>✕</button></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+          }
+        </div>
+      )}
+
+      {/* Tab: Encestamento */}
+      {tab==='encestamento' && (
+        <div>
+          <div style={{ marginBottom:16 }}>
+            <Field label="Seleccionar Prova">
+              <select className="input" value={provaSelect} onChange={e=>setProvaSelect(e.target.value)}>
+                <option value="">— Seleccionar prova —</option>
+                {provas.map(p=><option key={p.id} value={p.id}>{p.nome} ({new Date(p.data_reg).toLocaleDateString('pt-PT')})</option>)}
+              </select>
+            </Field>
+          </div>
+          {/* Upload encestamento */}
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:16 }}>
+            <label style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'16px', background:'#141f2e', border:'2px dashed #243860', borderRadius:14, cursor:'pointer', gap:6 }}>
+              <span style={{ fontSize:28 }}>📋</span>
+              <span style={{ fontSize:12, fontWeight:500, color:'#cbd5e1' }}>Folha de Encestamento Oficial</span>
+              <span style={{ fontSize:11, color:'#64748b' }}>PDF ou Excel</span>
+              <input type="file" accept=".pdf,.xlsx,.xls,.csv" style={{ display:'none' }} onChange={e=>{ if(e.target.files[0]) toast('Folha: '+e.target.files[0].name,'info') }}/>
+            </label>
+            <label style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'16px', background:'#141f2e', border:'2px dashed #243860', borderRadius:14, cursor:'pointer', gap:6 }}>
+              <span style={{ fontSize:28 }}>📷</span>
+              <span style={{ fontSize:12, fontWeight:500, color:'#cbd5e1' }}>Foto da folha</span>
+              <span style={{ fontSize:11, color:'#64748b' }}>JPG ou PNG</span>
+              <input type="file" accept="image/*" capture="environment" style={{ display:'none' }} onChange={e=>{ if(e.target.files[0]) toast('Foto recebida','info') }}/>
+            </label>
+          </div>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
+            <div style={{ fontWeight:600, color:'#fff', fontSize:13 }}>📦 Selecção de Pombos — {encestados.length} seleccionados</div>
+          </div>
+          <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:12 }}>
+            <button className="btn btn-secondary btn-sm" onClick={selectAll}>✓ Todos</button>
+            <button className="btn btn-secondary btn-sm" onClick={selectNone}>✕ Nenhum</button>
+            <button className="btn btn-secondary btn-sm" onClick={()=>selectEsp('velocidade')}>Velocidade</button>
+            <button className="btn btn-secondary btn-sm" onClick={()=>selectEsp('meio_fundo')}>Meio-Fundo</button>
+            <button className="btn btn-secondary btn-sm" onClick={()=>selectEsp('fundo')}>Fundo</button>
+            <button className="btn btn-secondary btn-sm" onClick={()=>selectEsp('grande_fundo')}>G. Fundo</button>
+          </div>
+          <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+            {pombos.filter(p=>p.estado==='ativo').map(p=>(
+              <div key={p.id} onClick={()=>toggleEncestado(p.id)}
+                style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 14px', background:encestados.includes(p.id)?'rgba(30,217,138,.08)':'#141f2e', border:`1px solid ${encestados.includes(p.id)?'#1ed98a':'#1e3050'}`, borderRadius:12, cursor:'pointer' }}>
+                <div style={{ width:20, height:20, borderRadius:6, border:`2px solid ${encestados.includes(p.id)?'#1ed98a':'#475569'}`, background:encestados.includes(p.id)?'#1ed98a':'transparent', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontSize:12, color:'#0a0f14' }}>
+                  {encestados.includes(p.id)&&'✓'}
+                </div>
+                <div style={{ width:36, height:36, borderRadius:8, background:'#1a2840', display:'flex', alignItems:'center', justifyContent:'center', fontSize:18, overflow:'hidden', flexShrink:0 }}>
+                  {p.foto_url?<img src={p.foto_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>:p.emoji}
+                </div>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:13, fontWeight:500, color:'#fff' }}>{p.nome}</div>
+                  <div style={{ fontFamily:'JetBrains Mono', fontSize:10, color:'#64748b' }}>{p.anilha}</div>
+                </div>
+                <div style={{ display:'flex', gap:4, flexWrap:'wrap', justifyContent:'flex-end' }}>
+                  {(p.esp||[]).map(e=><Badge key={e} v="blue" style={{ fontSize:10 }}>{e.replace('_',' ')}</Badge>)}
+                </div>
+                <div style={{ fontFamily:'Barlow Condensed', fontSize:16, fontWeight:700, color:'#1ed98a', width:40, textAlign:'right' }}>{p.percentil||0}%</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Tab: Mapa */}
+      {tab==='mapa' && (
+        <div>
+          <div style={{ marginBottom:16 }}>
+            <Field label="Seleccionar Prova">
+              <select className="input" value={provaSelect} onChange={e=>setProvaSelect(e.target.value)}>
+                <option value="">— Seleccionar prova —</option>
+                {provas.map(p=><option key={p.id} value={p.id}>{p.nome} ({new Date(p.data_reg).toLocaleDateString('pt-PT')})</option>)}
+              </select>
+            </Field>
+          </div>
+          {provaAtual?.local_solta ? (
+            <div className="card" style={{ overflow:'hidden', borderRadius:16 }}>
+              <div style={{ padding:'12px 16px', borderBottom:'1px solid #1e3050', display:'flex', alignItems:'center', gap:10 }}>
+                <span style={{ fontSize:18 }}>📍</span>
+                <div>
+                  <div style={{ fontWeight:500, color:'#fff' }}>{provaAtual.local_solta}</div>
+                  <div style={{ fontSize:12, color:'#64748b' }}>{provaAtual.nome} · {provaAtual.dist}km</div>
+                </div>
+              </div>
+              <div style={{ height:300 }}>
+                <iframe width="100%" height="100%" frameBorder="0" style={{ display:'block' }}
+                  src={`https://maps.google.com/maps?q=${encodeURIComponent(provaAtual.local_solta)}&z=10&output=embed`}/>
+              </div>
+            </div>
+          ) : (
+            <EmptyState icon="🗺️" title="Sem localização" desc={provaSelect?"Esta prova não tem local de solta definido":"Seleccione uma prova para ver o mapa"}/>
+          )}
+        </div>
+      )}
 
       <Modal open={modal} onClose={()=>setModal(false)} title="🏆 Nova Prova" wide
         footer={<><button className="btn btn-secondary" onClick={()=>setModal(false)}>Cancelar</button><button className="btn btn-primary" onClick={save} disabled={saving}>{saving?<Spinner/>:null}Registar</button></>}>
@@ -960,95 +1164,242 @@ function Financas() {
 function Saude() {
   const toast = useToast()
   const [registos, setRegistos] = useState([])
+  const [vacinas, setVacinas] = useState([])
   const [pombos, setPombos] = useState([])
   const [loading, setLoading] = useState(true)
-  const [modal, setModal] = useState(false)
+  const [tab, setTab] = useState('estado')
+  const [modal, setModal] = useState(null)
   const [saving, setSaving] = useState(false)
   const [confirm, setConfirm] = useState(null)
-  const [form, setForm] = useState({ pombo_id: '', apt: 'boa', fase: 'competicao', peso: '', obs: '', data: new Date().toISOString().slice(0, 10) })
-  const sf = (k, v) => setForm(f => ({ ...f, [k]: v }))
+  const [formR, setFormR] = useState({ pombo_id:'', apt:'boa', fase:'competicao', peso:'', obs:'', data:new Date().toISOString().slice(0,10) })
+  const [formV, setFormV] = useState({ nome:'', proxima_dose:new Date().toISOString().slice(0,10), obs:'' })
+  const sfR = (k,v) => setFormR(f=>({...f,[k]:v}))
+  const sfV = (k,v) => setFormV(f=>({...f,[k]:v}))
 
   const load = useCallback(async () => {
     setLoading(true)
-    try { const [r, p] = await Promise.all([db.getSaude(), db.getPombos()]); setRegistos(r); setPombos(p||[]) }
-    catch (e) { toast('Erro: ' + e.message, 'err') }
+    try {
+      const [r, p] = await Promise.all([db.getSaude(), db.getPombos()])
+      setRegistos(r); setPombos(p||[])
+      // Vacinas em localStorage por enquanto
+      try { setVacinas(JSON.parse(localStorage.getItem('cl_vacinas')||'[]')) } catch(e) {}
+    }
+    catch(e) { toast('Erro: '+e.message,'err') }
     finally { setLoading(false) }
-  }, [])
+  },[])
 
-  useEffect(() => { load() }, [load])
+  useEffect(()=>{ load() },[load])
 
-  const save = async () => {
-    if (!form.pombo_id) { toast('Seleccione um pombo', 'warn'); return }
+  const total = pombos.length || 1
+  const ativos = pombos.filter(p=>p.estado==='ativo').length
+  const lesionados = pombos.filter(p=>p.estado==='lesionado').length
+  const emRepro = pombos.filter(p=>p.estado==='reproducao').length
+  const pctAptos = Math.round(ativos/total*100)
+
+  // Vacinas próximas (próximos 30 dias)
+  const hoje = new Date()
+  const proxVacinas = vacinas.filter(v=>{
+    const d = new Date(v.proxima_dose)
+    const diff = (d-hoje)/86400000
+    return diff>=0 && diff<=30
+  })
+
+  const saveRegisto = async () => {
+    if (!formR.pombo_id) { toast('Seleccione um pombo','warn'); return }
     setSaving(true)
     try {
-      await db.createSaude({ pigeon_id: form.pombo_id, aptidao: form.apt, fase: form.fase, peso: form.peso ? parseInt(form.peso) : null, obs: form.obs, data_reg: form.data })
-      toast('Guardado!', 'ok'); setModal(false); load()
-    } catch (e) { toast('Erro: ' + e.message, 'err') }
+      await db.createSaude({ pigeon_id:formR.pombo_id, aptidao:formR.apt, fase:formR.fase, peso:formR.peso?parseInt(formR.peso):null, obs:formR.obs, data_reg:formR.data })
+      toast('Guardado!','ok'); setModal(null); load()
+    } catch(e) { toast('Erro: '+e.message,'err') }
     finally { setSaving(false) }
   }
 
-  const del = async () => {
-    try { await db.deleteSaude(confirm.id); toast('Eliminado', 'ok'); setConfirm(null); load() }
-    catch (e) { toast('Erro: ' + e.message, 'err') }
+  const saveVacina = () => {
+    if (!formV.nome.trim()) { toast('Nome obrigatório','warn'); return }
+    const novas = [...vacinas, { id:Date.now(), ...formV }]
+    setVacinas(novas)
+    try { localStorage.setItem('cl_vacinas', JSON.stringify(novas)) } catch(e) {}
+    toast('Vacina registada!','ok'); setModal(null)
   }
 
-  const aptVar = { excelente: 'green', boa: 'green', media: 'yellow', fraca: 'yellow', doente: 'red', quarentena: 'red' }
+  const delRegisto = async () => {
+    try { await db.deleteSaude(confirm.id); toast('Eliminado','ok'); setConfirm(null); load() }
+    catch(e) { toast('Erro: '+e.message,'err') }
+  }
+
+  const delVacina = (id) => {
+    const novas = vacinas.filter(v=>v.id!==id)
+    setVacinas(novas)
+    try { localStorage.setItem('cl_vacinas', JSON.stringify(novas)) } catch(e) {}
+  }
+
+  const aptVar = { excelente:'green', boa:'green', media:'yellow', fraca:'yellow', doente:'red', quarentena:'red' }
 
   return (
     <div>
       <div className="section-header">
-        <div><div className="section-title">Saúde</div><div className="section-sub">{registos.length} registos</div></div>
-        <button className="btn btn-primary" onClick={() => setModal(true)}>＋ Novo Registo</button>
+        <div><div className="section-title">Saúde</div><div className="section-sub">Estado do efectivo</div></div>
+        <div style={{ display:'flex', gap:8 }}>
+          <button className="btn btn-secondary" onClick={()=>setModal('vacina')}>💉 Vacina</button>
+          <button className="btn btn-primary" onClick={()=>setModal('registo')}>＋ Registo</button>
+        </div>
       </div>
 
-      {loading ? <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}><Spinner lg /></div>
-        : registos.length === 0 ? <EmptyState icon="🏥" title="Sem registos" desc="Registe o estado de saúde dos pombos" action={<button className="btn btn-primary" onClick={() => setModal(true)}>＋ Novo Registo</button>} />
-          : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {registos.map(r => {
-                const pombo = pombos.find(p => p.id === r.pigeon_id)
-                return (
-                  <div key={r.id} className="card card-p" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <div style={{ width: 36, height: 36, borderRadius: 10, background: '#1a2840', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, overflow: 'hidden', flexShrink: 0 }}>
-                      {pombo?.foto_url ? <img src={pombo.foto_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (pombo?.emoji || '🐦')}
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 500, color: '#fff' }}>{pombo?.nome || '—'}</div>
-                      <div style={{ fontSize: 11, color: '#64748b', fontFamily: 'JetBrains Mono' }}>{pombo?.anilha || '—'}</div>
-                    </div>
-                    <div style={{ fontSize: 12, color: '#94a3b8' }}>{r.fase}</div>
-                    {r.peso && <div style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>{r.peso}g</div>}
-                    <Badge v={aptVar[r.aptidao] || 'gray'}>{r.aptidao}</Badge>
-                    <div style={{ fontSize: 11, color: '#64748b' }}>{new Date(r.data_reg || r.created_at).toLocaleDateString('pt-PT')}</div>
-                    <button className="btn btn-icon btn-sm" onClick={() => setConfirm(r)}>🗑️</button>
-                  </div>
-                )
-              })}
-            </div>
-          )
-      }
+      {/* KPIs */}
+      <div className="grid-3 mb-4">
+        <KpiCard icon="✅" label="Excelentes/Aptos" value={ativos} color="text-green"/>
+        <KpiCard icon="🚑" label="Lesionados/Tratamento" value={lesionados} color="text-red"/>
+        <KpiCard icon="🥚" label="Em Reprodução" value={emRepro} color="text-yellow"/>
+      </div>
+      <div className="grid-3 mb-6">
+        <KpiCard icon="💉" label="Vacinas próximas (30d)" value={proxVacinas.length} color={proxVacinas.length>0?'text-yellow':'text-green'}/>
+        <KpiCard icon="📋" label="Registos de Saúde" value={registos.length} color="text-blue"/>
+        <div className="kpi">
+          <div style={{ fontSize:20 }}>🏃</div>
+          <div className="kpi-val" style={{ color:pctAptos>=80?'#1ed98a':pctAptos>=60?'#facc15':'#f87171' }}>{pctAptos}%</div>
+          <div className="kpi-label">Aptos p/ Competição</div>
+        </div>
+      </div>
 
-      <Modal open={modal} onClose={() => setModal(false)} title="🏥 Novo Registo de Saúde"
-        footer={<><button className="btn btn-secondary" onClick={() => setModal(false)}>Cancelar</button><button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? <Spinner /> : null}Guardar</button></>}>
+      {/* Tabs */}
+      <div style={{ display:'flex', gap:4, background:'#1a2840', borderRadius:10, padding:4, marginBottom:16, width:'fit-content' }}>
+        {[['estado','📊 Estado'],['registos','📋 Registos'],['vacinas','💉 Vacinas']].map(([t,l])=>(
+          <button key={t} onClick={()=>setTab(t)} style={{ padding:'8px 14px', borderRadius:8, fontSize:13, fontWeight:500, cursor:'pointer', border:'none', fontFamily:'inherit', background:tab===t?'#1ed98a':'none', color:tab===t?'#0a0f14':'#94a3b8' }}>{l}</button>
+        ))}
+      </div>
+
+      {/* Estado geral */}
+      {tab==='estado' && (
+        <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+          {/* Barra aptos */}
+          <div className="card card-p">
+            <div style={{ fontWeight:600, color:'#fff', marginBottom:12 }}>Estado do Efectivo — {pombos.length} pombos</div>
+            {[['Aptos/Activos', ativos, '#1ed98a'],['Lesionados', lesionados, '#f87171'],['Em Reprodução', emRepro, '#facc15'],['Inativos', pombos.filter(p=>p.estado==='inativo').length, '#475569']].map(([label,n,cor])=>(
+              <div key={label} style={{ marginBottom:10 }}>
+                <div style={{ display:'flex', justifyContent:'space-between', fontSize:13, marginBottom:4 }}>
+                  <span style={{ color:'#cbd5e1' }}>{label}</span>
+                  <span style={{ fontWeight:600, color:'#fff' }}>{n} <span style={{ color:'#64748b', fontWeight:400 }}>({Math.round(n/total*100)}%)</span></span>
+                </div>
+                <div className="progress" style={{ height:6 }}><div className="progress-bar" style={{ width:`${n/total*100}%`, background:cor }}/></div>
+              </div>
+            ))}
+          </div>
+          {/* Últimos 5 registos */}
+          <div className="card card-p">
+            <div style={{ fontWeight:600, color:'#fff', marginBottom:12 }}>📋 Registos Recentes</div>
+            {registos.slice(0,5).map(r=>{
+              const pombo = pombos.find(p=>p.id===r.pigeon_id)
+              return (
+                <div key={r.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 0', borderBottom:'1px solid #1e3050' }}>
+                  <span style={{ fontSize:20 }}>{pombo?.emoji||'🐦'}</span>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontSize:13, fontWeight:500, color:'#fff' }}>{pombo?.nome||'—'}</div>
+                    <div style={{ fontSize:11, color:'#64748b' }}>{new Date(r.data_reg||r.created_at).toLocaleDateString('pt-PT')}</div>
+                  </div>
+                  <Badge v={aptVar[r.aptidao]||'gray'}>{r.aptidao}</Badge>
+                  {r.peso&&<span style={{ fontSize:12, color:'#94a3b8' }}>{r.peso}g</span>}
+                </div>
+              )
+            })}
+            {registos.length===0&&<div style={{ textAlign:'center', color:'#64748b', fontSize:13 }}>Sem registos</div>}
+          </div>
+        </div>
+      )}
+
+      {/* Registos */}
+      {tab==='registos' && (
+        loading ? <div style={{ display:'flex', justifyContent:'center', padding:60 }}><Spinner lg/></div>
+        : registos.length===0 ? <EmptyState icon="📋" title="Sem registos" desc="Registe o estado de saúde dos pombos" action={<button className="btn btn-primary" onClick={()=>setModal('registo')}>＋ Novo Registo</button>}/>
+        : <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            {registos.map(r => {
+              const pombo = pombos.find(p=>p.id===r.pigeon_id)
+              return (
+                <div key={r.id} className="card card-p" style={{ display:'flex', alignItems:'center', gap:12 }}>
+                  <div style={{ width:36, height:36, borderRadius:10, background:'#1a2840', display:'flex', alignItems:'center', justifyContent:'center', fontSize:20, overflow:'hidden', flexShrink:0 }}>
+                    {pombo?.foto_url?<img src={pombo.foto_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>:(pombo?.emoji||'🐦')}
+                  </div>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontWeight:500, color:'#fff' }}>{pombo?.nome||'—'}</div>
+                    <div style={{ fontSize:11, color:'#64748b', fontFamily:'JetBrains Mono' }}>{pombo?.anilha||'—'}</div>
+                  </div>
+                  <div style={{ fontSize:12, color:'#94a3b8' }}>{r.fase}</div>
+                  {r.peso&&<div style={{ fontSize:13, fontWeight:600, color:'#fff' }}>{r.peso}g</div>}
+                  <Badge v={aptVar[r.aptidao]||'gray'}>{r.aptidao}</Badge>
+                  <div style={{ fontSize:11, color:'#64748b' }}>{new Date(r.data_reg||r.created_at).toLocaleDateString('pt-PT')}</div>
+                  <button className="btn btn-icon btn-sm" onClick={()=>setConfirm(r)}>🗑️</button>
+                </div>
+              )
+            })}
+          </div>
+      )}
+
+      {/* Vacinas */}
+      {tab==='vacinas' && (
+        <div>
+          {proxVacinas.length>0&&(
+            <div style={{ background:'rgba(234,179,8,.08)', border:'1px solid rgba(234,179,8,.2)', borderRadius:12, padding:'12px 16px', marginBottom:16 }}>
+              <div style={{ fontWeight:600, color:'#facc15', marginBottom:8 }}>⚠️ Próximas Doses (30 dias)</div>
+              {proxVacinas.map(v=>(
+                <div key={v.id} style={{ fontSize:13, color:'#cbd5e1', display:'flex', justifyContent:'space-between', padding:'4px 0' }}>
+                  <span>{v.nome}</span>
+                  <span style={{ color:'#facc15' }}>{new Date(v.proxima_dose).toLocaleDateString('pt-PT')}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {vacinas.length===0
+            ? <EmptyState icon="💉" title="Sem vacinas" desc="Registe o plano de vacinação" action={<button className="btn btn-primary" onClick={()=>setModal('vacina')}>＋ Vacina</button>}/>
+            : <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                {vacinas.map(v=>(
+                  <div key={v.id} className="card card-p" style={{ display:'flex', alignItems:'center', gap:12 }}>
+                    <span style={{ fontSize:24 }}>💉</span>
+                    <div style={{ flex:1 }}>
+                      <div style={{ fontWeight:500, color:'#fff' }}>{v.nome}</div>
+                      {v.obs&&<div style={{ fontSize:12, color:'#64748b' }}>{v.obs}</div>}
+                    </div>
+                    <div style={{ textAlign:'right' }}>
+                      <div style={{ fontSize:12, color:'#94a3b8' }}>Próxima dose</div>
+                      <div style={{ fontSize:13, fontWeight:600, color:'#facc15' }}>{new Date(v.proxima_dose).toLocaleDateString('pt-PT')}</div>
+                    </div>
+                    <button className="btn btn-icon btn-sm" onClick={()=>delVacina(v.id)}>🗑️</button>
+                  </div>
+                ))}
+              </div>
+          }
+        </div>
+      )}
+
+      {/* Modal registo */}
+      <Modal open={modal==='registo'} onClose={()=>setModal(null)} title="📋 Novo Registo de Saúde"
+        footer={<><button className="btn btn-secondary" onClick={()=>setModal(null)}>Cancelar</button><button className="btn btn-primary" onClick={saveRegisto} disabled={saving}>{saving?<Spinner/>:null}Guardar</button></>}>
         <div className="form-grid">
-          <div className="col-2"><Field label="Pombo *"><select className="input" value={form.pombo_id} onChange={e => sf('pombo_id', e.target.value)}><option value="">— Seleccionar —</option>{pombos.map(p => <option key={p.id} value={p.id}>{p.nome} ({p.anilha})</option>)}</select></Field></div>
-          <Field label="Aptidão"><select className="input" value={form.apt} onChange={e => sf('apt', e.target.value)}>{['excelente', 'boa', 'media', 'fraca', 'doente', 'quarentena'].map(a => <option key={a}>{a}</option>)}</select></Field>
-          <Field label="Fase"><select className="input" value={form.fase} onChange={e => sf('fase', e.target.value)}>{['competicao', 'reproducao', 'muda', 'repouso', 'jovem'].map(f => <option key={f}>{f}</option>)}</select></Field>
-          <Field label="Peso (g)"><input className="input" type="number" placeholder="420" value={form.peso} onChange={e => sf('peso', e.target.value)} /></Field>
-          <Field label="Data"><input className="input" type="date" value={form.data} onChange={e => sf('data', e.target.value)} /></Field>
-          <div className="col-2"><Field label="Observações"><textarea className="input" rows={2} style={{ resize: 'none' }} value={form.obs} onChange={e => sf('obs', e.target.value)} /></Field></div>
+          <div className="col-2"><Field label="Pombo *"><select className="input" value={formR.pombo_id} onChange={e=>sfR('pombo_id',e.target.value)}><option value="">— Seleccionar —</option>{pombos.map(p=><option key={p.id} value={p.id}>{p.nome} ({p.anilha})</option>)}</select></Field></div>
+          <Field label="Aptidão"><select className="input" value={formR.apt} onChange={e=>sfR('apt',e.target.value)}>{['excelente','boa','media','fraca','doente','quarentena'].map(a=><option key={a}>{a}</option>)}</select></Field>
+          <Field label="Fase"><select className="input" value={formR.fase} onChange={e=>sfR('fase',e.target.value)}>{['competicao','reproducao','muda','repouso','jovem'].map(f=><option key={f}>{f}</option>)}</select></Field>
+          <Field label="Peso (g)"><input className="input" type="number" placeholder="420" value={formR.peso} onChange={e=>sfR('peso',e.target.value)}/></Field>
+          <Field label="Data"><input className="input" type="date" value={formR.data} onChange={e=>sfR('data',e.target.value)}/></Field>
+          <div className="col-2"><Field label="Observações"><textarea className="input" rows={2} style={{ resize:'none' }} value={formR.obs} onChange={e=>sfR('obs',e.target.value)}/></Field></div>
         </div>
       </Modal>
 
-      <Modal open={!!confirm} onClose={() => setConfirm(null)} title="Eliminar registo"
-        footer={<><button className="btn btn-secondary" onClick={() => setConfirm(null)}>Cancelar</button><button className="btn btn-danger" onClick={del}>Eliminar</button></>}>
-        <p style={{ fontSize: 14, color: '#cbd5e1' }}>Eliminar este registo de saúde?</p>
+      {/* Modal vacina */}
+      <Modal open={modal==='vacina'} onClose={()=>setModal(null)} title="💉 Registar Vacina"
+        footer={<><button className="btn btn-secondary" onClick={()=>setModal(null)}>Cancelar</button><button className="btn btn-primary" onClick={saveVacina}>Guardar</button></>}>
+        <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+          <Field label="Vacina *"><input className="input" placeholder="Ex: Newcastle, Paramixovirose..." value={formV.nome} onChange={e=>sfV('nome',e.target.value)}/></Field>
+          <Field label="Próxima Dose"><input className="input" type="date" value={formV.proxima_dose} onChange={e=>sfV('proxima_dose',e.target.value)}/></Field>
+          <Field label="Observações"><textarea className="input" rows={2} style={{ resize:'none' }} value={formV.obs} onChange={e=>sfV('obs',e.target.value)}/></Field>
+        </div>
+      </Modal>
+
+      <Modal open={!!confirm} onClose={()=>setConfirm(null)} title="Eliminar registo"
+        footer={<><button className="btn btn-secondary" onClick={()=>setConfirm(null)}>Cancelar</button><button className="btn btn-danger" onClick={delRegisto}>Eliminar</button></>}>
+        <p style={{ fontSize:14, color:'#cbd5e1' }}>Eliminar este registo de saúde?</p>
       </Modal>
     </div>
   )
 }
 
-// ─── PERFIL PAGE ──────────────────────────────────────
 function Perfil() {
   const { user, signOut } = useAuth()
   const toast = useToast()
