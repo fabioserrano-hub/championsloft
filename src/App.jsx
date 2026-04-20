@@ -770,8 +770,9 @@ function Provas() {
   useEffect(()=>{ load() },[load])
 
   const hoje = new Date().toISOString().slice(0,10)
-  const passadas = provas.filter(p=>p.data_reg<=hoje)
-  const futuras = provas.filter(p=>p.data_reg>hoje)
+  // Prova é "realizada" se a data já passou OU se tem resultados (lugar/vel definidos)
+  const passadas = provas.filter(p=>p.data_reg<=hoje || p.lugar || p.vel)
+  const futuras = provas.filter(p=>p.data_reg>hoje && !p.lugar && !p.vel)
   const provaAtual = provas.find(p=>p.id===provaSelect)
 
   const [fotoPerfilFile, setFotoPerfilFile] = useState(null)
@@ -1447,6 +1448,17 @@ function Perfil() {
         <div className="card card-p">
           <div style={{ fontWeight: 600, color: '#fff', marginBottom: 16 }}>👤 Dados Pessoais</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ display:'flex', alignItems:'center', gap:14 }}>
+              <div onClick={()=>document.getElementById('foto-perfil-up').click()}
+                style={{ width:72, height:72, borderRadius:14, border:'2px dashed #243860', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden', cursor:'pointer', flexShrink:0, background:'#1a2840' }}>
+                {(fotoPerfilPreview||form.foto_perfil_url) ? <img src={fotoPerfilPreview||form.foto_perfil_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}/> : <span style={{ fontSize:28 }}>👤</span>}
+              </div>
+              <div>
+                <input type="file" id="foto-perfil-up" accept="image/*" style={{ display:'none' }} onChange={e=>{ const f=e.target.files[0]; if(f){setFotoPerfilFile(f);setFotoPerfilPreview(URL.createObjectURL(f))} }}/>
+                <button className="btn btn-secondary btn-sm" onClick={()=>document.getElementById('foto-perfil-up').click()}>📸 Foto</button>
+                <div style={{ fontSize:11, color:'#64748b', marginTop:4 }}>Foto do columbófilo</div>
+              </div>
+            </div>
             <Field label="Nome Completo *"><input className="input" value={form.nome} onChange={e => sf('nome', e.target.value)} /></Field>
             <Field label="Email"><input className="input" value={user?.email} disabled style={{ opacity: .6 }} /></Field>
             <Field label="Telefone"><input className="input" placeholder="+351 9XX XXX XXX" value={form.tel} onChange={e => sf('tel', e.target.value)} /></Field>
@@ -1458,6 +1470,17 @@ function Perfil() {
         <div className="card card-p">
           <div style={{ fontWeight: 600, color: '#fff', marginBottom: 16 }}>🏠 Dados do Pombal</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ display:'flex', alignItems:'center', gap:14 }}>
+              <div onClick={()=>document.getElementById('foto-pombal-up').click()}
+                style={{ width:72, height:72, borderRadius:14, border:'2px dashed #243860', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden', cursor:'pointer', flexShrink:0, background:'#1a2840' }}>
+                {(fotoPombalPreview||form.foto_pombal_url) ? <img src={fotoPombalPreview||form.foto_pombal_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}/> : <span style={{ fontSize:28 }}>🏠</span>}
+              </div>
+              <div>
+                <input type="file" id="foto-pombal-up" accept="image/*" style={{ display:'none' }} onChange={e=>{ const f=e.target.files[0]; if(f){setFotoPombalFile(f);setFotoPombalPreview(URL.createObjectURL(f))} }}/>
+                <button className="btn btn-secondary btn-sm" onClick={()=>document.getElementById('foto-pombal-up').click()}>📸 Foto</button>
+                <div style={{ fontSize:11, color:'#64748b', marginTop:4 }}>Foto do pombal</div>
+              </div>
+            </div>
             <Field label="Nome do Pombal"><input className="input" placeholder="Pombal da Quinta..." value={form.pombal_nome} onChange={e => sf('pombal_nome', e.target.value)} /></Field>
             <Field label="Morada"><input className="input" placeholder="Localidade, Concelho" value={form.pombal_morada} onChange={e => sf('pombal_morada', e.target.value)} /></Field>
             <Field label="Latitude GPS"><input className="input" placeholder="38.80234" value={form.pombal_lat} onChange={e => sf('pombal_lat', e.target.value)} /></Field>
@@ -1620,6 +1643,7 @@ function Reproducao() {
   const [saving, setSaving] = useState(false)
   const [confirm, setConfirm] = useState(null)
   const [pedigreeP, setPedigreeP] = useState(null)
+  const [selectedAca, setSelectedAca] = useState(null)
   const [perfil, setPerfil] = useState(null)
   const EMPTY = { pai_id:'', mae_id:'', inicio:new Date().toISOString().slice(0,10), obs:'' }
   const [form, setForm] = useState(EMPTY)
@@ -1791,7 +1815,10 @@ function Reproducao() {
               const pai = pombos.find(p=>p.id===a.pai_id)
               const mae = pombos.find(p=>p.id===a.mae_id)
               return (
-                <div key={a.id} className="card card-p">
+                <div key={a.id} className="card card-p" style={{ cursor:'pointer', transition:'all .2s' }}
+                  onClick={()=>setSelectedAca(selectedAca?.id===a.id?null:a)}
+                  onMouseOver={e=>e.currentTarget.style.borderColor='#243860'}
+                  onMouseOut={e=>e.currentTarget.style.borderColor='#1e3050'}>
                   <div style={{ display:'flex', alignItems:'center', gap:12, flexWrap:'wrap' }}>
                     <div style={{ display:'flex', alignItems:'center', gap:8, flex:1, minWidth:200 }}>
                       <div style={{ textAlign:'center' }}>
@@ -1815,9 +1842,47 @@ function Reproducao() {
                     </div>
                     <div style={{ display:'flex', gap:6, alignItems:'center' }}>
                       <Badge v={estadoVar[a.estado]||'gray'}>{a.estado?.replace('_',' ')}</Badge>
-                      <button className="btn btn-danger btn-sm" onClick={()=>setConfirm(a)}>🗑️</button>
+                      <span style={{ fontSize:12, color:'#475569' }}>{selectedAca?.id===a.id?'▲':'▼'}</span>
+                      <button className="btn btn-danger btn-sm" onClick={e=>{e.stopPropagation();setConfirm(a)}}>🗑️</button>
                     </div>
                   </div>
+                  {selectedAca?.id===a.id&&(
+                    <div style={{ marginTop:14, paddingTop:14, borderTop:'1px solid #1e3050' }} onClick={e=>e.stopPropagation()}>
+                      <div className="grid-2" style={{ gap:12, marginBottom:12 }}>
+                        {[pai,mae].map((p,i)=>p&&(
+                          <div key={i} style={{ background:'#1a2840', borderRadius:10, padding:'10px 12px' }}>
+                            <div style={{ fontWeight:600, color:i===0?'#60a5fa':'#f472b6', fontSize:12, marginBottom:6 }}>{i===0?'♂ Macho (Pai)':'♀ Fêmea (Mãe)'}</div>
+                            <div style={{ fontSize:13, color:'#fff', fontWeight:500 }}>{p.nome}</div>
+                            <div style={{ fontFamily:'JetBrains Mono', fontSize:10, color:'#1ed98a' }}>{p.anilha}</div>
+                            <div style={{ fontSize:11, color:'#64748b', marginTop:4 }}>{p.cor||'—'} · {(p.esp||[]).join(', ')||'—'}</div>
+                            {p.percentil>0&&<div style={{ fontSize:11, color:'#facc15' }}>⭐ {p.percentil}% percentil</div>}
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                        <button className="btn btn-secondary btn-sm" onClick={()=>{ setPedigreeP(pai||mae); setTab('pedigree') }}>🌳 Ver Pedigree</button>
+                        <div style={{ display:'flex', alignItems:'center', gap:8, marginLeft:'auto' }}>
+                          <span style={{ fontSize:12, color:'#94a3b8' }}>Ninhadas:</span>
+                          <button className="btn btn-icon btn-sm" onClick={async()=>{
+                            const n=(a.ninhadas||0)-1; if(n<0) return
+                            await supabase.from('breeding').update({ninhadas:n}).eq('id',a.id); load()
+                          }}>−</button>
+                          <span style={{ fontFamily:'Barlow Condensed', fontSize:20, fontWeight:700, color:'#fff' }}>{a.ninhadas||0}</span>
+                          <button className="btn btn-icon btn-sm" onClick={async()=>{
+                            const n=(a.ninhadas||0)+1
+                            await supabase.from('breeding').update({ninhadas:n}).eq('id',a.id); load()
+                          }}>＋</button>
+                          <select style={{ background:'#1a2840', border:'1px solid #243860', borderRadius:8, color:'#fff', padding:'4px 8px', fontSize:12, fontFamily:'inherit' }}
+                            value={a.estado||'em_progresso'}
+                            onChange={async e=>{ await supabase.from('breeding').update({estado:e.target.value}).eq('id',a.id); load() }}>
+                            <option value="em_progresso">Em Progresso</option>
+                            <option value="concluido">Concluído</option>
+                            <option value="pausado">Pausado</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )
             })}
