@@ -389,83 +389,221 @@ function Dashboard({ nav }) {
     async function load() {
       setLoading(true)
       try {
-        const [pombos, provas, fin] = await Promise.all([db.getPombos(), db.getProvas(), db.getFinancas()])
+        const [pombos, provas, fin, saude, treinos, tarefas, acas] = await Promise.all([
+          db.getPombos(),
+          db.getProvas(),
+          db.getFinancas(),
+          supabase.from('health').select('*').order('created_at',{ascending:false}).limit(3).then(r=>r.data||[]),
+          supabase.from('treinos').select('*').order('data_reg',{ascending:false}).limit(3).then(r=>r.data||[]),
+          supabase.from('tarefas').select('*').eq('estado','por_iniciar').then(r=>r.data||[]),
+          supabase.from('breeding').select('*').eq('estado','em_progresso').then(r=>r.data||[]),
+        ])
         const ano = new Date().getFullYear()
-        const finAno = fin.filter(t => new Date(t.data_reg).getFullYear() === ano)
-        const rec = finAno.filter(t => t.tipo === 'receita').reduce((s, t) => s + (t.val || 0), 0)
-        const dep = finAno.filter(t => t.tipo === 'despesa').reduce((s, t) => s + (t.val || 0), 0)
-        setData({ pombos, provas, saldo: rec - dep, ativos: pombos.filter(p => p.estado === 'ativo').length, top: [...pombos].sort((a, b) => (b.percentil || 0) - (a.percentil || 0)).slice(0, 5) })
-      } catch (e) { toast('Erro ao carregar: ' + e.message, 'err') }
+        const hoje = new Date().toISOString().slice(0,10)
+        const finAno = fin.filter(t=>new Date(t.data_reg).getFullYear()===ano)
+        const rec = finAno.filter(t=>t.tipo==='receita').reduce((s,t)=>s+(t.val||0),0)
+        const dep = finAno.filter(t=>t.tipo==='despesa').reduce((s,t)=>s+(t.val||0),0)
+        const tarefasAtraso = tarefas.filter(t=>t.data_prevista&&t.data_prevista<hoje)
+        const top = [...pombos].sort((a,b)=>(b.percentil||0)-(a.percentil||0)).slice(0,5)
+        const vitorias = provas.filter(p=>p.lugar===1).length
+        const pombosAtivos = pombos.filter(p=>(!p.estado_ext||p.estado_ext==='proprio')&&p.estado==='ativo')
+        setData({ pombos, provas, saldo:rec-dep, rec, dep, ativos:pombosAtivos.length, total:pombos.filter(p=>!p.estado_ext||p.estado_ext==='proprio').length, top, vitorias, saude, treinos, tarefasAtraso, acas, ano })
+      } catch(e) { toast('Erro: '+e.message,'err') }
       finally { setLoading(false) }
     }
     load()
   }, [])
 
-  if (loading) return <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 80 }}><Spinner lg /></div>
+  if (loading) return <div style={{ display:'flex', justifyContent:'center', paddingTop:80 }}><Spinner lg/></div>
+
+  const mediaScore = data.top.length ? Math.round(data.top.reduce((s,p)=>s+(p.percentil||0),0)/data.top.length) : 0
+  const corScore = s => s>=80?'#1ed98a':s>=60?'#facc15':s>=40?'#60a5fa':'#f87171'
 
   return (
     <div>
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 700, color: '#fff' }}>{saudacao}, {nome} 👋</h1>
-        <div style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>
-          {new Date().toLocaleDateString('pt-PT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+      {/* Header */}
+      <div style={{ marginBottom:20, display:'flex', justifyContent:'space-between', alignItems:'flex-start', flexWrap:'wrap', gap:10 }}>
+        <div>
+          <h1 style={{ fontSize:22, fontWeight:700, color:'#fff' }}>{saudacao}, {nome} 👋</h1>
+          <div style={{ fontSize:13, color:'#64748b', marginTop:4 }}>
+            {new Date().toLocaleDateString('pt-PT',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}
+          </div>
+        </div>
+        {data.tarefasAtraso.length>0&&(
+          <button onClick={()=>nav('checklist')} style={{ background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.2)', borderRadius:10, padding:'8px 14px', cursor:'pointer', fontSize:13, color:'#f87171', fontFamily:'inherit' }}>
+            ⚠️ {data.tarefasAtraso.length} tarefa(s) em atraso
+          </button>
+        )}
+      </div>
+
+      {/* KPIs principais */}
+      <div className="grid-4 mb-4">
+        <KpiCard icon="🐦" label="Pombos Activos" value={data.ativos} color="text-green" onClick={()=>nav('pombos')}/>
+        <KpiCard icon="🏆" label={`Provas ${data.ano}`} value={data.provas.length} color="text-yellow" onClick={()=>nav('provas')}/>
+        <KpiCard icon="🥇" label="Vitórias" value={data.vitorias} color="text-green" onClick={()=>nav('provas')}/>
+        <div className="kpi" onClick={()=>nav('financas')} style={{ cursor:'pointer' }}>
+          <div style={{ fontSize:20 }}>💶</div>
+          <div className="kpi-val" style={{ color:data.saldo>=0?'#1ed98a':'#f87171', fontSize:28 }}>{data.saldo>=0?'+':''}{data.saldo.toFixed(0)}€</div>
+          <div className="kpi-label">Saldo {data.ano}</div>
         </div>
       </div>
 
       <div className="grid-4 mb-6">
-        <KpiCard icon="🐦" label="Pombos Activos" value={data.ativos} color="text-green" onClick={() => nav('pombos')} />
-        <KpiCard icon="🏆" label="Provas" value={data.provas.length} color="text-yellow" onClick={() => nav('provas')} />
-        <KpiCard icon="💶" label={`Saldo ${new Date().getFullYear()}`} value={`${data.saldo >= 0 ? '+' : ''}${data.saldo.toFixed(0)}€`} color={data.saldo >= 0 ? 'text-green' : 'text-red'} onClick={() => nav('financas')} />
-        <KpiCard icon="🏠" label="Total Pombos" value={data.pombos.length} onClick={() => nav('pombos')} />
+        <KpiCard icon="🥚" label="Acasalamentos Activos" value={data.acas.length} color="text-yellow" onClick={()=>nav('reproducao')}/>
+        <KpiCard icon="📊" label="Score Médio" value={mediaScore+'%'} color="text-blue" onClick={()=>nav('fimepoca')}/>
+        <KpiCard icon="🏠" label="Total Efectivo" value={data.total} onClick={()=>nav('pombos')}/>
+        <KpiCard icon="✅" label="Tarefas Pendentes" value={data.tarefasAtraso.length} color={data.tarefasAtraso.length>0?'text-red':'text-green'} onClick={()=>nav('checklist')}/>
       </div>
 
-      <div className="grid-2">
+      {/* Grid principal */}
+      <div className="grid-2 mb-4">
+        {/* Top pombos */}
         <div className="card card-p">
-          <div className="flex items-center justify-between mb-4">
-            <div style={{ fontWeight: 600, color: '#fff' }}>🏅 Ranking</div>
-            <button className="btn btn-secondary btn-sm" onClick={() => nav('pombos')}>Ver todos →</button>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
+            <div style={{ fontWeight:600, color:'#fff' }}>🏅 Top Pombos</div>
+            <button className="btn btn-secondary btn-sm" onClick={()=>nav('pombos')}>Ver todos →</button>
           </div>
-          {data.top.length === 0
-            ? <div style={{ textAlign: 'center', color: '#64748b', fontSize: 13, padding: '20px 0' }}>Sem pombos ainda</div>
-            : data.top.map((p, i) => (
-              <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: i < data.top.length - 1 ? '1px solid #1e3050' : 'none' }}>
-                <span style={{ fontFamily: 'Barlow Condensed', fontSize: 18, fontWeight: 700, width: 20, color: i === 0 ? '#facc15' : i === 1 ? '#cbd5e1' : i === 2 ? '#b45309' : '#475569' }}>{i + 1}</span>
-                <div style={{ width: 32, height: 32, borderRadius: 8, background: '#1a2840', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, overflow: 'hidden', flexShrink: 0 }}>
-                  {p.foto_url ? <img src={p.foto_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : p.emoji}
+          {data.top.length===0
+            ? <div style={{ textAlign:'center', color:'#64748b', fontSize:13, padding:'20px 0' }}>Sem pombos ainda</div>
+            : data.top.map((p,i)=>(
+              <div key={p.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 0', borderBottom:i<data.top.length-1?'1px solid #1e3050':'none' }}>
+                <span style={{ fontFamily:'Barlow Condensed', fontSize:18, fontWeight:700, width:20, color:i===0?'#facc15':i===1?'#cbd5e1':i===2?'#b45309':'#475569' }}>{i+1}</span>
+                <div style={{ width:32, height:32, borderRadius:8, background:'#1a2840', display:'flex', alignItems:'center', justifyContent:'center', fontSize:18, overflow:'hidden', flexShrink:0 }}>
+                  {p.foto_url?<img src={p.foto_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>:p.emoji||'🐦'}
                 </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 500, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.nome}</div>
-                  <div style={{ fontFamily: 'JetBrains Mono', fontSize: 10, color: '#64748b' }}>{p.anilha}</div>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontSize:13, fontWeight:500, color:'#fff', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.nome}</div>
+                  <div style={{ fontFamily:'JetBrains Mono', fontSize:10, color:'#64748b' }}>{p.anilha}</div>
                 </div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#1ed98a' }}>{p.percentil || 0}%</div>
+                <div style={{ width:60 }}>
+                  <div className="progress"><div className="progress-bar" style={{ width:`${p.percentil||0}%`, background:corScore(p.percentil||0) }}/></div>
+                  <div style={{ fontSize:10, color:corScore(p.percentil||0), textAlign:'right', fontWeight:700 }}>{p.percentil||0}%</div>
+                </div>
               </div>
             ))
           }
         </div>
 
+        {/* Provas recentes */}
         <div className="card card-p">
-          <div className="flex items-center justify-between mb-4">
-            <div style={{ fontWeight: 600, color: '#fff' }}>🏆 Provas Recentes</div>
-            <button className="btn btn-secondary btn-sm" onClick={() => nav('provas')}>Ver todas →</button>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
+            <div style={{ fontWeight:600, color:'#fff' }}>🏆 Provas Recentes</div>
+            <button className="btn btn-secondary btn-sm" onClick={()=>nav('provas')}>Ver todas →</button>
           </div>
-          {data.provas.length === 0
-            ? <div style={{ textAlign: 'center', color: '#64748b', fontSize: 13, padding: '20px 0' }}>Sem provas registadas</div>
-            : data.provas.slice(0, 5).map(p => (
-              <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid #1e3050' }}>
-                <span style={{ fontSize: 18 }}>🏆</span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 500, color: '#fff' }}>{p.nome}</div>
-                  <div style={{ fontSize: 11, color: '#64748b' }}>{p.dist}km · {p.local_solta || '—'}</div>
+          {data.provas.length===0
+            ? <div style={{ textAlign:'center', color:'#64748b', fontSize:13, padding:'20px 0' }}>Sem provas registadas</div>
+            : data.provas.slice(0,5).map(p=>(
+              <div key={p.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 0', borderBottom:'1px solid #1e3050' }}>
+                <span style={{ fontSize:18 }}>🏆</span>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:13, fontWeight:500, color:'#fff' }}>{p.nome}</div>
+                  <div style={{ fontSize:11, color:'#64748b' }}>{p.dist}km · {p.local_solta||'—'} · {new Date(p.data_reg).toLocaleDateString('pt-PT')}</div>
                 </div>
-                {p.lugar && <div style={{ fontFamily: 'Barlow Condensed', fontSize: 18, fontWeight: 700, color: '#facc15' }}>{p.lugar}º</div>}
+                {p.lugar&&<div style={{ fontFamily:'Barlow Condensed', fontSize:20, fontWeight:700, color:p.lugar===1?'#facc15':p.lugar<=3?'#cbd5e1':'#94a3b8' }}>{p.lugar}º</div>}
               </div>
             ))
           }
+        </div>
+      </div>
+
+      {/* Segunda linha */}
+      <div className="grid-2 mb-4">
+        {/* Finanças resumo */}
+        <div className="card card-p">
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
+            <div style={{ fontWeight:600, color:'#fff' }}>💰 Finanças {data.ano}</div>
+            <button className="btn btn-secondary btn-sm" onClick={()=>nav('financas')}>Ver →</button>
+          </div>
+          <div style={{ display:'flex', gap:16, marginBottom:12 }}>
+            <div style={{ flex:1, textAlign:'center' }}>
+              <div style={{ fontFamily:'Barlow Condensed', fontSize:28, fontWeight:700, color:'#1ed98a' }}>{data.rec.toFixed(0)}€</div>
+              <div style={{ fontSize:11, color:'#64748b' }}>RECEITAS</div>
+            </div>
+            <div style={{ width:1, background:'#1e3050' }}/>
+            <div style={{ flex:1, textAlign:'center' }}>
+              <div style={{ fontFamily:'Barlow Condensed', fontSize:28, fontWeight:700, color:'#f87171' }}>{data.dep.toFixed(0)}€</div>
+              <div style={{ fontSize:11, color:'#64748b' }}>DESPESAS</div>
+            </div>
+          </div>
+          <div style={{ display:'flex', justifyContent:'space-between', fontSize:13, padding:'8px 12px', background:'#1a2840', borderRadius:8 }}>
+            <span style={{ color:'#94a3b8' }}>Saldo</span>
+            <span style={{ fontWeight:700, color:data.saldo>=0?'#1ed98a':'#f87171' }}>{data.saldo>=0?'+':''}{data.saldo.toFixed(2)}€</span>
+          </div>
+        </div>
+
+        {/* Acasalamentos + Saúde */}
+        <div className="card card-p">
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
+            <div style={{ fontWeight:600, color:'#fff' }}>🥚 Reprodução Activa</div>
+            <button className="btn btn-secondary btn-sm" onClick={()=>nav('reproducao')}>Ver →</button>
+          </div>
+          {data.acas.length===0
+            ? <div style={{ textAlign:'center', color:'#64748b', fontSize:13, padding:'10px 0' }}>Sem acasalamentos activos</div>
+            : data.acas.slice(0,3).map(a=>(
+              <div key={a.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'6px 0', borderBottom:'1px solid #1e3050' }}>
+                <span style={{ fontSize:18 }}>🥚</span>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:12, fontWeight:500, color:'#fff' }}>{a.pai_nome?.split('(')[0]||'—'} × {a.mae_nome?.split('(')[0]||'—'}</div>
+                  <div style={{ fontSize:11, color:'#64748b' }}>{a.cacifo?`Cacifo ${a.cacifo} · `:''}{a.ninhadas||0} ninhadas</div>
+                </div>
+                {a.data_eclosao_prev&&<div style={{ fontSize:11, color:'#facc15' }}>🐣 {new Date(a.data_eclosao_prev).toLocaleDateString('pt-PT')}</div>}
+              </div>
+            ))
+          }
+        </div>
+      </div>
+
+      {/* Treinos recentes + Atalhos */}
+      <div className="grid-2">
+        <div className="card card-p">
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
+            <div style={{ fontWeight:600, color:'#fff' }}>🎯 Treinos Recentes</div>
+            <button className="btn btn-secondary btn-sm" onClick={()=>nav('treinos')}>Ver →</button>
+          </div>
+          {data.treinos.length===0
+            ? <div style={{ textAlign:'center', color:'#64748b', fontSize:13, padding:'10px 0' }}>Sem treinos registados</div>
+            : data.treinos.map(t=>(
+              <div key={t.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'6px 0', borderBottom:'1px solid #1e3050' }}>
+                <span style={{ fontSize:18 }}>🎯</span>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:12, fontWeight:500, color:'#fff' }}>{t.local}</div>
+                  <div style={{ fontSize:11, color:'#64748b' }}>{t.dist?t.dist+'km · ':''}{t.pombos_n||'?'} pombos · {t.retorno}</div>
+                </div>
+                <div style={{ fontSize:11, color:'#64748b' }}>{t.data_reg?new Date(t.data_reg).toLocaleDateString('pt-PT'):'—'}</div>
+              </div>
+            ))
+          }
+        </div>
+
+        {/* Atalhos rápidos */}
+        <div className="card card-p">
+          <div style={{ fontWeight:600, color:'#fff', marginBottom:14 }}>⚡ Acesso Rápido</div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+            {[
+              ['🐦','Novo Pombo','pombos'],
+              ['🏆','Nova Prova','provas'],
+              ['🎯','Novo Treino','treinos'],
+              ['🏥','Registo Saúde','saude'],
+              ['💰','Nova Transacção','financas'],
+              ['✅','Checklist','checklist'],
+              ['🥚','Reprodução','reproducao'],
+              ['🏁','Fim de Época','fimepoca'],
+            ].map(([icon,label,page])=>(
+              <button key={page} onClick={()=>nav(page)}
+                style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 12px', background:'#1a2840', border:'1px solid #1e3050', borderRadius:10, cursor:'pointer', fontFamily:'inherit', textAlign:'left', transition:'all .15s' }}
+                onMouseOver={e=>e.currentTarget.style.borderColor='#1ed98a'}
+                onMouseOut={e=>e.currentTarget.style.borderColor='#1e3050'}>
+                <span style={{ fontSize:18 }}>{icon}</span>
+                <span style={{ fontSize:12, fontWeight:500, color:'#cbd5e1' }}>{label}</span>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </div>
   )
 }
+
 
 // ─── POMBOS PAGE ──────────────────────────────────────
 function Pombos() {
@@ -3942,6 +4080,368 @@ function Checklist() {
   )
 }
 
+function Admin() {
+  const toast = useToast()
+  const { user } = useAuth()
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [users, setUsers] = useState([])
+  const [licencas, setLicencas] = useState([])
+  const [tab, setTab] = useState('utilizadores')
+  const [modalLic, setModalLic] = useState(null)
+  const [formLic, setFormLic] = useState({ plano:'gratuito', estado:'ativo', fim:'', notas:'' })
+
+  useEffect(() => {
+    async function load() {
+      setLoading(true)
+      try {
+        // Verificar se é admin
+        const { data: adminCheck } = await supabase.from('admin_users').select('user_id').eq('user_id', user.id).single()
+        if (!adminCheck) { setIsAdmin(false); setLoading(false); return }
+        setIsAdmin(true)
+        // Carregar perfis e licenças
+        const [perfis, lics] = await Promise.all([
+          supabase.from('perfis').select('*').order('created_at', {ascending:false}).then(r=>r.data||[]),
+          supabase.from('licencas').select('*').order('created_at', {ascending:false}).then(r=>r.data||[]),
+        ])
+        setUsers(perfis)
+        setLicencas(lics)
+      } catch(e) { toast('Erro: '+e.message,'err') }
+      finally { setLoading(false) }
+    }
+    load()
+  }, [user])
+
+  const saveLicenca = async () => {
+    if (!modalLic) return
+    try {
+      // Verificar se já existe
+      const { data: existing } = await supabase.from('licencas').select('id').eq('user_id', modalLic.user_id).single()
+      if (existing) {
+        await supabase.from('licencas').update({ plano:formLic.plano, estado:formLic.estado, fim:formLic.fim||null, notas:formLic.notas }).eq('id', existing.id)
+      } else {
+        await supabase.from('licencas').insert({ user_id:modalLic.user_id, email:modalLic.email, plano:formLic.plano, estado:formLic.estado, fim:formLic.fim||null, notas:formLic.notas })
+      }
+      toast('Licença actualizada!','ok')
+      setModalLic(null)
+      // Reload
+      const lics = await supabase.from('licencas').select('*').order('created_at',{ascending:false}).then(r=>r.data||[])
+      setLicencas(lics)
+    } catch(e) { toast('Erro: '+e.message,'err') }
+  }
+
+  const getLicenca = (userId) => licencas.find(l=>l.user_id===userId)
+  const planoCor = { gratuito:'#475569', iniciante:'#2E7DD4', base:'#6C4FBB', profissional:'#1ed98a', elite:'#facc15', grupo:'#E07B39' }
+
+  if (loading) return <div style={{ display:'flex', justifyContent:'center', padding:60 }}><Spinner lg/></div>
+
+  if (!isAdmin) return (
+    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', height:'60vh', textAlign:'center' }}>
+      <div style={{ fontSize:56, marginBottom:16 }}>🔒</div>
+      <div style={{ fontSize:18, fontWeight:600, color:'#fff', marginBottom:8 }}>Acesso Restrito</div>
+      <div style={{ fontSize:13, color:'#64748b' }}>Só administradores podem aceder a esta área.</div>
+    </div>
+  )
+
+  const totalUsers = users.length
+  const comLicenca = licencas.filter(l=>l.plano!=='gratuito').length
+  const ativos = licencas.filter(l=>l.estado==='ativo').length
+
+  return (
+    <div>
+      <div className="section-header">
+        <div><div className="section-title">👑 Painel Admin</div><div className="section-sub">{totalUsers} utilizadores · {comLicenca} com plano pago</div></div>
+      </div>
+
+      <div className="grid-3 mb-6">
+        <KpiCard icon="👥" label="Total Utilizadores" value={totalUsers} color="text-blue"/>
+        <KpiCard icon="💎" label="Planos Pagos" value={comLicenca} color="text-green"/>
+        <KpiCard icon="✅" label="Licenças Activas" value={ativos} color="text-yellow"/>
+      </div>
+
+      <div style={{ display:'flex', gap:4, background:'#1a2840', borderRadius:10, padding:4, marginBottom:20, width:'fit-content' }}>
+        {[['utilizadores','👥 Utilizadores'],['licencas','💳 Licenças'],['stats','📊 Estatísticas']].map(([t,l])=>(
+          <button key={t} onClick={()=>setTab(t)} style={{ padding:'8px 14px', borderRadius:8, fontSize:13, fontWeight:500, cursor:'pointer', border:'none', fontFamily:'inherit', background:tab===t?'#1ed98a':'none', color:tab===t?'#0a0f14':'#94a3b8' }}>{l}</button>
+        ))}
+      </div>
+
+      {tab==='utilizadores' && (
+        <div className="card" style={{ overflowX:'auto' }}>
+          <table>
+            <thead><tr><th>Utilizador</th><th>Email</th><th>Localidade</th><th>Plano</th><th>Estado</th><th>Validade</th><th>Acções</th></tr></thead>
+            <tbody>
+              {users.map(u=>{
+                const lic = getLicenca(u.user_id)
+                return (
+                  <tr key={u.user_id||u.id}>
+                    <td>
+                      <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                        <div style={{ width:32, height:32, borderRadius:50, background:'rgba(30,217,138,.1)', border:'1px solid rgba(30,217,138,.2)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:700, color:'#1ed98a', overflow:'hidden', flexShrink:0 }}>
+                          {u.foto_perfil_url?<img src={u.foto_perfil_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>:(u.nome?u.nome[0].toUpperCase():'U')}
+                        </div>
+                        <div>
+                          <div style={{ fontSize:13, fontWeight:500, color:'#fff' }}>{u.nome||'—'}</div>
+                          {u.org&&<div style={{ fontSize:11, color:'#64748b' }}>{u.org}</div>}
+                        </div>
+                      </div>
+                    </td>
+                    <td style={{ fontSize:12, color:'#94a3b8' }}>{u.email||'—'}</td>
+                    <td style={{ fontSize:12, color:'#94a3b8' }}>{u.pombal_morada||u.localidade||'—'}</td>
+                    <td><span style={{ padding:'2px 8px', borderRadius:99, fontSize:11, fontWeight:600, background:(planoCor[lic?.plano||'gratuito']||'#475569')+'20', color:planoCor[lic?.plano||'gratuito']||'#475569' }}>{lic?.plano||'gratuito'}</span></td>
+                    <td><Badge v={lic?.estado==='ativo'?'green':'red'}>{lic?.estado||'—'}</Badge></td>
+                    <td style={{ fontSize:12, color:'#64748b' }}>{lic?.fim?new Date(lic.fim).toLocaleDateString('pt-PT'):'—'}</td>
+                    <td>
+                      <button className="btn btn-secondary btn-sm" onClick={()=>{
+                        setModalLic({user_id:u.user_id||u.id, nome:u.nome, email:u.email})
+                        setFormLic({ plano:lic?.plano||'gratuito', estado:lic?.estado||'ativo', fim:lic?.fim||'', notas:lic?.notas||'' })
+                      }}>✏️ Licença</button>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {tab==='licencas' && (
+        <div className="card" style={{ overflowX:'auto' }}>
+          <table>
+            <thead><tr><th>Email</th><th>Plano</th><th>Estado</th><th>Início</th><th>Fim</th><th>Notas</th></tr></thead>
+            <tbody>
+              {licencas.length===0?<tr><td colSpan={6} style={{ textAlign:'center', color:'#64748b', padding:30 }}>Sem licenças registadas</td></tr>
+              :licencas.map(l=>(
+                <tr key={l.id}>
+                  <td style={{ fontSize:12 }}>{l.email||l.user_id?.slice(0,8)+'...'}</td>
+                  <td><span style={{ padding:'2px 8px', borderRadius:99, fontSize:11, fontWeight:600, background:(planoCor[l.plano]||'#475569')+'20', color:planoCor[l.plano]||'#475569' }}>{l.plano}</span></td>
+                  <td><Badge v={l.estado==='ativo'?'green':'red'}>{l.estado}</Badge></td>
+                  <td style={{ fontSize:12, color:'#64748b' }}>{l.inicio?new Date(l.inicio).toLocaleDateString('pt-PT'):'—'}</td>
+                  <td style={{ fontSize:12, color:l.fim&&new Date(l.fim)<new Date()?'#f87171':'#64748b' }}>{l.fim?new Date(l.fim).toLocaleDateString('pt-PT'):'Sem limite'}</td>
+                  <td style={{ fontSize:12, color:'#94a3b8' }}>{l.notas||'—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {tab==='stats' && (
+        <div className="grid-2">
+          {[['gratuito','Gratuito'],['iniciante','Iniciante'],['base','Base'],['profissional','Profissional'],['elite','Elite AI'],['grupo','Pack Grupo']].map(([plano,label])=>{
+            const n = licencas.filter(l=>l.plano===plano).length + (plano==='gratuito'?totalUsers-licencas.length:0)
+            const pct = totalUsers ? Math.round(n/totalUsers*100) : 0
+            return (
+              <div key={plano} className="card card-p">
+                <div style={{ display:'flex', justifyContent:'space-between', marginBottom:8 }}>
+                  <span style={{ color:'#cbd5e1', fontWeight:500 }}>{label}</span>
+                  <span style={{ fontFamily:'Barlow Condensed', fontSize:20, fontWeight:700, color:planoCor[plano]||'#475569' }}>{n}</span>
+                </div>
+                <div className="progress"><div className="progress-bar" style={{ width:`${pct}%`, background:planoCor[plano]||'#475569' }}/></div>
+                <div style={{ fontSize:11, color:'#64748b', marginTop:4 }}>{pct}% dos utilizadores</div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Modal licença */}
+      <Modal open={!!modalLic} onClose={()=>setModalLic(null)} title={`💳 Licença — ${modalLic?.nome||modalLic?.email||''}`}
+        footer={<><button className="btn btn-secondary" onClick={()=>setModalLic(null)}>Cancelar</button><button className="btn btn-primary" onClick={saveLicenca}>Guardar</button></>}>
+        <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+          <Field label="Plano">
+            <select className="input" value={formLic.plano} onChange={e=>setFormLic(f=>({...f,plano:e.target.value}))}>
+              {['gratuito','iniciante','base','profissional','elite','grupo'].map(p=><option key={p}>{p}</option>)}
+            </select>
+          </Field>
+          <Field label="Estado">
+            <select className="input" value={formLic.estado} onChange={e=>setFormLic(f=>({...f,estado:e.target.value}))}>
+              <option value="ativo">Ativo</option>
+              <option value="suspenso">Suspenso</option>
+              <option value="cancelado">Cancelado</option>
+            </select>
+          </Field>
+          <Field label="Validade (deixar vazio = sem limite)">
+            <input className="input" type="date" value={formLic.fim} onChange={e=>setFormLic(f=>({...f,fim:e.target.value}))}/>
+          </Field>
+          <Field label="Notas internas">
+            <textarea className="input" rows={2} style={{ resize:'none' }} value={formLic.notas} onChange={e=>setFormLic(f=>({...f,notas:e.target.value}))}/>
+          </Field>
+        </div>
+      </Modal>
+    </div>
+  )
+}
+
+function Comunidade() {
+  const toast = useToast()
+  const { user } = useAuth()
+  const [perfis, setPerfis] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
+  const [selected, setSelected] = useState(null)
+  const [meuPerfil, setMeuPerfil] = useState(null)
+  const [tab, setTab] = useState('explorar')
+  const [formPriv, setFormPriv] = useState({ privacidade_perfil:'privado', pub_foto:false, pub_pombos:false, pub_resultados:false, pub_estatisticas:false, pub_conquistas:false, descricao:'', username:'', localidade:'' })
+  const [savingPriv, setSavingPriv] = useState(false)
+
+  useEffect(() => {
+    async function load() {
+      setLoading(true)
+      try {
+        const [ps, me] = await Promise.all([
+          supabase.from('perfis').select('nome,username,localidade,descricao,foto_perfil_url,foto_pombal_url,org,fed,privacidade_perfil,pub_foto,pub_estatisticas').neq('privacidade_perfil','privado').then(r=>r.data||[]),
+          supabase.from('perfis').select('*').eq('user_id',user.id).single().then(r=>r.data||null),
+        ])
+        setPerfis(ps)
+        if (me) {
+          setMeuPerfil(me)
+          setFormPriv({ privacidade_perfil:me.privacidade_perfil||'privado', pub_foto:me.pub_foto||false, pub_pombos:me.pub_pombos||false, pub_resultados:me.pub_resultados||false, pub_estatisticas:me.pub_estatisticas||false, pub_conquistas:me.pub_conquistas||false, descricao:me.descricao||'', username:me.username||'', localidade:me.localidade||me.pombal_morada||'' })
+        }
+      } catch(e) { toast('Erro: '+e.message,'err') }
+      finally { setLoading(false) }
+    }
+    load()
+  }, [user])
+
+  const savePrivacidade = async () => {
+    setSavingPriv(true)
+    try {
+      await supabase.from('perfis').update({ privacidade_perfil:formPriv.privacidade_perfil, pub_foto:formPriv.pub_foto, pub_pombos:formPriv.pub_pombos, pub_resultados:formPriv.pub_resultados, pub_estatisticas:formPriv.pub_estatisticas, pub_conquistas:formPriv.pub_conquistas, descricao:formPriv.descricao, username:formPriv.username||null, localidade:formPriv.localidade }).eq('user_id',user.id)
+      toast('Privacidade actualizada!','ok')
+    } catch(e) { toast('Erro: '+e.message,'err') }
+    finally { setSavingPriv(false) }
+  }
+
+  const partilhar = (p) => {
+    const url = `${window.location.origin}/perfil/${p.username||p.id}`
+    const texto = `Sou columbófilo em ${p.localidade||'Portugal'}! Vê o meu perfil no ChampionsLoft 🕊️`
+    if (navigator.share) {
+      navigator.share({ title:'ChampionsLoft', text:texto, url })
+    } else {
+      navigator.clipboard.writeText(url)
+      toast('Link copiado!','ok')
+    }
+  }
+
+  const filtered = perfis.filter(p=>!search||p.nome?.toLowerCase().includes(search.toLowerCase())||p.localidade?.toLowerCase().includes(search.toLowerCase()))
+
+  return (
+    <div>
+      <div className="section-header">
+        <div><div className="section-title">🌐 Comunidade</div><div className="section-sub">{perfis.length} columbófilos públicos</div></div>
+      </div>
+
+      <div style={{ display:'flex', gap:4, background:'#1a2840', borderRadius:10, padding:4, marginBottom:20, width:'fit-content' }}>
+        {[['explorar','🔍 Explorar'],['privacidade','🔒 Privacidade'],['meu_perfil','👤 Meu Perfil']].map(([t,l])=>(
+          <button key={t} onClick={()=>setTab(t)} style={{ padding:'8px 14px', borderRadius:8, fontSize:13, fontWeight:500, cursor:'pointer', border:'none', fontFamily:'inherit', background:tab===t?'#1ed98a':'none', color:tab===t?'#0a0f14':'#94a3b8' }}>{l}</button>
+        ))}
+      </div>
+
+      {tab==='explorar' && (
+        <div>
+          <input className="input" style={{ marginBottom:16 }} placeholder="🔍 Pesquisar por nome ou localidade..." value={search} onChange={e=>setSearch(e.target.value)}/>
+          {loading?<div style={{ display:'flex', justifyContent:'center', padding:40 }}><Spinner lg/></div>
+          :filtered.length===0?<EmptyState icon="🌐" title="Sem perfis públicos" desc="Ainda não há columbófilos com perfil público"/>
+          :<div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(220px,1fr))', gap:12 }}>
+            {filtered.map((p,i)=>(
+              <div key={i} className="card" style={{ overflow:'hidden', cursor:'pointer' }} onClick={()=>setSelected(p)}>
+                <div style={{ height:80, background:'linear-gradient(135deg,#141f2e,#1a2840)', display:'flex', alignItems:'center', justifyContent:'center', position:'relative' }}>
+                  {p.foto_pombal_url&&p.pub_foto?<img src={p.foto_pombal_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', opacity:.4 }}/>:null}
+                  <div style={{ width:56, height:56, borderRadius:'50%', background:'rgba(30,217,138,.1)', border:'2px solid rgba(30,217,138,.3)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:24, overflow:'hidden', position:'relative' }}>
+                    {p.foto_perfil_url&&p.pub_foto?<img src={p.foto_perfil_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>:(p.nome?p.nome[0].toUpperCase():'🕊️')}
+                  </div>
+                </div>
+                <div style={{ padding:'12px 14px' }}>
+                  <div style={{ fontWeight:600, color:'#fff', fontSize:14 }}>{p.nome||'—'}</div>
+                  {p.localidade&&<div style={{ fontSize:12, color:'#64748b', marginTop:2 }}>📍 {p.localidade}</div>}
+                  {p.org&&<div style={{ fontSize:11, color:'#94a3b8', marginTop:2 }}>{p.org}</div>}
+                  {p.descricao&&<div style={{ fontSize:12, color:'#64748b', marginTop:6, overflow:'hidden', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical' }}>{p.descricao}</div>}
+                </div>
+              </div>
+            ))}
+          </div>}
+        </div>
+      )}
+
+      {tab==='privacidade' && (
+        <div className="card card-p" style={{ maxWidth:500 }}>
+          <div style={{ fontWeight:600, color:'#fff', marginBottom:16 }}>🔒 Controlo de Privacidade</div>
+          <div style={{ marginBottom:16 }}>
+            <Field label="Visibilidade do Perfil">
+              <select className="input" value={formPriv.privacidade_perfil} onChange={e=>setFormPriv(f=>({...f,privacidade_perfil:e.target.value}))}>
+                <option value="privado">🔒 Privado (só eu vejo)</option>
+                <option value="publico">🌐 Público (visível a todos)</option>
+              </select>
+            </Field>
+          </div>
+          {formPriv.privacidade_perfil==='publico'&&(
+            <div style={{ display:'flex', flexDirection:'column', gap:10, marginBottom:16 }}>
+              <div style={{ fontSize:12, color:'#94a3b8', marginBottom:4 }}>O que mostrar publicamente:</div>
+              {[['pub_foto','📸 Foto de perfil e pombal'],['pub_pombos','🐦 Lista de pombos'],['pub_resultados','🏆 Resultados de provas'],['pub_estatisticas','📊 Estatísticas'],['pub_conquistas','🏅 Conquistas']].map(([key,label])=>(
+                <label key={key} style={{ display:'flex', alignItems:'center', gap:10, cursor:'pointer' }}>
+                  <input type="checkbox" checked={formPriv[key]||false} onChange={e=>setFormPriv(f=>({...f,[key]:e.target.checked}))} style={{ accentColor:'#1ed98a', width:16, height:16 }}/>
+                  <span style={{ fontSize:13, color:'#cbd5e1' }}>{label}</span>
+                </label>
+              ))}
+            </div>
+          )}
+          <Field label="Username (link público)">
+            <div style={{ display:'flex', gap:8 }}>
+              <span style={{ padding:'9px 12px', background:'#0f1923', border:'1px solid #243860', borderRadius:'10px 0 0 10px', fontSize:13, color:'#64748b', borderRight:'none' }}>@</span>
+              <input className="input" style={{ borderRadius:'0 10px 10px 0' }} placeholder="seunome" value={formPriv.username} onChange={e=>setFormPriv(f=>({...f,username:e.target.value.toLowerCase().replace(/[^a-z0-9_]/g,'')}))}/>
+            </div>
+            {formPriv.username&&<div style={{ fontSize:11, color:'#1ed98a', marginTop:4 }}>{window.location.origin}/perfil/{formPriv.username}</div>}
+          </Field>
+          <Field label="Localidade Pública"><input className="input" placeholder="Ex: Avis, Alentejo" value={formPriv.localidade} onChange={e=>setFormPriv(f=>({...f,localidade:e.target.value}))}/></Field>
+          <Field label="Descrição Pública"><textarea className="input" rows={3} style={{ resize:'none', marginTop:14 }} placeholder="Fale um pouco sobre si e o seu pombal..." value={formPriv.descricao} onChange={e=>setFormPriv(f=>({...f,descricao:e.target.value}))}/></Field>
+          <button className="btn btn-primary" style={{ marginTop:16, width:'100%', justifyContent:'center' }} onClick={savePrivacidade} disabled={savingPriv}>{savingPriv?<Spinner/>:'💾'} Guardar Privacidade</button>
+        </div>
+      )}
+
+      {tab==='meu_perfil' && meuPerfil && (
+        <div className="card card-p" style={{ maxWidth:480 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:16, marginBottom:16 }}>
+            <div style={{ width:72, height:72, borderRadius:'50%', background:'rgba(30,217,138,.1)', border:'2px solid rgba(30,217,138,.3)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:32, overflow:'hidden' }}>
+              {meuPerfil.foto_perfil_url?<img src={meuPerfil.foto_perfil_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>:(meuPerfil.nome?meuPerfil.nome[0].toUpperCase():'🕊️')}
+            </div>
+            <div>
+              <div style={{ fontSize:18, fontWeight:700, color:'#fff' }}>{meuPerfil.nome||'—'}</div>
+              {meuPerfil.username&&<div style={{ fontSize:13, color:'#1ed98a' }}>@{meuPerfil.username}</div>}
+              {meuPerfil.localidade&&<div style={{ fontSize:12, color:'#64748b' }}>📍 {meuPerfil.localidade||meuPerfil.pombal_morada}</div>}
+            </div>
+          </div>
+          {meuPerfil.descricao&&<div style={{ fontSize:13, color:'#94a3b8', marginBottom:16, padding:'10px 14px', background:'#1a2840', borderRadius:10 }}>{meuPerfil.descricao}</div>}
+          <div style={{ display:'flex', gap:8 }}>
+            <button className="btn btn-primary" style={{ flex:1, justifyContent:'center' }} onClick={()=>partilhar(meuPerfil)}>📤 Partilhar Perfil</button>
+            <button className="btn btn-secondary" onClick={()=>setTab('privacidade')}>🔒 Privacidade</button>
+          </div>
+          <div style={{ marginTop:12, fontSize:12, color:'#475569', textAlign:'center' }}>
+            Estado: <span style={{ color:meuPerfil.privacidade_perfil==='publico'?'#1ed98a':'#64748b' }}>{meuPerfil.privacidade_perfil==='publico'?'🌐 Público':'🔒 Privado'}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Perfil detalhe */}
+      {selected&&(
+        <Modal open={!!selected} onClose={()=>setSelected(null)} title={`🕊️ ${selected.nome}`}>
+          <div style={{ display:'flex', alignItems:'center', gap:14, marginBottom:14 }}>
+            <div style={{ width:64, height:64, borderRadius:'50%', background:'rgba(30,217,138,.1)', border:'2px solid rgba(30,217,138,.3)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:28, overflow:'hidden' }}>
+              {selected.foto_perfil_url&&selected.pub_foto?<img src={selected.foto_perfil_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>:(selected.nome?selected.nome[0].toUpperCase():'🕊️')}
+            </div>
+            <div>
+              <div style={{ fontSize:16, fontWeight:700, color:'#fff' }}>{selected.nome}</div>
+              {selected.localidade&&<div style={{ fontSize:13, color:'#64748b' }}>📍 {selected.localidade}</div>}
+              {selected.org&&<div style={{ fontSize:12, color:'#94a3b8' }}>{selected.org}</div>}
+            </div>
+          </div>
+          {selected.descricao&&<div style={{ fontSize:13, color:'#94a3b8', padding:'10px 14px', background:'#1a2840', borderRadius:10, marginBottom:12 }}>{selected.descricao}</div>}
+          <button className="btn btn-primary w-full" style={{ justifyContent:'center' }} onClick={()=>partilhar(selected)}>📤 Partilhar Perfil</button>
+        </Modal>
+      )}
+    </div>
+  )
+}
+
 function EmBreve({ icon, title }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh', textAlign: 'center' }}>
@@ -3957,7 +4457,9 @@ const NAV = [
   { section: 'Principal', items: [{ id: 'dashboard', icon: '📊', label: 'Dashboard' }, { id: 'pombos', icon: '🐦', label: 'Pombos' }, { id: 'pombais', icon: '🏠', label: 'Pombais' }] },
   { section: 'Desporto', items: [{ id: 'provas', icon: '🏆', label: 'Provas' }, { id: 'treinos', icon: '🎯', label: 'Treinos' }, { id: 'calendario', icon: '📅', label: 'Calendário' }, { id: 'checklist', icon: '✅', label: 'Checklist' }] },
   { section: 'Gestão', items: [{ id: 'saude', icon: '🏥', label: 'Saúde' }, { id: 'reproducao', icon: '🥚', label: 'Reprodução' }, { id: 'alimentacao', icon: '🌾', label: 'Alimentação' }, { id: 'financas', icon: '💰', label: 'Finanças' }] },
-  { section: 'Análise', items: [{ id: 'relatorios', icon: '📊', label: 'Relatórios' }, { id: 'fimepoca', icon: '🏁', label: 'Fim de Época' }, { id: 'meteorologia', icon: '🌦️', label: 'Meteorologia' }, { id: 'perfil', icon: '⚙️', label: 'Perfil' }] },
+  { section: 'Análise', items: [{ id: 'relatorios', icon: '📊', label: 'Relatórios' }, { id: 'fimepoca', icon: '🏁', label: 'Fim de Época' }, { id: 'meteorologia', icon: '🌦️', label: 'Meteorologia' }] },
+  { section: 'Social', items: [{ id: 'comunidade', icon: '🌐', label: 'Comunidade' }] },
+  { section: 'Sistema', items: [{ id: 'admin', icon: '👑', label: 'Admin' }, { id: 'perfil', icon: '⚙️', label: 'Perfil' }, { id: 'documentos', icon: '📄', label: 'Documentos' }] },
 ]
 
 // ─── APP LAYOUT ───────────────────────────────────────
@@ -3988,6 +4490,8 @@ function AppLayout() {
       case 'relatorios':  return <Relatorios />
       case 'fimepoca':     return <FimEpoca />
       case 'meteorologia':return <Meteorologia />
+      case 'admin':        return <Admin />
+      case 'comunidade':   return <Comunidade />
       default:            return <Dashboard nav={nav} />
     }
   }
