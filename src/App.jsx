@@ -475,228 +475,283 @@ function Pombos() {
   const [pombais, setPombais] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [filtro, setFiltro] = useState('todos')
+  const [tabPrincipal, setTabPrincipal] = useState('efectivo')
   const [modal, setModal] = useState(null)
   const [selected, setSelected] = useState(null)
   const [saving, setSaving] = useState(false)
   const [confirm, setConfirm] = useState(null)
   const [photoFile, setPhotoFile] = useState(null)
   const [photoPreview, setPhotoPreview] = useState(null)
+
   const anoAtual = new Date().getFullYear()
   const anos = Array.from({length:10},(_,i)=>anoAtual-i)
   const paises = ['PT','ES','FR','BE','NL','DE','IT','GB','PL','CZ']
   const CORES_POMBO = ['Azul barrado','Azul sem barra','Azul xadrez','Vermelho barrado','Vermelho sem barra','Branco','Branco com marcas','Amarelo','Alazão','Cinzento','Meado','Tigrado']
-  const [filtro, setFiltro] = useState('todos')
   const [anilhaPais, setAnilhaPais] = useState('PT')
-  const [anilhaAno, setAnilhaAno] = useState(String(new Date().getFullYear()))
+  const [anilhaAno, setAnilhaAno] = useState(String(anoAtual))
   const [anilhaNum, setAnilhaNum] = useState('')
   const FILTROS = [{id:'todos',label:'Todos'},{id:'M',label:'♂ Machos'},{id:'F',label:'♀ Fêmeas'},{id:'ativo',label:'Voadores'},{id:'reproducao',label:'Reprodução'},{id:'lesionado',label:'Lesionados'},{id:'velocidade',label:'Velocidade'},{id:'meio_fundo',label:'Meio-Fundo'},{id:'fundo',label:'Fundo'},{id:'grande_fundo',label:'G.Fundo'}]
-  const EMPTY = { anilha: '', nome: '', sexo: 'M', cor: '', peso: '', esp: ['velocidade'], estado: 'ativo', pombal: '', pai: '', mae: '', obs: '', emoji: '🐦' }
+  const ESTADOS_EXT = ['proprio','emprestado','cedido','vendido','oferecido','falecido']
+  const EMPTY = { anilha:'', nome:'', sexo:'M', cor:'', peso:'', esp:['velocidade'], estado:'ativo', estado_ext:'proprio', pombal:'', pai:'', mae:'', obs:'', emoji:'🐦', criador:'', data_aquisicao:'', valor_aquisicao:'', obs_aquisicao:'', destino_nome:'', destino_data:'', destino_valor:'', destino_obs:'' }
   const [form, setForm] = useState(EMPTY)
-  const sf = (k, v) => setForm(f => ({ ...f, [k]: v }))
+  const sf = (k,v) => setForm(f=>({...f,[k]:v}))
+  const ESPS = [['velocidade','Velocidade'],['meio_fundo','Meio-Fundo'],['fundo','Fundo'],['grande_fundo','G.Fundo']]
+  const statusBadge = { ativo:'green', reproducao:'yellow', lesionado:'red', inativo:'gray' }
+  const extBadge = { proprio:'green', emprestado:'yellow', cedido:'blue', vendido:'gray', oferecido:'blue', falecido:'red' }
 
   const load = useCallback(async () => {
     setLoading(true)
-    try { const [p, pb] = await Promise.all([db.getPombos(), db.getPombais()]); setPombos(p); setPombais(pb) }
-    catch (e) { toast('Erro: ' + e.message, 'err') }
+    try { const [p,pb] = await Promise.all([db.getPombos(), db.getPombais()]); setPombos(p); setPombais(pb) }
+    catch(e) { toast('Erro: '+e.message,'err') }
     finally { setLoading(false) }
-  }, [])
+  },[])
 
-  useEffect(() => { load() }, [load])
+  useEffect(()=>{ load() },[load])
 
-  const filtered = pombos.filter(p => {
-    const matchSearch = !search || p.nome?.toLowerCase().includes(search.toLowerCase()) || p.anilha?.toLowerCase().includes(search.toLowerCase())
-    const matchFiltro = filtro==='todos' || p.sexo===filtro || p.estado===filtro || (p.esp||[]).includes(filtro)
-    return matchSearch && matchFiltro
+  // Separar por estado_ext
+  const efectivo = pombos.filter(p=>!p.estado_ext||p.estado_ext==='proprio')
+  const externos = pombos.filter(p=>p.estado_ext&&p.estado_ext!=='proprio')
+  const emprestados = externos.filter(p=>p.estado_ext==='emprestado')
+  const cedidos = externos.filter(p=>p.estado_ext==='cedido')
+  const vendidos = externos.filter(p=>p.estado_ext==='vendido'||p.estado_ext==='oferecido')
+
+  const listaActual = tabPrincipal==='efectivo' ? efectivo : tabPrincipal==='emprestados' ? emprestados : tabPrincipal==='cedidos' ? cedidos : vendidos
+
+  const filtered = listaActual.filter(p => {
+    const ms = !search || p.nome?.toLowerCase().includes(search.toLowerCase()) || p.anilha?.toLowerCase().includes(search.toLowerCase())
+    const mf = tabPrincipal!=='efectivo' || filtro==='todos' || p.sexo===filtro || p.estado===filtro || (p.esp||[]).includes(filtro)
+    return ms && mf
   })
 
-  const openNew = () => {
-    setAnilhaPais('PT'); setAnilhaAno(String(anoAtual)); setAnilhaNum('')
-    setForm({ ...EMPTY, pombal: pombais[0]?.nome || '' })
-    setPhotoFile(null); setPhotoPreview(null); setSelected(null); setModal('form')
-  }
-  const openEdit = (p) => { setSelected(p); setForm({ anilha: p.anilha || '', nome: p.nome || '', sexo: p.sexo || 'M', cor: p.cor || '', peso: p.peso || '', esp: p.esp || ['velocidade'], estado: p.estado || 'ativo', pombal: p.pombal || '', pai: p.pai || '', mae: p.mae || '', obs: p.obs || '', emoji: p.emoji || '🐦' }); setPhotoPreview(p.foto_url || null); setPhotoFile(null); setModal('form') }
+  const openNew = () => { setAnilhaPais('PT'); setAnilhaAno(String(anoAtual)); setAnilhaNum(''); setForm({...EMPTY,pombal:pombais[0]?.nome||''}); setPhotoFile(null); setPhotoPreview(null); setSelected(null); setModal('form') }
+  const openEdit = (p) => { setSelected(p); setForm({ anilha:p.anilha||'', nome:p.nome||'', sexo:p.sexo||'M', cor:p.cor||'', peso:p.peso||'', esp:p.esp||['velocidade'], estado:p.estado||'ativo', estado_ext:p.estado_ext||'proprio', pombal:p.pombal||'', pai:p.pai||'', mae:p.mae||'', obs:p.obs||'', emoji:p.emoji||'🐦', criador:p.criador||'', data_aquisicao:p.data_aquisicao||'', valor_aquisicao:p.valor_aquisicao||'', obs_aquisicao:p.obs_aquisicao||'', destino_nome:p.destino_nome||'', destino_data:p.destino_data||'', destino_valor:p.destino_valor||'', destino_obs:p.destino_obs||'' }); setPhotoPreview(p.foto_url||null); setPhotoFile(null); setModal('form') }
   const openDetail = (p) => { setSelected(p); setModal('detail') }
   const close = () => { setModal(null); setSelected(null); setPhotoFile(null); setPhotoPreview(null) }
-
-  const toggleEsp = (e) => sf('esp', form.esp.includes(e) ? form.esp.filter(x => x !== e) : [...form.esp, e])
+  const toggleEsp = (e) => sf('esp', form.esp.includes(e)?form.esp.filter(x=>x!==e):[...form.esp,e])
 
   const save = async () => {
-    if (!form.anilha.trim()) { toast('Anel obrigatório', 'warn'); return }
-    if (!form.nome.trim()) { toast('Nome obrigatório', 'warn'); return }
+    if (!form.nome.trim()) { toast('Nome obrigatório','warn'); return }
     setSaving(true)
     try {
-      const anilhaFinal = form.anilha.trim() || `${anilhaPais}-${anilhaAno}-${anilhaNum.padStart(5,'0')}`
-      const paiFinal = form.pai.trim() || (form.paiBiNum ? `${form.paiBiPais}-${form.paiBiAno}-${form.paiBiNum.padStart(5,'0')}` : '')
-      const maeFinal = form.mae.trim() || (form.maeBiNum ? `${form.maeBiPais}-${form.maeBiAno}-${form.maeBiNum.padStart(5,'0')}` : '')
-      const payload = { anilha: anilhaFinal, nome: form.nome.trim(), sexo: form.sexo, cor: form.cor, peso: form.peso ? parseInt(form.peso) : null, esp: form.esp, estado: form.estado, pombal: form.pombal, pai: paiFinal, mae: maeFinal, obs: form.obs, emoji: form.emoji, provas: selected?.provas||0, percentil: selected?.percentil||0, forma: selected?.forma||50 }
+      const anilhaFinal = anilhaNum ? `${anilhaPais}-${anilhaAno}-${anilhaNum.padStart(5,'0')}` : form.anilha.trim()
+      const payload = { anilha:anilhaFinal, nome:form.nome.trim(), sexo:form.sexo, cor:form.cor, peso:form.peso?parseInt(form.peso):null, esp:form.esp, estado:form.estado, estado_ext:form.estado_ext, pombal:form.pombal, pai:form.pai, mae:form.mae, obs:form.obs, emoji:form.emoji, criador:form.criador, data_aquisicao:form.data_aquisicao||null, valor_aquisicao:form.valor_aquisicao?parseFloat(form.valor_aquisicao):null, obs_aquisicao:form.obs_aquisicao, destino_nome:form.destino_nome, destino_data:form.destino_data||null, destino_valor:form.destino_valor?parseFloat(form.destino_valor):null, destino_obs:form.destino_obs, provas:selected?.provas||0, percentil:selected?.percentil||0, forma:selected?.forma||50 }
       let saved
       if (selected) saved = await db.updatePombo(selected.id, payload)
       else saved = await db.createPombo(payload)
       if (photoFile && saved?.id && user?.id) {
-        try { const url = await db.uploadFoto(user.id, saved.id, photoFile); await db.updatePombo(saved.id, { foto_url: url }) }
-        catch (e) { toast('Foto não guardada: ' + e.message, 'warn') }
+        try { const url = await db.uploadFoto(user.id, saved.id, photoFile); await db.updatePombo(saved.id, {foto_url:url}) }
+        catch(e) { toast('Foto não guardada','warn') }
       }
-      toast(selected ? 'Pombo actualizado!' : `${form.nome} adicionado!`, 'ok')
-      close(); load()
-    } catch (e) { toast('Erro: ' + e.message, 'err') }
+      toast(selected?'Actualizado!':form.nome+' adicionado!','ok'); close(); load()
+    } catch(e) { toast('Erro: '+e.message,'err') }
     finally { setSaving(false) }
   }
 
   const del = async () => {
-    try { await db.deletePombo(confirm.id); toast('Eliminado', 'ok'); setConfirm(null); load() }
-    catch (e) { toast('Erro: ' + e.message, 'err') }
+    try { await db.deletePombo(confirm.id); toast('Eliminado','ok'); setConfirm(null); load() }
+    catch(e) { toast('Erro: '+e.message,'err') }
   }
 
-  const ESPS = [['velocidade', 'Velocidade'], ['meio_fundo', 'Meio-Fundo'], ['fundo', 'Fundo'], ['grande_fundo', 'G. Fundo']]
-  const statusBadge = { ativo: 'green', reproducao: 'yellow', lesionado: 'red', inativo: 'gray' }
+  const PomboCard = ({p}) => {
+    const fc=(p.forma||50)>=80?'#1ed98a':(p.forma||50)>=60?'#facc15':'#f87171'
+    return (
+      <div className="pombo-card" onClick={()=>openDetail(p)}>
+        <div className="pombo-photo" style={{ height:160 }}>
+          {p.foto_url?<img src={p.foto_url} alt={p.nome}/>:p.emoji}
+          <div style={{ position:'absolute', top:6, right:6, background:'rgba(0,0,0,.6)', borderRadius:6, padding:'2px 6px', fontSize:11, fontWeight:700 }}>{p.sexo==='M'?'♂':'♀'}</div>
+          {p.estado_ext&&p.estado_ext!=='proprio'&&<div style={{ position:'absolute', top:6, left:6, background:'rgba(0,0,0,.7)', borderRadius:6, padding:'2px 6px', fontSize:10, fontWeight:700, color:'#facc15' }}>{p.estado_ext.toUpperCase()}</div>}
+        </div>
+        <div className="pombo-info">
+          <div className="pombo-anel">{p.anilha}</div>
+          <div className="pombo-nome">{p.nome}</div>
+          <Badge v={statusBadge[p.estado]}>{p.estado}</Badge>
+          <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:8 }}>
+            <div className="progress" style={{ flex:1 }}><div className="progress-bar" style={{ width:`${p.forma||50}%`, background:fc }}/></div>
+            <span style={{ fontSize:11, fontWeight:700, color:fc }}>{p.forma||50}%</span>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  const ExternoCard = ({p}) => (
+    <div className="card card-p" style={{ cursor:'pointer' }} onClick={()=>openDetail(p)}>
+      <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+        <div style={{ width:44, height:44, borderRadius:10, background:'#1a2840', display:'flex', alignItems:'center', justifyContent:'center', fontSize:22, overflow:'hidden', flexShrink:0 }}>
+          {p.foto_url?<img src={p.foto_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>:p.emoji||'🐦'}
+        </div>
+        <div style={{ flex:1 }}>
+          <div style={{ fontSize:13, fontWeight:600, color:'#fff' }}>{p.nome}</div>
+          <div style={{ fontFamily:'JetBrains Mono', fontSize:10, color:'#1ed98a' }}>{p.anilha}</div>
+          {p.destino_nome&&<div style={{ fontSize:11, color:'#94a3b8', marginTop:2 }}>→ {p.destino_nome}{p.destino_data?` · ${new Date(p.destino_data).toLocaleDateString('pt-PT')}`:''}</div>}
+          {p.destino_valor&&<div style={{ fontSize:11, color:'#facc15' }}>💶 {p.destino_valor}€</div>}
+        </div>
+        <Badge v={extBadge[p.estado_ext]||'gray'}>{p.estado_ext}</Badge>
+      </div>
+    </div>
+  )
 
   return (
     <div>
       <div className="section-header">
-        <div><div className="section-title">Pombos</div><div className="section-sub">{pombos.length} registados</div></div>
+        <div><div className="section-title">Pombos</div><div className="section-sub">{efectivo.length} no efectivo · {externos.length} externos</div></div>
         <button className="btn btn-primary" onClick={openNew}>＋ Novo Pombo</button>
       </div>
 
-      <div style={{ display:'flex', flexDirection:'column', gap:10, marginBottom:16 }}>
-        <input className="input" placeholder="🔍 Pesquisar por nome ou anel..." value={search} onChange={e=>setSearch(e.target.value)} />
-        <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
-          {FILTROS.map(f=><button key={f.id} onClick={()=>setFiltro(f.id)} className={`chip${filtro===f.id?' active':''}`} style={{ fontSize:11 }}>{f.label}</button>)}
-        </div>
-        <div style={{ fontSize:12, color:'#64748b' }}>{filtered.length} pombo(s)</div>
+      {/* Tabs principais */}
+      <div style={{ display:'flex', gap:4, background:'#1a2840', borderRadius:10, padding:4, marginBottom:16, overflowX:'auto' }}>
+        {[['efectivo',`🐦 Efectivo (${efectivo.length})`],['emprestados',`🔄 Emprestados (${emprestados.length})`],['cedidos',`🤝 Cedidos (${cedidos.length})`],['vendidos',`💰 Vendidos/Oferecidos (${vendidos.length})`]].map(([t,l])=>(
+          <button key={t} onClick={()=>setTabPrincipal(t)} style={{ padding:'8px 14px', borderRadius:8, fontSize:13, fontWeight:500, cursor:'pointer', border:'none', fontFamily:'inherit', whiteSpace:'nowrap', background:tabPrincipal===t?'#1ed98a':'none', color:tabPrincipal===t?'#0a0f14':'#94a3b8' }}>{l}</button>
+        ))}
       </div>
 
-      {loading ? <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}><Spinner lg /></div>
-        : filtered.length === 0 ? <EmptyState icon="🐦" title="Sem pombos" desc="Adicione o seu primeiro pombo" action={<button className="btn btn-primary" onClick={openNew}>＋ Novo Pombo</button>} />
-          : (
-            <div className="grid-auto">
-              {filtered.map(p => {
-                const fc = (p.forma || 50) >= 80 ? '#1ed98a' : (p.forma || 50) >= 60 ? '#facc15' : '#f87171'
-                return (
-                  <div key={p.id} className="pombo-card" onClick={() => openDetail(p)}>
-                    <div className="pombo-photo" style={{ height:160 }}>
-                      {p.foto_url ? <img src={p.foto_url} alt={p.nome} /> : p.emoji}
-                      <div style={{ position: 'absolute', top: 6, right: 6, background: 'rgba(0,0,0,.6)', borderRadius: 6, padding: '2px 6px', fontSize: 11, fontWeight: 700 }}>
-                        {p.sexo === 'M' ? '♂' : '♀'}
-                      </div>
-                    </div>
-                    <div className="pombo-info">
-                      <div className="pombo-anel">{p.anilha}</div>
-                      <div className="pombo-nome">{p.nome}</div>
-                      <Badge v={statusBadge[p.estado]}>{p.estado}</Badge>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8 }}>
-                        <div className="progress" style={{ flex: 1 }}>
-                          <div className="progress-bar" style={{ width: `${p.forma || 50}%`, background: fc }} />
-                        </div>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: fc }}>{p.forma || 50}%</span>
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )
+      {/* Filtros só no efectivo */}
+      {tabPrincipal==='efectivo' && (
+        <div style={{ display:'flex', flexDirection:'column', gap:10, marginBottom:16 }}>
+          <input className="input" placeholder="🔍 Pesquisar..." value={search} onChange={e=>setSearch(e.target.value)}/>
+          <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+            {FILTROS.map(f=><button key={f.id} onClick={()=>setFiltro(f.id)} className={`chip${filtro===f.id?' active':''}`} style={{ fontSize:11 }}>{f.label}</button>)}
+          </div>
+          <div style={{ fontSize:12, color:'#64748b' }}>{filtered.length} pombo(s)</div>
+        </div>
+      )}
+
+      {tabPrincipal!=='efectivo' && (
+        <input className="input" style={{ marginBottom:16 }} placeholder="🔍 Pesquisar..." value={search} onChange={e=>setSearch(e.target.value)}/>
+      )}
+
+      {loading ? <div style={{ display:'flex', justifyContent:'center', padding:60 }}><Spinner lg/></div>
+        : filtered.length===0 ? <EmptyState icon="🐦" title="Sem pombos" desc="Nenhum pombo nesta categoria" action={tabPrincipal==='efectivo'?<button className="btn btn-primary" onClick={openNew}>＋ Novo Pombo</button>:null}/>
+        : tabPrincipal==='efectivo'
+          ? <div className="grid-auto">{filtered.map(p=><PomboCard key={p.id} p={p}/>)}</div>
+          : <div style={{ display:'flex', flexDirection:'column', gap:8 }}>{filtered.map(p=><ExternoCard key={p.id} p={p}/>)}</div>
       }
 
       {/* Form modal */}
-      <Modal open={modal === 'form'} onClose={close} title={selected ? `✏️ Editar — ${selected.nome}` : '🐦 Novo Pombo'} wide
-        footer={<><button className="btn btn-secondary" onClick={close}>Cancelar</button><button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? <Spinner /> : null} {selected ? 'Guardar' : 'Adicionar'}</button></>}>
+      <Modal open={modal==='form'} onClose={close} title={selected?`✏️ ${selected.nome}`:'🐦 Novo Pombo'} wide
+        footer={<><button className="btn btn-secondary" onClick={close}>Cancelar</button><button className="btn btn-primary" onClick={save} disabled={saving}>{saving?<Spinner/>:null}{selected?'Guardar':'Adicionar'}</button></>}>
         <div className="form-grid">
-          <div className="col-2" style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <div style={{ width: 72, height: 72, borderRadius: 14, border: '2px dashed #243860', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', cursor: 'pointer', flexShrink: 0 }}
-              onClick={() => document.getElementById('photo-up').click()}>
-              {photoPreview ? <img src={photoPreview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: 32 }}>{form.emoji}</span>}
+          {/* Foto */}
+          <div className="col-2" style={{ display:'flex', alignItems:'center', gap:16 }}>
+            <div style={{ width:72, height:72, borderRadius:14, border:'2px dashed #243860', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden', cursor:'pointer', flexShrink:0 }} onClick={()=>document.getElementById('photo-up').click()}>
+              {photoPreview?<img src={photoPreview} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>:<span style={{ fontSize:32 }}>{form.emoji}</span>}
             </div>
             <div>
-              <input type="file" id="photo-up" accept="image/*" style={{ display: 'none' }} onChange={e => { const f = e.target.files[0]; if (f) { setPhotoFile(f); setPhotoPreview(URL.createObjectURL(f)) } }} />
-              <button className="btn btn-secondary btn-sm" onClick={() => document.getElementById('photo-up').click()}>📸 Foto</button>
-              <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>JPG, PNG. Máx 5MB</div>
+              <input type="file" id="photo-up" accept="image/*" style={{ display:'none' }} onChange={e=>{ const f=e.target.files[0]; if(f){setPhotoFile(f);setPhotoPreview(URL.createObjectURL(f))} }}/>
+              <button className="btn btn-secondary btn-sm" onClick={()=>document.getElementById('photo-up').click()}>📸 Foto</button>
             </div>
           </div>
+          {/* Anel estruturado */}
           <Field label="Anel *">
             <div style={{ display:'flex', gap:4 }}>
-              <select className="input" style={{ width:70 }} value={anilhaPais} onChange={e=>setAnilhaPais(e.target.value)}>
-                {paises.map(p=><option key={p}>{p}</option>)}
-              </select>
-              <select className="input" style={{ width:90 }} value={anilhaAno} onChange={e=>setAnilhaAno(e.target.value)}>
-                {anos.map(a=><option key={a}>{a}</option>)}
-              </select>
-              <input className="input" style={{ flex:1 }} placeholder="00000" value={anilhaNum} onChange={e=>setAnilhaNum(e.target.value.replace(/\D/,''))} maxLength={5}/>
+              <select className="input" style={{ width:72 }} value={anilhaPais} onChange={e=>setAnilhaPais(e.target.value)}>{paises.map(p=><option key={p}>{p}</option>)}</select>
+              <select className="input" style={{ width:88 }} value={anilhaAno} onChange={e=>setAnilhaAno(e.target.value)}>{anos.map(a=><option key={a}>{a}</option>)}</select>
+              <input className="input" style={{ flex:1 }} placeholder="00000" maxLength={5} value={anilhaNum} onChange={e=>setAnilhaNum(e.target.value.replace(/[^0-9]/g,''))}/>
             </div>
-            <div style={{ fontSize:11, color:'#64748b', marginTop:4 }}>
-              Anilha: {anilhaPais}-{anilhaAno}-{anilhaNum.padStart(5,'0')||'?????'}
-            </div>
+            <div style={{ fontSize:11, color:'#1ed98a', marginTop:4 }}>🏷️ {anilhaPais}-{anilhaAno}-{(anilhaNum||'?????').padStart(5,'0')}</div>
           </Field>
-          <Field label="Nome *"><input className="input" placeholder="Nome do pombo" value={form.nome} onChange={e => sf('nome', e.target.value)} /></Field>
-          <Field label="Sexo"><select className="input" value={form.sexo} onChange={e => sf('sexo', e.target.value)}><option value="M">♂ Macho</option><option value="F">♀ Fêmea</option></select></Field>
-          <Field label="Estado"><select className="input" value={form.estado} onChange={e => sf('estado', e.target.value)}>{['ativo', 'reproducao', 'lesionado', 'inativo'].map(s => <option key={s}>{s}</option>)}</select></Field>
-          <Field label="Cor / Aspecto">
-            <select className="input" value={form.cor} onChange={e=>sf('cor',e.target.value)}>
-              <option value="">— Seleccionar —</option>
-              {CORES_POMBO.map(c=><option key={c}>{c}</option>)}
+          <Field label="Nome *"><input className="input" placeholder="Nome do pombo" value={form.nome} onChange={e=>sf('nome',e.target.value)}/></Field>
+          <Field label="Sexo"><select className="input" value={form.sexo} onChange={e=>sf('sexo',e.target.value)}><option value="M">♂ Macho</option><option value="F">♀ Fêmea</option></select></Field>
+          <Field label="Estado"><select className="input" value={form.estado} onChange={e=>sf('estado',e.target.value)}>{['ativo','reproducao','lesionado','inativo'].map(s=><option key={s}>{s}</option>)}</select></Field>
+          <Field label="Situação">
+            <select className="input" value={form.estado_ext} onChange={e=>sf('estado_ext',e.target.value)}>
+              {ESTADOS_EXT.map(s=><option key={s}>{s}</option>)}
             </select>
           </Field>
-          <Field label="Peso (g)"><input className="input" type="number" placeholder="420" value={form.peso} onChange={e => sf('peso', e.target.value)} /></Field>
-          <Field label="Pombal"><select className="input" value={form.pombal} onChange={e => sf('pombal', e.target.value)}><option value="">— Sem pombal —</option>{pombais.map(pb => <option key={pb.id}>{pb.nome}</option>)}</select></Field>
-          <div className="col-2">
-            <Field label="Especialidades">
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
-                {ESPS.map(([v, l]) => <button key={v} type="button" className={`chip${form.esp.includes(v) ? ' active' : ''}`} onClick={() => toggleEsp(v)}>{l}</button>)}
-              </div>
-            </Field>
+          <Field label="Cor">
+            <select className="input" value={form.cor} onChange={e=>sf('cor',e.target.value)}>
+              <option value="">— Seleccionar —</option>
+              {CORES_POMBO.map(co=><option key={co}>{co}</option>)}
+            </select>
+          </Field>
+          <Field label="Peso (g)"><input className="input" type="number" placeholder="420" value={form.peso} onChange={e=>sf('peso',e.target.value)}/></Field>
+          <Field label="Pombal"><select className="input" value={form.pombal} onChange={e=>sf('pombal',e.target.value)}><option value="">— Sem pombal —</option>{pombais.map(pb=><option key={pb.id}>{pb.nome}</option>)}</select></Field>
+          <div className="col-2"><Field label="Especialidades"><div style={{ display:'flex', gap:6, flexWrap:'wrap', marginTop:4 }}>{ESPS.map(([v,l])=><button key={v} type="button" className={`chip${form.esp.includes(v)?' active':''}`} onClick={()=>toggleEsp(v)}>{l}</button>)}</div></Field></div>
+          {/* Anel Pai/Mãe */}
+          <Field label="Anel do Pai"><input className="input font-mono" style={{ fontSize:11 }} placeholder="PT-0000-00000" value={form.pai} onChange={e=>sf('pai',e.target.value.toUpperCase())}/></Field>
+          <Field label="Anel da Mãe"><input className="input font-mono" style={{ fontSize:11 }} placeholder="PT-0000-00000" value={form.mae} onChange={e=>sf('mae',e.target.value.toUpperCase())}/></Field>
+          {/* Origem */}
+          <div className="col-2" style={{ borderTop:'1px solid #1e3050', paddingTop:12, marginTop:4 }}>
+            <div style={{ fontSize:12, fontWeight:600, color:'#94a3b8', marginBottom:10 }}>📦 Origem / Aquisição</div>
           </div>
-          <Field label="Anel do Pai"><input className="input font-mono" style={{ fontSize: 11 }} placeholder="PT-0000-00000" value={form.pai} onChange={e => sf('pai', e.target.value.toUpperCase())} /></Field>
-          <Field label="Anel da Mãe"><input className="input font-mono" style={{ fontSize: 11 }} placeholder="PT-0000-00000" value={form.mae} onChange={e => sf('mae', e.target.value.toUpperCase())} /></Field>
-          <div className="col-2"><Field label="Observações"><textarea className="input" rows={2} style={{ resize: 'none' }} value={form.obs} onChange={e => sf('obs', e.target.value)} /></Field></div>
+          <Field label="Criador / Origem"><input className="input" placeholder="Nome do criador" value={form.criador} onChange={e=>sf('criador',e.target.value)}/></Field>
+          <Field label="Data de Aquisição"><input className="input" type="date" value={form.data_aquisicao} onChange={e=>sf('data_aquisicao',e.target.value)}/></Field>
+          <Field label="Valor de Aquisição (€)"><input className="input" type="number" step="0.01" placeholder="0.00" value={form.valor_aquisicao} onChange={e=>sf('valor_aquisicao',e.target.value)}/></Field>
+          <Field label="Obs. Aquisição"><input className="input" placeholder="Notas..." value={form.obs_aquisicao} onChange={e=>sf('obs_aquisicao',e.target.value)}/></Field>
+          {/* Destino - só se não for próprio */}
+          {form.estado_ext!=='proprio'&&(
+            <>
+              <div className="col-2" style={{ borderTop:'1px solid #1e3050', paddingTop:12, marginTop:4 }}>
+                <div style={{ fontSize:12, fontWeight:600, color:'#facc15', marginBottom:10 }}>🎯 Destino ({form.estado_ext})</div>
+              </div>
+              <Field label="Destino (nome/entidade)"><input className="input" placeholder="Nome do destinatário" value={form.destino_nome} onChange={e=>sf('destino_nome',e.target.value)}/></Field>
+              <Field label="Data"><input className="input" type="date" value={form.destino_data} onChange={e=>sf('destino_data',e.target.value)}/></Field>
+              <Field label="Valor (€)"><input className="input" type="number" step="0.01" placeholder="0.00" value={form.destino_valor} onChange={e=>sf('destino_valor',e.target.value)}/></Field>
+              <Field label="Observações"><input className="input" placeholder="Notas..." value={form.destino_obs} onChange={e=>sf('destino_obs',e.target.value)}/></Field>
+            </>
+          )}
+          <div className="col-2"><Field label="Observações"><textarea className="input" rows={2} style={{ resize:'none' }} value={form.obs} onChange={e=>sf('obs',e.target.value)}/></Field></div>
         </div>
       </Modal>
 
       {/* Detail modal */}
-      {selected && (
-        <Modal open={modal === 'detail'} onClose={close} title={`${selected.emoji} ${selected.nome}`} wide
-          footer={
-            <div style={{ display: 'flex', gap: 8, width: '100%' }}>
-              <button className="btn btn-danger btn-sm" onClick={() => { close(); setConfirm(selected) }}>🗑️ Eliminar</button>
-              <div style={{ flex: 1 }} />
-              <button className="btn btn-secondary" onClick={close}>Fechar</button>
-              <button className="btn btn-primary" onClick={() => openEdit(selected)}>✏️ Editar</button>
+      {selected&&(
+        <Modal open={modal==='detail'} onClose={close} title={`${selected.emoji||'🐦'} ${selected.nome}`} wide
+          footer={<div style={{ display:'flex', gap:8, width:'100%' }}><button className="btn btn-danger btn-sm" onClick={()=>{close();setConfirm(selected)}}>🗑️</button><div style={{ flex:1 }}/><button className="btn btn-secondary" onClick={close}>Fechar</button><button className="btn btn-primary" onClick={()=>openEdit(selected)}>✏️ Editar</button></div>}>
+          <div style={{ display:'flex', gap:16, marginBottom:16, flexWrap:'wrap' }}>
+            <div style={{ width:80, height:80, borderRadius:14, background:'#1a2840', display:'flex', alignItems:'center', justifyContent:'center', fontSize:40, overflow:'hidden', flexShrink:0, border:'1px solid #243860' }}>
+              {selected.foto_url?<img src={selected.foto_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>:selected.emoji||'🐦'}
             </div>
-          }>
-          <div style={{ display: 'flex', gap: 16, marginBottom: 16, flexWrap: 'wrap' }}>
-            <div style={{ width: 80, height: 80, borderRadius: 14, background: '#1a2840', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40, overflow: 'hidden', flexShrink: 0, border: '1px solid #243860' }}>
-              {selected.foto_url ? <img src={selected.foto_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : selected.emoji}
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
-                <span style={{ fontFamily: 'JetBrains Mono', fontSize: 11, color: '#1ed98a' }}>{selected.anilha}</span>
+            <div style={{ flex:1 }}>
+              <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:6 }}>
+                <span style={{ fontFamily:'JetBrains Mono', fontSize:11, color:'#1ed98a' }}>{selected.anilha}</span>
                 <Badge v={statusBadge[selected.estado]}>{selected.estado}</Badge>
+                {selected.estado_ext&&selected.estado_ext!=='proprio'&&<Badge v={extBadge[selected.estado_ext]||'gray'}>{selected.estado_ext}</Badge>}
               </div>
-              <div style={{ fontSize: 13, color: '#94a3b8', marginBottom: 2 }}>{selected.sexo === 'M' ? '♂ Macho' : '♀ Fêmea'} · {selected.cor || '—'}</div>
-              <div style={{ fontSize: 13, color: '#94a3b8' }}>🏠 {selected.pombal || '—'}</div>
+              <div style={{ fontSize:13, color:'#94a3b8', marginBottom:2 }}>{selected.sexo==='M'?'♂ Macho':'♀ Fêmea'} · {selected.cor||'—'}</div>
+              <div style={{ fontSize:13, color:'#94a3b8' }}>🏠 {selected.pombal||'—'}</div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, textAlign: 'center' }}>
-              {[['provas', 'Provas', '#facc15'], ['percentil', 'Percentil %', '#1ed98a'], ['forma', 'Forma %', '#60a5fa']].map(([k, l, c]) => (
-                <div key={k}><div style={{ fontFamily: 'Barlow Condensed', fontSize: 24, fontWeight: 700, color: c }}>{selected[k] ?? 0}</div><div style={{ fontSize: 10, color: '#64748b' }}>{l}</div></div>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, textAlign:'center' }}>
+              {[['provas','Provas','#facc15'],['percentil','Percentil %','#1ed98a'],['forma','Forma %','#60a5fa']].map(([k,l,cor])=>(
+                <div key={k}><div style={{ fontFamily:'Barlow Condensed', fontSize:24, fontWeight:700, color:cor }}>{selected[k]??0}</div><div style={{ fontSize:10, color:'#64748b' }}>{l}</div></div>
               ))}
             </div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            <div><div className="label">Pai</div><div style={{ fontFamily: 'JetBrains Mono', fontSize: 11, color: '#1ed98a' }}>{selected.pai || '—'}</div></div>
-            <div><div className="label">Mãe</div><div style={{ fontFamily: 'JetBrains Mono', fontSize: 11, color: '#1ed98a' }}>{selected.mae || '—'}</div></div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:10 }}>
+            <div><div className="label">Pai</div><div style={{ fontFamily:'JetBrains Mono', fontSize:11, color:'#1ed98a' }}>{selected.pai||'—'}</div></div>
+            <div><div className="label">Mãe</div><div style={{ fontFamily:'JetBrains Mono', fontSize:11, color:'#1ed98a' }}>{selected.mae||'—'}</div></div>
           </div>
-          {selected.obs && <div style={{ marginTop: 12 }}><div className="label">Observações</div><div style={{ fontSize: 13, color: '#cbd5e1', marginTop: 4 }}>{selected.obs}</div></div>}
+          {(selected.criador||selected.data_aquisicao||selected.valor_aquisicao)&&(
+            <div style={{ background:'#1a2840', borderRadius:10, padding:'10px 12px', marginBottom:10 }}>
+              <div style={{ fontSize:11, fontWeight:600, color:'#94a3b8', marginBottom:6 }}>📦 ORIGEM</div>
+              {selected.criador&&<div style={{ fontSize:12, color:'#cbd5e1' }}>Criador: {selected.criador}</div>}
+              {selected.data_aquisicao&&<div style={{ fontSize:12, color:'#cbd5e1' }}>Data: {new Date(selected.data_aquisicao).toLocaleDateString('pt-PT')}</div>}
+              {selected.valor_aquisicao&&<div style={{ fontSize:12, color:'#facc15' }}>Valor: {selected.valor_aquisicao}€</div>}
+              {selected.obs_aquisicao&&<div style={{ fontSize:12, color:'#64748b' }}>{selected.obs_aquisicao}</div>}
+            </div>
+          )}
+          {selected.estado_ext&&selected.estado_ext!=='proprio'&&selected.destino_nome&&(
+            <div style={{ background:'rgba(234,179,8,.08)', border:'1px solid rgba(234,179,8,.2)', borderRadius:10, padding:'10px 12px' }}>
+              <div style={{ fontSize:11, fontWeight:600, color:'#facc15', marginBottom:6 }}>🎯 DESTINO — {selected.estado_ext.toUpperCase()}</div>
+              <div style={{ fontSize:12, color:'#cbd5e1' }}>{selected.destino_nome}</div>
+              {selected.destino_data&&<div style={{ fontSize:12, color:'#94a3b8' }}>{new Date(selected.destino_data).toLocaleDateString('pt-PT')}</div>}
+              {selected.destino_valor&&<div style={{ fontSize:12, color:'#facc15' }}>💶 {selected.destino_valor}€</div>}
+              {selected.destino_obs&&<div style={{ fontSize:12, color:'#64748b' }}>{selected.destino_obs}</div>}
+            </div>
+          )}
+          {selected.obs&&<div style={{ marginTop:10 }}><div className="label">Observações</div><div style={{ fontSize:13, color:'#cbd5e1', marginTop:4 }}>{selected.obs}</div></div>}
         </Modal>
       )}
 
-      {/* Confirm delete */}
-      <Modal open={!!confirm} onClose={() => setConfirm(null)} title="Eliminar pombo"
-        footer={<><button className="btn btn-secondary" onClick={() => setConfirm(null)}>Cancelar</button><button className="btn btn-danger" onClick={del}>Eliminar</button></>}>
-        <p style={{ fontSize: 14, color: '#cbd5e1' }}>Tem a certeza que quer eliminar "{confirm?.nome}"? Esta acção não pode ser desfeita.</p>
+      <Modal open={!!confirm} onClose={()=>setConfirm(null)} title="Eliminar pombo"
+        footer={<><button className="btn btn-secondary" onClick={()=>setConfirm(null)}>Cancelar</button><button className="btn btn-danger" onClick={del}>Eliminar</button></>}>
+        <p style={{ fontSize:14, color:'#cbd5e1' }}>Eliminar "{confirm?.nome}"?</p>
       </Modal>
     </div>
   )
 }
 
-// ─── POMBAIS PAGE ─────────────────────────────────────
 function Pombais() {
   const toast = useToast()
   const [pombais, setPombais] = useState([])
@@ -1818,23 +1873,31 @@ function Reproducao() {
   const [pombos, setPombos] = useState([])
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(false)
+  const [modalBorrachinho, setModalBorrachinho] = useState(null) // aca
   const [saving, setSaving] = useState(false)
   const [confirm, setConfirm] = useState(null)
   const [pedigreeP, setPedigreeP] = useState(null)
   const [selectedAca, setSelectedAca] = useState(null)
   const [perfil, setPerfil] = useState(null)
-  const EMPTY = { pai_id:'', mae_id:'', inicio:new Date().toISOString().slice(0,10), obs:'' }
+  const EMPTY = { pai_id:'', mae_id:'', inicio:new Date().toISOString().slice(0,10), cacifo:'', obs:'' }
   const [form, setForm] = useState(EMPTY)
   const sf = (k,v) => setForm(f=>({...f,[k]:v}))
+
+  // Form borrachinho
+  const [formB, setFormB] = useState({ anilhaPais:'PT', anilhaAno:String(new Date().getFullYear()), anilhaNum:'', nome:'', sexo:'M', cor:'', obs:'' })
+  const sfB = (k,v) => setFormB(f=>({...f,[k]:v}))
+  const anos = Array.from({length:5},(_,i)=>new Date().getFullYear()-i)
+  const paises = ['PT','ES','FR','BE','NL','DE']
+  const CORES_POMBO = ['Azul barrado','Azul sem barra','Azul xadrez','Vermelho barrado','Vermelho sem barra','Branco','Branco com marcas','Amarelo','Alazão','Cinzento','Meado','Tigrado']
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
       const { data: { user } } = await supabase.auth.getUser()
       const [a, p, pr] = await Promise.all([
-        supabase.from('breeding').select('*').order('created_at', { ascending: false }).then(r => r.data || []),
-        supabase.from('pigeons').select('*').order('nome').then(r => r.data || []),
-        supabase.from('perfis').select('*').eq('user_id', user.id).single().then(r => r.data || null),
+        supabase.from('breeding').select('*').order('created_at',{ascending:false}).then(r=>r.data||[]),
+        supabase.from('pigeons').select('*').order('nome').then(r=>r.data||[]),
+        supabase.from('perfis').select('*').eq('user_id',user.id).single().then(r=>r.data||null),
       ])
       setAcas(a); setPombos(p); setPerfil(pr)
     } catch(e) { toast('Erro: '+e.message,'err') }
@@ -1847,19 +1910,18 @@ function Reproducao() {
   const femeas = pombos.filter(p=>p.sexo==='F')
 
   const save = async () => {
-    if (!form.pai_id) { toast('Seleccione o macho','warn'); return }
-    if (!form.mae_id) { toast('Seleccione a fêmea','warn'); return }
+    if (!form.pai_id||!form.mae_id) { toast('Seleccione o par','warn'); return }
     setSaving(true)
     try {
       const { data: { user } } = await supabase.auth.getUser()
       const pai = pombos.find(p=>p.id===form.pai_id)
       const mae = pombos.find(p=>p.id===form.mae_id)
       const { error } = await supabase.from('breeding').insert({
-        pai_id: form.pai_id, mae_id: form.mae_id,
-        pai_nome: pai ? `${pai.nome} (${pai.anilha})` : '',
-        mae_nome: mae ? `${mae.nome} (${mae.anilha})` : '',
-        inicio: form.inicio, obs: form.obs,
-        ninhadas: 0, estado: 'em_progresso', user_id: user.id
+        pai_id:form.pai_id, mae_id:form.mae_id,
+        pai_nome:pai?`${pai.nome} (${pai.anilha})`:'',
+        mae_nome:mae?`${mae.nome} (${mae.anilha})`:'',
+        inicio:form.inicio, cacifo:form.cacifo, obs:form.obs,
+        ninhadas:0, estado:'em_progresso', user_id:user.id
       })
       if (error) throw error
       toast('Acasalamento registado!','ok'); setModal(false); load()
@@ -1868,246 +1930,267 @@ function Reproducao() {
   }
 
   const del = async () => {
+    try { await supabase.from('breeding').delete().eq('id',confirm.id); toast('Eliminado','ok'); setConfirm(null); load() }
+    catch(e) { toast('Erro: '+e.message,'err') }
+  }
+
+  const updateAca = async (id, changes) => {
+    await supabase.from('breeding').update(changes).eq('id',id); load()
+  }
+
+  const criarBorrachinho = async () => {
+    if (!formB.anilhaNum.trim()) { toast('Número da anilha obrigatório','warn'); return }
+    setSaving(true)
     try {
-      const { error } = await supabase.from('breeding').delete().eq('id', confirm.id)
+      const { data: { user } } = await supabase.auth.getUser()
+      const aca = modalBorrachinho
+      const pai = pombos.find(p=>p.id===aca.pai_id)
+      const mae = pombos.find(p=>p.id===aca.mae_id)
+      const anilha = `${formB.anilhaPais}-${formB.anilhaAno}-${formB.anilhaNum.padStart(5,'0')}`
+      const { error } = await supabase.from('pigeons').insert({
+        anilha, nome:formB.nome||anilha, sexo:formB.sexo, cor:formB.cor,
+        pai:pai?.anilha||'', mae:mae?.anilha||'',
+        esp:['velocidade'], estado:'ativo', estado_ext:'proprio',
+        emoji:'🐦', provas:0, percentil:0, forma:50,
+        obs:formB.obs, user_id:user.id
+      })
       if (error) throw error
-      toast('Eliminado','ok'); setConfirm(null); load()
+      // Incrementar ninhadas
+      await supabase.from('breeding').update({ ninhadas:(aca.ninhadas||0)+1 }).eq('id',aca.id)
+      toast(`Borrachinho ${anilha} criado!`,'ok'); setModalBorrachinho(null); setFormB({ anilhaPais:'PT', anilhaAno:String(new Date().getFullYear()), anilhaNum:'', nome:'', sexo:'M', cor:'', obs:'' }); load()
     } catch(e) { toast('Erro: '+e.message,'err') }
+    finally { setSaving(false) }
   }
 
   const estadoVar = { em_progresso:'yellow', concluido:'green', pausado:'gray' }
 
-  // Pedigree component
   const PedigreeView = ({ pombo }) => {
     if (!pombo) return null
     const pai = pombos.find(p=>p.anilha===pombo.pai)
     const mae = pombos.find(p=>p.anilha===pombo.mae)
-    const avoPM = pai ? pombos.find(p=>p.anilha===pai.pai) : null
-    const avoMM = pai ? pombos.find(p=>p.anilha===pai.mae) : null
-    const avoPF = mae ? pombos.find(p=>p.anilha===mae.pai) : null
-    const avoMF = mae ? pombos.find(p=>p.anilha===mae.mae) : null
-
-    const PomboBox = ({ p, gen }) => (
-      <div style={{ background:gen===1?'#141f2e':'#0f1923', border:`1px solid ${gen===1?'#1ed98a':'#1e3050'}`, borderRadius:10, padding:'8px 12px', minWidth:160 }}>
-        {p ? <>
-          <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:4 }}>
-            <span style={{ fontSize:18 }}>{p.emoji||'🐦'}</span>
-            <div>
-              <div style={{ fontSize:12, fontWeight:600, color:'#fff' }}>{p.nome}</div>
-              <div style={{ fontFamily:'JetBrains Mono', fontSize:10, color:'#1ed98a' }}>{p.anilha}</div>
-            </div>
-          </div>
-          <div style={{ fontSize:10, color:'#64748b' }}>{p.sexo==='M'?'♂':'♀'} · {p.cor||'—'}</div>
-          {p.percentil>0&&<div style={{ fontSize:10, color:'#facc15', marginTop:2 }}>⭐ {p.percentil}% percentil</div>}
-        </> : <div style={{ fontSize:11, color:'#475569', fontStyle:'italic' }}>Desconhecido</div>}
+    const avoPM = pai?pombos.find(p=>p.anilha===pai.pai):null
+    const avoMM = pai?pombos.find(p=>p.anilha===pai.mae):null
+    const avoPF = mae?pombos.find(p=>p.anilha===mae.pai):null
+    const avoMF = mae?pombos.find(p=>p.anilha===mae.mae):null
+    const PBox = ({p,gen}) => (
+      <div style={{ background:gen===1?'#141f2e':'#0f1923', border:`1px solid ${gen===1?'#1ed98a':'#1e3050'}`, borderRadius:10, padding:'8px 12px', minWidth:150 }}>
+        {p?<><div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:3 }}>
+          <span style={{ fontSize:16 }}>{p.emoji||'🐦'}</span>
+          <div><div style={{ fontSize:12, fontWeight:600, color:'#fff' }}>{p.nome}</div><div style={{ fontFamily:'JetBrains Mono', fontSize:10, color:'#1ed98a' }}>{p.anilha}</div></div>
+        </div><div style={{ fontSize:10, color:'#64748b' }}>{p.sexo==='M'?'♂':'♀'} · {p.cor||'—'}</div>{p.percentil>0&&<div style={{ fontSize:10, color:'#facc15' }}>⭐ {p.percentil}%</div>}</>
+        :<div style={{ fontSize:11, color:'#475569', fontStyle:'italic' }}>Desconhecido</div>}
       </div>
     )
-
     return (
       <div>
-        {/* Header para impressão */}
         <div style={{ background:'linear-gradient(135deg,#0f1923,#141f2e)', border:'1px solid #1e3050', borderRadius:16, padding:'20px 24px', marginBottom:20 }}>
           <div style={{ display:'flex', alignItems:'center', gap:16, flexWrap:'wrap' }}>
             <div style={{ width:60, height:60, borderRadius:12, background:'rgba(30,217,138,.1)', border:'1px solid rgba(30,217,138,.2)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:32 }}>
-              {pombo.foto_url ? <img src={pombo.foto_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', borderRadius:12 }}/> : pombo.emoji||'🐦'}
+              {pombo.foto_url?<img src={pombo.foto_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', borderRadius:12 }}/>:pombo.emoji||'🐦'}
             </div>
             <div style={{ flex:1 }}>
               <div style={{ fontFamily:'Barlow Condensed', fontSize:28, fontWeight:700, color:'#fff' }}>{pombo.nome}</div>
               <div style={{ fontFamily:'JetBrains Mono', fontSize:12, color:'#1ed98a' }}>{pombo.anilha}</div>
-              <div style={{ fontSize:12, color:'#94a3b8', marginTop:4 }}>
-                {pombo.sexo==='M'?'♂ Macho':'♀ Fêmea'} · {pombo.cor||'—'} · {pombo.esp?.join(', ')||'—'}
-              </div>
+              <div style={{ fontSize:12, color:'#94a3b8', marginTop:4 }}>{pombo.sexo==='M'?'♂ Macho':'♀ Fêmea'} · {pombo.cor||'—'}</div>
             </div>
-            <div style={{ textAlign:'right' }}>
-              {perfil?.nome&&<div style={{ fontSize:13, fontWeight:500, color:'#fff' }}>🏆 {perfil.nome}</div>}
-              {perfil?.org&&<div style={{ fontSize:11, color:'#64748b' }}>{perfil.org}</div>}
-              {perfil?.fed&&<div style={{ fontFamily:'JetBrains Mono', fontSize:10, color:'#1ed98a' }}>FCP: {perfil.fed}</div>}
-            </div>
+            {perfil&&<div style={{ textAlign:'right' }}><div style={{ fontSize:13, fontWeight:500, color:'#fff' }}>🏆 {perfil.nome}</div>{perfil.org&&<div style={{ fontSize:11, color:'#64748b' }}>{perfil.org}</div>}{perfil.fed&&<div style={{ fontFamily:'JetBrains Mono', fontSize:10, color:'#1ed98a' }}>FCP: {perfil.fed}</div>}</div>}
           </div>
-          {pombo.percentil>0&&(
-            <div style={{ marginTop:12, paddingTop:12, borderTop:'1px solid #1e3050', display:'flex', gap:20 }}>
-              <div style={{ textAlign:'center' }}><div style={{ fontFamily:'Barlow Condensed', fontSize:24, fontWeight:700, color:'#facc15' }}>{pombo.percentil}%</div><div style={{ fontSize:10, color:'#64748b' }}>PERCENTIL</div></div>
-              <div style={{ textAlign:'center' }}><div style={{ fontFamily:'Barlow Condensed', fontSize:24, fontWeight:700, color:'#1ed98a' }}>{pombo.provas||0}</div><div style={{ fontSize:10, color:'#64748b' }}>PROVAS</div></div>
-              <div style={{ textAlign:'center' }}><div style={{ fontFamily:'Barlow Condensed', fontSize:24, fontWeight:700, color:'#60a5fa' }}>{pombo.forma||50}%</div><div style={{ fontSize:10, color:'#64748b' }}>FORMA</div></div>
-            </div>
-          )}
         </div>
-
-        {/* Árvore genealógica */}
-        <div style={{ fontWeight:600, color:'#fff', marginBottom:12 }}>🌳 Árvore Genealógica — 3 Gerações</div>
+        <div style={{ fontWeight:600, color:'#fff', marginBottom:12 }}>🌳 Árvore Genealógica</div>
         <div style={{ overflowX:'auto' }}>
-          <div style={{ display:'flex', gap:0, alignItems:'stretch', minWidth:600 }}>
-            {/* Geração 1 — sujeito */}
-            <div style={{ display:'flex', flexDirection:'column', justifyContent:'center', marginRight:24 }}>
-              <PomboBox p={pombo} gen={1}/>
-            </div>
-            {/* Linha conectora */}
-            <div style={{ width:24, display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'center' }}>
-              <div style={{ width:2, flex:1, background:'#1e3050' }}/>
-              <div style={{ width:24, height:2, background:'#1e3050' }}/>
-              <div style={{ width:2, flex:1, background:'#1e3050' }}/>
-            </div>
-            {/* Geração 2 — pais */}
-            <div style={{ display:'flex', flexDirection:'column', gap:12, justifyContent:'center', marginRight:24 }}>
-              <PomboBox p={pai} gen={2}/>
-              <PomboBox p={mae} gen={2}/>
-            </div>
-            {/* Geração 3 — avós */}
-            <div style={{ display:'flex', flexDirection:'column', gap:6, justifyContent:'center' }}>
-              <PomboBox p={avoPM} gen={3}/>
-              <PomboBox p={avoMM} gen={3}/>
-              <PomboBox p={avoPF} gen={3}/>
-              <PomboBox p={avoMF} gen={3}/>
-            </div>
+          <div style={{ display:'flex', gap:16, alignItems:'center', minWidth:540 }}>
+            <PBox p={pombo} gen={1}/>
+            <div style={{ color:'#243860', fontSize:20 }}>›</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:8 }}><PBox p={pai} gen={2}/><PBox p={mae} gen={2}/></div>
+            <div style={{ color:'#243860', fontSize:20 }}>›</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:6 }}><PBox p={avoPM} gen={3}/><PBox p={avoMM} gen={3}/><PBox p={avoPF} gen={3}/><PBox p={avoMF} gen={3}/></div>
           </div>
         </div>
-
-        <div style={{ marginTop:16, display:'flex', gap:8 }}>
-          <button className="btn btn-secondary" onClick={()=>window.print()}>🖨️ Imprimir Pedigree</button>
+        <div style={{ display:'flex', gap:8, marginTop:16 }}>
+          <button className="btn btn-secondary" onClick={()=>window.print()}>🖨️ Imprimir</button>
           <button className="btn btn-secondary" onClick={()=>setPedigreeP(null)}>✕ Fechar</button>
         </div>
       </div>
     )
   }
 
+  const diasRestantes = (data) => {
+    if (!data) return null
+    const d = Math.ceil((new Date(data)-new Date())/86400000)
+    return d
+  }
+
   return (
     <div>
       <div className="section-header">
         <div><div className="section-title">Reprodução</div><div className="section-sub">{acas.length} acasalamentos · {acas.filter(a=>a.estado==='em_progresso').length} activos</div></div>
-        {tab==='acasalamentos'&&<button className="btn btn-primary" onClick={()=>{ setForm(EMPTY); setModal(true) }}>＋ Novo Acasalamento</button>}
-        {tab==='pedigree'&&<button className="btn btn-secondary" onClick={()=>setPedigreeP(null)}>Limpar</button>}
+        {tab==='acasalamentos'&&<button className="btn btn-primary" onClick={()=>{setForm(EMPTY);setModal(true)}}>＋ Novo Acasalamento</button>}
       </div>
 
-      {/* Tabs */}
       <div style={{ display:'flex', gap:4, background:'#1a2840', borderRadius:10, padding:4, marginBottom:20, width:'fit-content' }}>
-        {[['acasalamentos','🥚 Acasalamentos'],['ninhadas','🐣 Ninhadas'],['pedigree','🌳 Pedigree']].map(([t,l])=>(
+        {[['acasalamentos','🥚 Acasalamentos'],['pedigree','🌳 Pedigree']].map(([t,l])=>(
           <button key={t} onClick={()=>setTab(t)} style={{ padding:'8px 14px', borderRadius:8, fontSize:13, fontWeight:500, cursor:'pointer', border:'none', fontFamily:'inherit', background:tab===t?'#1ed98a':'none', color:tab===t?'#0a0f14':'#94a3b8' }}>{l}</button>
         ))}
       </div>
 
       {tab==='acasalamentos' && (
-        loading ? <div style={{ display:'flex', justifyContent:'center', padding:60 }}><Spinner lg/></div>
-        : acas.length===0 ? <EmptyState icon="🥚" title="Sem acasalamentos" desc="Registe o primeiro par reprodutor" action={<button className="btn btn-primary" onClick={()=>setModal(true)}>＋ Novo Acasalamento</button>} />
-        : <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-            {acas.map(a => {
-              const pai = pombos.find(p=>p.id===a.pai_id)
-              const mae = pombos.find(p=>p.id===a.mae_id)
-              return (
-                <div key={a.id} className="card card-p" style={{ cursor:'pointer', transition:'all .2s' }}
-                  onClick={()=>setSelectedAca(selectedAca?.id===a.id?null:a)}
-                  onMouseOver={e=>e.currentTarget.style.borderColor='#243860'}
-                  onMouseOut={e=>e.currentTarget.style.borderColor='#1e3050'}>
-                  <div style={{ display:'flex', alignItems:'center', gap:12, flexWrap:'wrap' }}>
-                    <div style={{ display:'flex', alignItems:'center', gap:8, flex:1, minWidth:200 }}>
-                      <div style={{ textAlign:'center' }}>
-                        <div style={{ width:40, height:40, borderRadius:10, background:'#1a2840', display:'flex', alignItems:'center', justifyContent:'center', fontSize:20, overflow:'hidden' }}>
-                          {pai?.foto_url?<img src={pai.foto_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>:(pai?.emoji||'🐦')}
-                        </div>
-                        <div style={{ fontSize:11, color:'#60a5fa', marginTop:2 }}>♂</div>
-                      </div>
-                      <div style={{ fontSize:13, color:'#94a3b8' }}>×</div>
-                      <div style={{ textAlign:'center' }}>
-                        <div style={{ width:40, height:40, borderRadius:10, background:'#1a2840', display:'flex', alignItems:'center', justifyContent:'center', fontSize:20, overflow:'hidden' }}>
-                          {mae?.foto_url?<img src={mae.foto_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>:(mae?.emoji||'🐦')}
-                        </div>
-                        <div style={{ fontSize:11, color:'#f472b6', marginTop:2 }}>♀</div>
-                      </div>
-                      <div>
-                        <div style={{ fontSize:13, fontWeight:500, color:'#fff' }}>{a.pai_nome||pai?.nome||'—'}</div>
-                        <div style={{ fontSize:12, color:'#64748b' }}>× {a.mae_nome||mae?.nome||'—'}</div>
-                        <div style={{ fontSize:11, color:'#64748b', marginTop:2 }}>desde {a.inicio?new Date(a.inicio).toLocaleDateString('pt-PT'):'—'} · 🥚 {a.ninhadas||0} ninhadas</div>
-                      </div>
+        loading?<div style={{ display:'flex', justifyContent:'center', padding:60 }}><Spinner lg/></div>
+        :acas.length===0?<EmptyState icon="🥚" title="Sem acasalamentos" desc="Registe o primeiro par" action={<button className="btn btn-primary" onClick={()=>setModal(true)}>＋ Novo Acasalamento</button>}/>
+        :<div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+          {acas.map(a=>{
+            const pai=pombos.find(p=>p.id===a.pai_id)
+            const mae=pombos.find(p=>p.id===a.mae_id)
+            const isOpen=selectedAca?.id===a.id
+            const diasEclosao=diasRestantes(a.data_eclosao_prev)
+            return (
+              <div key={a.id} className="card card-p" style={{ cursor:'pointer' }} onClick={()=>setSelectedAca(isOpen?null:a)}>
+                <div style={{ display:'flex', alignItems:'center', gap:12, flexWrap:'wrap' }}>
+                  {/* Cacifo */}
+                  {a.cacifo&&<div style={{ width:36, height:36, borderRadius:8, background:'rgba(30,217,138,.1)', border:'1px solid rgba(30,217,138,.2)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, color:'#1ed98a', flexShrink:0 }}>{a.cacifo}</div>}
+                  {/* Par */}
+                  <div style={{ display:'flex', alignItems:'center', gap:8, flex:1 }}>
+                    <div style={{ textAlign:'center' }}>
+                      <div style={{ width:38, height:38, borderRadius:8, background:'#1a2840', display:'flex', alignItems:'center', justifyContent:'center', fontSize:18, overflow:'hidden' }}>{pai?.foto_url?<img src={pai.foto_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>:(pai?.emoji||'🐦')}</div>
+                      <div style={{ fontSize:10, color:'#60a5fa' }}>♂</div>
                     </div>
-                    <div style={{ display:'flex', gap:6, alignItems:'center' }}>
-                      <Badge v={estadoVar[a.estado]||'gray'}>{a.estado?.replace('_',' ')}</Badge>
-                      <span style={{ fontSize:12, color:'#475569' }}>{selectedAca?.id===a.id?'▲':'▼'}</span>
-                      <button className="btn btn-danger btn-sm" onClick={e=>{e.stopPropagation();setConfirm(a)}}>🗑️</button>
+                    <span style={{ color:'#475569' }}>×</span>
+                    <div style={{ textAlign:'center' }}>
+                      <div style={{ width:38, height:38, borderRadius:8, background:'#1a2840', display:'flex', alignItems:'center', justifyContent:'center', fontSize:18, overflow:'hidden' }}>{mae?.foto_url?<img src={mae.foto_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>:(mae?.emoji||'🐦')}</div>
+                      <div style={{ fontSize:10, color:'#f472b6' }}>♀</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize:13, fontWeight:500, color:'#fff' }}>{a.pai_nome||pai?.nome||'—'}</div>
+                      <div style={{ fontSize:12, color:'#64748b' }}>× {a.mae_nome||mae?.nome||'—'}</div>
+                      <div style={{ fontSize:11, color:'#64748b' }}>desde {a.inicio?new Date(a.inicio).toLocaleDateString('pt-PT'):'—'} · 🥚 {a.ninhadas||0} ninhadas</div>
                     </div>
                   </div>
-                  {selectedAca?.id===a.id&&(
-                    <div style={{ marginTop:14, paddingTop:14, borderTop:'1px solid #1e3050' }} onClick={e=>e.stopPropagation()}>
-                      <div className="grid-2" style={{ gap:12, marginBottom:12 }}>
-                        {[pai,mae].map((p,i)=>p&&(
-                          <div key={i} style={{ background:'#1a2840', borderRadius:10, padding:'10px 12px' }}>
-                            <div style={{ fontWeight:600, color:i===0?'#60a5fa':'#f472b6', fontSize:12, marginBottom:6 }}>{i===0?'♂ Macho (Pai)':'♀ Fêmea (Mãe)'}</div>
-                            <div style={{ fontSize:13, color:'#fff', fontWeight:500 }}>{p.nome}</div>
-                            <div style={{ fontFamily:'JetBrains Mono', fontSize:10, color:'#1ed98a' }}>{p.anilha}</div>
-                            <div style={{ fontSize:11, color:'#64748b', marginTop:4 }}>{p.cor||'—'} · {(p.esp||[]).join(', ')||'—'}</div>
-                            {p.percentil>0&&<div style={{ fontSize:11, color:'#facc15' }}>⭐ {p.percentil}% percentil</div>}
-                          </div>
-                        ))}
-                      </div>
-                      <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-                        <button className="btn btn-secondary btn-sm" onClick={()=>{ setPedigreeP(pai||mae); setTab('pedigree') }}>🌳 Ver Pedigree</button>
-                        <div style={{ display:'flex', alignItems:'center', gap:8, marginLeft:'auto' }}>
-                          <span style={{ fontSize:12, color:'#94a3b8' }}>Ninhadas:</span>
-                          <button className="btn btn-icon btn-sm" onClick={async()=>{
-                            const n=(a.ninhadas||0)-1; if(n<0) return
-                            await supabase.from('breeding').update({ninhadas:n}).eq('id',a.id); load()
-                          }}>−</button>
-                          <span style={{ fontFamily:'Barlow Condensed', fontSize:20, fontWeight:700, color:'#fff' }}>{a.ninhadas||0}</span>
-                          <button className="btn btn-icon btn-sm" onClick={async()=>{
-                            const n=(a.ninhadas||0)+1
-                            await supabase.from('breeding').update({ninhadas:n}).eq('id',a.id); load()
-                          }}>＋</button>
-                          <select style={{ background:'#1a2840', border:'1px solid #243860', borderRadius:8, color:'#fff', padding:'4px 8px', fontSize:12, fontFamily:'inherit' }}
-                            value={a.estado||'em_progresso'}
-                            onChange={async e=>{ await supabase.from('breeding').update({estado:e.target.value}).eq('id',a.id); load() }}>
-                            <option value="em_progresso">Em Progresso</option>
-                            <option value="concluido">Concluído</option>
-                            <option value="pausado">Pausado</option>
-                          </select>
+                  {/* Estado + alertas */}
+                  <div style={{ display:'flex', flexDirection:'column', gap:4, alignItems:'flex-end' }}>
+                    <Badge v={estadoVar[a.estado]||'gray'}>{a.estado?.replace('_',' ')}</Badge>
+                    {diasEclosao!==null&&diasEclosao>=0&&diasEclosao<=3&&<Badge v="yellow">🐣 Eclosão em {diasEclosao}d</Badge>}
+                    {a.data_eclosao_prev&&diasEclosao<0&&!a.data_nascimento&&<Badge v="red">⚠️ Eclosão em atraso</Badge>}
+                  </div>
+                  <span style={{ color:'#475569', fontSize:16 }} onClick={e=>e.stopPropagation()}>{isOpen?'▲':'▼'}</span>
+                </div>
+
+                {/* Painel expandido */}
+                {isOpen&&(
+                  <div style={{ marginTop:14, paddingTop:14, borderTop:'1px solid #1e3050' }} onClick={e=>e.stopPropagation()}>
+                    {/* Ciclo */}
+                    <div style={{ fontWeight:600, color:'#fff', fontSize:13, marginBottom:10 }}>📅 Ciclo Reprodutivo</div>
+                    <div className="grid-2" style={{ gap:10, marginBottom:14 }}>
+                      {[
+                        ['Cacifo','cacifo','text','A1'],
+                        ['Data Postura','data_postura','date',''],
+                        ['Nº Ovos','n_ovos','number','2'],
+                        ['Eclosão Prevista','data_eclosao_prev','date',''],
+                        ['Data Nascimento','data_nascimento','date',''],
+                        ['Nº Nascidos','n_nascidos','number','2'],
+                        ['Data Desmame','data_desmame','date',''],
+                      ].map(([label,field,type,ph])=>(
+                        <Field key={field} label={label}>
+                          <input className="input" type={type} placeholder={ph}
+                            defaultValue={a[field]||''}
+                            onBlur={async e=>{ const v=e.target.value; if(v!==String(a[field]||'')) await updateAca(a.id,{[field]:type==='number'?parseInt(v)||0:v||null}) }}/>
+                        </Field>
+                      ))}
+                    </div>
+                    {/* Detalhes pais */}
+                    <div className="grid-2" style={{ gap:10, marginBottom:14 }}>
+                      {[pai,mae].map((p,i)=>p&&(
+                        <div key={i} style={{ background:'#1a2840', borderRadius:10, padding:'10px 12px' }}>
+                          <div style={{ fontWeight:600, color:i===0?'#60a5fa':'#f472b6', fontSize:12, marginBottom:6 }}>{i===0?'♂ Pai':'♀ Mãe'}</div>
+                          <div style={{ fontSize:13, color:'#fff', fontWeight:500 }}>{p.nome}</div>
+                          <div style={{ fontFamily:'JetBrains Mono', fontSize:10, color:'#1ed98a' }}>{p.anilha}</div>
+                          <div style={{ fontSize:11, color:'#64748b', marginTop:4 }}>{p.cor||'—'} · {(p.esp||[]).join(', ')||'—'}</div>
+                          {p.percentil>0&&<div style={{ fontSize:11, color:'#facc15' }}>⭐ {p.percentil}%</div>}
                         </div>
+                      ))}
+                    </div>
+                    {/* Acções */}
+                    <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
+                      <button className="btn btn-primary btn-sm" onClick={()=>{setModalBorrachinho(a);setFormB({anilhaPais:'PT',anilhaAno:String(new Date().getFullYear()),anilhaNum:'',nome:'',sexo:'M',cor:'',obs:''})}}>🐦 Registar Borrachinho</button>
+                      <button className="btn btn-secondary btn-sm" onClick={()=>{setPedigreeP(pai||mae);setTab('pedigree')}}>🌳 Pedigree</button>
+                      <div style={{ marginLeft:'auto', display:'flex', gap:6, alignItems:'center' }}>
+                        <select style={{ background:'#1a2840', border:'1px solid #243860', borderRadius:8, color:'#fff', padding:'4px 8px', fontSize:12, fontFamily:'inherit' }}
+                          value={a.estado||'em_progresso'} onChange={async e=>updateAca(a.id,{estado:e.target.value})}>
+                          <option value="em_progresso">Em Progresso</option>
+                          <option value="concluido">Concluído</option>
+                          <option value="pausado">Pausado</option>
+                        </select>
+                        <button className="btn btn-danger btn-sm" onClick={()=>setConfirm(a)}>🗑️</button>
                       </div>
                     </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
       )}
 
-      {tab==='ninhadas' && (
-        <EmptyState icon="🐣" title="Ninhadas" desc="Registe os pares no separador Acasalamentos para ver as ninhadas aqui" />
-      )}
-
-      {tab==='pedigree' && (
+      {tab==='pedigree'&&(
         <div>
-          {!pedigreeP ? (
+          {!pedigreeP?(
             <div>
-              <div style={{ fontSize:13, color:'#64748b', marginBottom:12 }}>Seleccione um pombo para ver o seu pedigree completo:</div>
+              <div style={{ fontSize:13, color:'#64748b', marginBottom:12 }}>Seleccione um pombo:</div>
               <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))', gap:8 }}>
                 {pombos.map(p=>(
                   <button key={p.id} onClick={()=>setPedigreeP(p)}
-                    style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 12px', background:'#141f2e', border:'1px solid #1e3050', borderRadius:12, cursor:'pointer', fontFamily:'inherit', textAlign:'left', transition:'all .15s' }}
-                    onMouseOver={e=>e.currentTarget.style.borderColor='#1ed98a'}
-                    onMouseOut={e=>e.currentTarget.style.borderColor='#1e3050'}>
-                    <div style={{ width:36, height:36, borderRadius:8, background:'#1a2840', display:'flex', alignItems:'center', justifyContent:'center', fontSize:20, overflow:'hidden', flexShrink:0 }}>
-                      {p.foto_url?<img src={p.foto_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>:p.emoji}
-                    </div>
-                    <div>
-                      <div style={{ fontSize:13, fontWeight:500, color:'#fff' }}>{p.nome}</div>
-                      <div style={{ fontFamily:'JetBrains Mono', fontSize:10, color:'#1ed98a' }}>{p.anilha}</div>
-                    </div>
+                    style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 12px', background:'#141f2e', border:'1px solid #1e3050', borderRadius:12, cursor:'pointer', fontFamily:'inherit', textAlign:'left' }}>
+                    <span style={{ fontSize:20 }}>{p.emoji||'🐦'}</span>
+                    <div><div style={{ fontSize:13, fontWeight:500, color:'#fff' }}>{p.nome}</div><div style={{ fontFamily:'JetBrains Mono', fontSize:10, color:'#1ed98a' }}>{p.anilha}</div></div>
                   </button>
                 ))}
               </div>
             </div>
-          ) : (
-            <PedigreeView pombo={pedigreeP}/>
-          )}
+          ):<PedigreeView pombo={pedigreeP}/>}
         </div>
       )}
 
+      {/* Modal novo acasalamento */}
       <Modal open={modal} onClose={()=>setModal(false)} title="🥚 Novo Acasalamento"
         footer={<><button className="btn btn-secondary" onClick={()=>setModal(false)}>Cancelar</button><button className="btn btn-primary" onClick={save} disabled={saving}>{saving?<Spinner/>:null}Registar</button></>}>
         <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-          <Field label="♂ Macho (Pai) *"><select className="input" value={form.pai_id} onChange={e=>sf('pai_id',e.target.value)}><option value="">— Seleccionar macho —</option>{machos.map(p=><option key={p.id} value={p.id}>{p.nome} ({p.anilha})</option>)}</select></Field>
-          <Field label="♀ Fêmea (Mãe) *"><select className="input" value={form.mae_id} onChange={e=>sf('mae_id',e.target.value)}><option value="">— Seleccionar fêmea —</option>{femeas.map(p=><option key={p.id} value={p.id}>{p.nome} ({p.anilha})</option>)}</select></Field>
+          <Field label="Cacifo Nº"><input className="input" placeholder="Ex: A3, B7..." value={form.cacifo} onChange={e=>sf('cacifo',e.target.value)}/></Field>
+          <Field label="♂ Macho (Pai) *"><select className="input" value={form.pai_id} onChange={e=>sf('pai_id',e.target.value)}><option value="">— Seleccionar —</option>{machos.map(p=><option key={p.id} value={p.id}>{p.nome} ({p.anilha})</option>)}</select></Field>
+          <Field label="♀ Fêmea (Mãe) *"><select className="input" value={form.mae_id} onChange={e=>sf('mae_id',e.target.value)}><option value="">— Seleccionar —</option>{femeas.map(p=><option key={p.id} value={p.id}>{p.nome} ({p.anilha})</option>)}</select></Field>
           <Field label="Data de Início"><input className="input" type="date" value={form.inicio} onChange={e=>sf('inicio',e.target.value)}/></Field>
           <Field label="Observações"><textarea className="input" rows={2} style={{ resize:'none' }} value={form.obs} onChange={e=>sf('obs',e.target.value)}/></Field>
         </div>
       </Modal>
+
+      {/* Modal borrachinho */}
+      <Modal open={!!modalBorrachinho} onClose={()=>setModalBorrachinho(null)} title="🐦 Registar Borrachinho"
+        footer={<><button className="btn btn-secondary" onClick={()=>setModalBorrachinho(null)}>Cancelar</button><button className="btn btn-primary" onClick={criarBorrachinho} disabled={saving}>{saving?<Spinner/>:null}Criar Pombo</button></>}>
+        {modalBorrachinho&&(
+          <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+            <div style={{ background:'#1a2840', borderRadius:10, padding:'10px 12px', fontSize:12, color:'#94a3b8' }}>
+              Pai: <strong style={{ color:'#60a5fa' }}>{modalBorrachinho.pai_nome}</strong> · Mãe: <strong style={{ color:'#f472b6' }}>{modalBorrachinho.mae_nome}</strong>
+            </div>
+            <Field label="Anel *">
+              <div style={{ display:'flex', gap:4 }}>
+                <select className="input" style={{ width:72 }} value={formB.anilhaPais} onChange={e=>sfB('anilhaPais',e.target.value)}>{paises.map(p=><option key={p}>{p}</option>)}</select>
+                <select className="input" style={{ width:88 }} value={formB.anilhaAno} onChange={e=>sfB('anilhaAno',e.target.value)}>{anos.map(a=><option key={a}>{a}</option>)}</select>
+                <input className="input" style={{ flex:1 }} placeholder="00000" maxLength={5} value={formB.anilhaNum} onChange={e=>sfB('anilhaNum',e.target.value.replace(/[^0-9]/g,''))}/>
+              </div>
+              <div style={{ fontSize:11, color:'#1ed98a', marginTop:4 }}>🏷️ {formB.anilhaPais}-{formB.anilhaAno}-{(formB.anilhaNum||'?????').padStart(5,'0')}</div>
+            </Field>
+            <Field label="Nome (opcional)"><input className="input" placeholder="Deixar em branco = usa a anilha" value={formB.nome} onChange={e=>sfB('nome',e.target.value)}/></Field>
+            <div className="form-grid">
+              <Field label="Sexo"><select className="input" value={formB.sexo} onChange={e=>sfB('sexo',e.target.value)}><option value="M">♂ Macho</option><option value="F">♀ Fêmea</option></select></Field>
+              <Field label="Cor">
+                <select className="input" value={formB.cor} onChange={e=>sfB('cor',e.target.value)}>
+                  <option value="">— Seleccionar —</option>
+                  {CORES_POMBO.map(co=><option key={co}>{co}</option>)}
+                </select>
+              </Field>
+            </div>
+            <Field label="Observações"><textarea className="input" rows={2} style={{ resize:'none' }} value={formB.obs} onChange={e=>sfB('obs',e.target.value)}/></Field>
+          </div>
+        )}
+      </Modal>
+
       <Modal open={!!confirm} onClose={()=>setConfirm(null)} title="Eliminar acasalamento"
         footer={<><button className="btn btn-secondary" onClick={()=>setConfirm(null)}>Cancelar</button><button className="btn btn-danger" onClick={del}>Eliminar</button></>}>
         <p style={{ fontSize:14, color:'#cbd5e1' }}>Eliminar este acasalamento?</p>
@@ -3656,6 +3739,209 @@ function Documentos() {
   )
 }
 
+function Checklist() {
+  const toast = useToast()
+  const [tarefas, setTarefas] = useState([])
+  const [pombais, setPombais] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [filtro, setFiltro] = useState('todas')
+  const [modal, setModal] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [form, setForm] = useState({ titulo:'', tipo:'personalizada', frequencia:'diaria', data_prevista:new Date().toISOString().slice(0,10), alerta_dias:1, pombal:'', obs:'' })
+  const sf = (k,v) => setForm(f=>({...f,[k]:v}))
+
+  // Tarefas sugeridas padrão
+  const SUGESTOES = [
+    { titulo:'Limpeza do pombal', tipo:'limpeza', frequencia:'semanal', alerta_dias:2 },
+    { titulo:'Desinfecção bebedouros', tipo:'higiene', frequencia:'diaria', alerta_dias:1 },
+    { titulo:'Verificar estado dos pombos', tipo:'saude', frequencia:'diaria', alerta_dias:0 },
+    { titulo:'Reposição de alimento', tipo:'alimentacao', frequencia:'diaria', alerta_dias:0 },
+    { titulo:'Pesagem dos pombos em reprodução', tipo:'reproducao', frequencia:'semanal', alerta_dias:3 },
+    { titulo:'Tratamento preventivo', tipo:'saude', frequencia:'mensal', alerta_dias:7 },
+    { titulo:'Limpeza ninhos', tipo:'limpeza', frequencia:'quinzenal', alerta_dias:3 },
+    { titulo:'Vacinação anual', tipo:'saude', frequencia:'anual', alerta_dias:30 },
+  ]
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      const [t, pb] = await Promise.all([
+        supabase.from('tarefas').select('*').eq('user_id',user.id).order('data_prevista').then(r=>r.data||[]),
+        supabase.from('lofts').select('*').order('nome').then(r=>r.data||[]),
+      ])
+      setTarefas(t); setPombais(pb)
+    } catch(e) { toast('Erro: '+e.message,'err') }
+    finally { setLoading(false) }
+  },[])
+
+  useEffect(()=>{ load() },[load])
+
+  const hoje = new Date().toISOString().slice(0,10)
+
+  // Alertas automáticos - tarefas em atraso
+  const emAtraso = tarefas.filter(t=>t.estado!=='concluido'&&t.data_prevista&&t.data_prevista<hoje)
+  const hoje7dias = new Date(); hoje7dias.setDate(hoje7dias.getDate()+7)
+  const proximas = tarefas.filter(t=>t.estado!=='concluido'&&t.data_prevista&&t.data_prevista>=hoje&&new Date(t.data_prevista)<=hoje7dias)
+
+  const filtered = tarefas.filter(t=>{
+    if (filtro==='todas') return true
+    if (filtro==='por_iniciar') return t.estado==='por_iniciar'
+    if (filtro==='em_andamento') return t.estado==='em_andamento'
+    if (filtro==='concluido') return t.estado==='concluido'
+    if (filtro==='atrasadas') return t.estado!=='concluido'&&t.data_prevista&&t.data_prevista<hoje
+    return true
+  })
+
+  const save = async () => {
+    if (!form.titulo.trim()) { toast('Título obrigatório','warn'); return }
+    setSaving(true)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      const { error } = await supabase.from('tarefas').insert({ titulo:form.titulo.trim(), tipo:form.tipo, frequencia:form.frequencia, data_prevista:form.data_prevista||null, alerta_dias:parseInt(form.alerta_dias)||1, pombal:form.pombal, obs:form.obs, estado:'por_iniciar', sugerida:false, user_id:user.id })
+      if (error) throw error
+      toast('Tarefa criada!','ok'); setModal(false); load()
+    } catch(e) { toast('Erro: '+e.message,'err') }
+    finally { setSaving(false) }
+  }
+
+  const addSugestao = async (s) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      const { error } = await supabase.from('tarefas').insert({ ...s, estado:'por_iniciar', sugerida:true, data_prevista:hoje, user_id:user.id })
+      if (error) throw error
+      toast('Tarefa adicionada!','ok'); load()
+    } catch(e) { toast('Erro: '+e.message,'err') }
+  }
+
+  const updateEstado = async (id, estado) => {
+    const changes = estado==='concluido' ? { estado, data_conclusao:hoje } : { estado, data_conclusao:null }
+    await supabase.from('tarefas').update(changes).eq('id',id); load()
+  }
+
+  const del = async (id) => {
+    await supabase.from('tarefas').delete().eq('id',id); load()
+  }
+
+  const estadoCor = { por_iniciar:'#64748b', em_andamento:'#facc15', concluido:'#1ed98a' }
+  const estadoIcon = { por_iniciar:'⏳', em_andamento:'🔄', concluido:'✅' }
+  const tipoCor = { limpeza:'#2E7DD4', higiene:'#6C4FBB', saude:'#1ed98a', alimentacao:'#C9A44A', reproducao:'#f472b6', personalizada:'#94a3b8', mensal:'#E07B39', anual:'#D94F4F' }
+
+  return (
+    <div>
+      <div className="section-header">
+        <div><div className="section-title">✅ Checklist & Tarefas</div><div className="section-sub">{emAtraso.length>0?`⚠️ ${emAtraso.length} em atraso · `:''}{tarefas.filter(t=>t.estado==='concluido').length} concluídas</div></div>
+        <button className="btn btn-primary" onClick={()=>setModal(true)}>＋ Nova Tarefa</button>
+      </div>
+
+      {/* Alertas */}
+      {emAtraso.length>0&&(
+        <div style={{ background:'rgba(239,68,68,.08)', border:'1px solid rgba(239,68,68,.2)', borderRadius:12, padding:'12px 16px', marginBottom:16 }}>
+          <div style={{ fontWeight:600, color:'#f87171', marginBottom:8 }}>⚠️ {emAtraso.length} tarefa(s) em atraso</div>
+          {emAtraso.slice(0,3).map(t=>(
+            <div key={t.id} style={{ fontSize:12, color:'#cbd5e1', display:'flex', justifyContent:'space-between', padding:'3px 0' }}>
+              <span>{t.titulo}{t.pombal?` · ${t.pombal}`:''}</span>
+              <span style={{ color:'#f87171' }}>Prevista: {new Date(t.data_prevista).toLocaleDateString('pt-PT')}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {proximas.length>0&&(
+        <div style={{ background:'rgba(234,179,8,.08)', border:'1px solid rgba(234,179,8,.2)', borderRadius:12, padding:'12px 16px', marginBottom:16 }}>
+          <div style={{ fontWeight:600, color:'#facc15', marginBottom:8 }}>📅 {proximas.length} tarefa(s) nos próximos 7 dias</div>
+          {proximas.slice(0,3).map(t=>(
+            <div key={t.id} style={{ fontSize:12, color:'#cbd5e1', display:'flex', justifyContent:'space-between', padding:'3px 0' }}>
+              <span>{t.titulo}</span>
+              <span style={{ color:'#facc15' }}>{new Date(t.data_prevista).toLocaleDateString('pt-PT')}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* KPIs */}
+      <div className="grid-4 mb-4">
+        <KpiCard icon="⏳" label="Por Iniciar" value={tarefas.filter(t=>t.estado==='por_iniciar').length} color="text-gray"/>
+        <KpiCard icon="🔄" label="Em Andamento" value={tarefas.filter(t=>t.estado==='em_andamento').length} color="text-yellow"/>
+        <KpiCard icon="✅" label="Concluídas" value={tarefas.filter(t=>t.estado==='concluido').length} color="text-green"/>
+        <KpiCard icon="⚠️" label="Em Atraso" value={emAtraso.length} color={emAtraso.length>0?'text-red':'text-green'}/>
+      </div>
+
+      {/* Filtros */}
+      <div className="chips mb-4">
+        {[['todas','Todas'],['por_iniciar','⏳ Por Iniciar'],['em_andamento','🔄 Em Andamento'],['concluido','✅ Concluídas'],['atrasadas','⚠️ Atrasadas']].map(([v,l])=>(
+          <button key={v} className={`chip${filtro===v?' active':''}`} onClick={()=>setFiltro(v)}>{l}</button>
+        ))}
+      </div>
+
+      {loading?<div style={{ display:'flex', justifyContent:'center', padding:60 }}><Spinner lg/></div>
+      :filtered.length===0?<EmptyState icon="✅" title="Sem tarefas" desc="Adicione tarefas ou aceite sugestões abaixo"/>
+      :<div style={{ display:'flex', flexDirection:'column', gap:8, marginBottom:24 }}>
+        {filtered.map(t=>{
+          const atrasada=t.estado!=='concluido'&&t.data_prevista&&t.data_prevista<hoje
+          return (
+            <div key={t.id} className="card card-p" style={{ borderColor:atrasada?'rgba(239,68,68,.3)':'#1e3050' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+                {/* Toggle estado */}
+                <button onClick={()=>{
+                  const next = t.estado==='por_iniciar'?'em_andamento':t.estado==='em_andamento'?'concluido':'por_iniciar'
+                  updateEstado(t.id, next)
+                }} style={{ width:36, height:36, borderRadius:10, border:`2px solid ${estadoCor[t.estado]}`, background:'transparent', cursor:'pointer', fontSize:18, flexShrink:0 }}>
+                  {estadoIcon[t.estado]}
+                </button>
+                <div style={{ width:4, height:36, borderRadius:2, background:tipoCor[t.tipo]||'#94a3b8', flexShrink:0 }}/>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:13, fontWeight:500, color:t.estado==='concluido'?'#475569':'#fff', textDecoration:t.estado==='concluido'?'line-through':'none' }}>{t.titulo}</div>
+                  <div style={{ fontSize:11, color:'#64748b', marginTop:2 }}>
+                    {t.frequencia} {t.pombal?`· ${t.pombal}`:''} {t.data_prevista?`· ${new Date(t.data_prevista).toLocaleDateString('pt-PT')}`:''} {t.sugerida?'· sugerida':''}
+                  </div>
+                </div>
+                {atrasada&&<Badge v="red">ATRASADA</Badge>}
+                <select value={t.estado} onChange={e=>updateEstado(t.id,e.target.value)}
+                  style={{ background:'#1a2840', border:'1px solid #243860', borderRadius:8, color:'#fff', padding:'4px 8px', fontSize:11, fontFamily:'inherit' }}>
+                  <option value="por_iniciar">Por Iniciar</option>
+                  <option value="em_andamento">Em Andamento</option>
+                  <option value="concluido">Concluído</option>
+                </select>
+                <button className="btn btn-icon btn-sm" onClick={()=>del(t.id)}>🗑️</button>
+              </div>
+            </div>
+          )
+        })}
+      </div>}
+
+      {/* Sugestões */}
+      <div style={{ fontWeight:600, color:'#fff', marginBottom:12 }}>💡 Tarefas Sugeridas</div>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(220px,1fr))', gap:8 }}>
+        {SUGESTOES.map((s,i)=>(
+          <div key={i} style={{ background:'#141f2e', border:'1px solid #1e3050', borderRadius:12, padding:'12px 14px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+            <div>
+              <div style={{ fontSize:13, fontWeight:500, color:'#fff' }}>{s.titulo}</div>
+              <div style={{ fontSize:11, color:'#64748b', marginTop:2 }}>{s.frequencia} · {s.tipo}</div>
+            </div>
+            <button className="btn btn-secondary btn-sm" onClick={()=>addSugestao(s)}>＋</button>
+          </div>
+        ))}
+      </div>
+
+      <Modal open={modal} onClose={()=>setModal(false)} title="✅ Nova Tarefa"
+        footer={<><button className="btn btn-secondary" onClick={()=>setModal(false)}>Cancelar</button><button className="btn btn-primary" onClick={save} disabled={saving}>{saving?<Spinner/>:null}Criar</button></>}>
+        <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+          <Field label="Título *"><input className="input" placeholder="Ex: Limpeza semanal" value={form.titulo} onChange={e=>sf('titulo',e.target.value)}/></Field>
+          <div className="form-grid">
+            <Field label="Tipo"><select className="input" value={form.tipo} onChange={e=>sf('tipo',e.target.value)}>{['personalizada','limpeza','higiene','saude','alimentacao','reproducao'].map(t=><option key={t}>{t}</option>)}</select></Field>
+            <Field label="Frequência"><select className="input" value={form.frequencia} onChange={e=>sf('frequencia',e.target.value)}>{['diaria','semanal','quinzenal','mensal','anual','pontual'].map(f=><option key={f}>{f}</option>)}</select></Field>
+            <Field label="Data Prevista"><input className="input" type="date" value={form.data_prevista} onChange={e=>sf('data_prevista',e.target.value)}/></Field>
+            <Field label="Alerta (dias antes)"><input className="input" type="number" min="0" value={form.alerta_dias} onChange={e=>sf('alerta_dias',e.target.value)}/></Field>
+            <Field label="Pombal"><select className="input" value={form.pombal} onChange={e=>sf('pombal',e.target.value)}><option value="">Todos</option>{pombais.map(p=><option key={p.id}>{p.nome}</option>)}</select></Field>
+          </div>
+          <Field label="Observações"><textarea className="input" rows={2} style={{ resize:'none' }} value={form.obs} onChange={e=>sf('obs',e.target.value)}/></Field>
+        </div>
+      </Modal>
+    </div>
+  )
+}
+
 function EmBreve({ icon, title }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh', textAlign: 'center' }}>
@@ -3669,7 +3955,7 @@ function EmBreve({ icon, title }) {
 // ─── NAV CONFIG ───────────────────────────────────────
 const NAV = [
   { section: 'Principal', items: [{ id: 'dashboard', icon: '📊', label: 'Dashboard' }, { id: 'pombos', icon: '🐦', label: 'Pombos' }, { id: 'pombais', icon: '🏠', label: 'Pombais' }] },
-  { section: 'Desporto', items: [{ id: 'provas', icon: '🏆', label: 'Provas' }, { id: 'treinos', icon: '🎯', label: 'Treinos' }, { id: 'calendario', icon: '📅', label: 'Calendário' }] },
+  { section: 'Desporto', items: [{ id: 'provas', icon: '🏆', label: 'Provas' }, { id: 'treinos', icon: '🎯', label: 'Treinos' }, { id: 'calendario', icon: '📅', label: 'Calendário' }, { id: 'checklist', icon: '✅', label: 'Checklist' }] },
   { section: 'Gestão', items: [{ id: 'saude', icon: '🏥', label: 'Saúde' }, { id: 'reproducao', icon: '🥚', label: 'Reprodução' }, { id: 'alimentacao', icon: '🌾', label: 'Alimentação' }, { id: 'financas', icon: '💰', label: 'Finanças' }] },
   { section: 'Análise', items: [{ id: 'relatorios', icon: '📊', label: 'Relatórios' }, { id: 'fimepoca', icon: '🏁', label: 'Fim de Época' }, { id: 'meteorologia', icon: '🌦️', label: 'Meteorologia' }, { id: 'perfil', icon: '⚙️', label: 'Perfil' }] },
 ]
@@ -3698,6 +3984,7 @@ function AppLayout() {
       case 'reproducao':    return <Reproducao />
       case 'alimentacao':   return <Alimentacao />
       case 'calendario':  return <Calendario />
+      case 'checklist':    return <Checklist />
       case 'relatorios':  return <Relatorios />
       case 'fimepoca':     return <FimEpoca />
       case 'meteorologia':return <Meteorologia />
