@@ -4275,109 +4275,306 @@ function Admin() {
 function Comunidade() {
   const toast = useToast()
   const { user } = useAuth()
-  const [perfis, setPerfis] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [search, setSearch] = useState('')
-  const [selected, setSelected] = useState(null)
+  const [tab, setTab] = useState('feed')
+  const [posts, setPosts] = useState([])
+  const [explorar, setExplorar] = useState([])
+  const [seguidores, setSeguidores] = useState({ following:[], followers:[] })
+  const [notifs, setNotifs] = useState([])
   const [meuPerfil, setMeuPerfil] = useState(null)
-  const [tab, setTab] = useState('explorar')
+  const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [page, setPage] = useState(0)
+  const [hasMore, setHasMore] = useState(true)
+  const [search, setSearch] = useState('')
+  const [modalPost, setModalPost] = useState(false)
+  const [modalComents, setModalComents] = useState(null)
+  const [selectedPerfil, setSelectedPerfil] = useState(null)
+  const [formPost, setFormPost] = useState({ tipo:'geral', conteudo:'' })
+  const [formComment, setFormComment] = useState('')
+  const [comments, setComments] = useState([])
+  const [saving, setSaving] = useState(false)
   const [formPriv, setFormPriv] = useState({ privacidade_perfil:'privado', pub_foto:false, pub_pombos:false, pub_resultados:false, pub_estatisticas:false, pub_conquistas:false, descricao:'', username:'', localidade:'' })
   const [savingPriv, setSavingPriv] = useState(false)
+  const PAGE_SIZE = 10
 
-  useEffect(() => {
-    async function load() {
-      setLoading(true)
-      try {
-        const [ps, me] = await Promise.all([
-          supabase.from('perfis').select('nome,username,localidade,descricao,foto_perfil_url,foto_pombal_url,org,fed,privacidade_perfil,pub_foto,pub_estatisticas').neq('privacidade_perfil','privado').then(r=>r.data||[]),
-          supabase.from('perfis').select('*').eq('user_id',user.id).single().then(r=>r.data||null),
-        ])
-        setPerfis(ps)
-        if (me) {
-          setMeuPerfil(me)
-          setFormPriv({ privacidade_perfil:me.privacidade_perfil||'privado', pub_foto:me.pub_foto||false, pub_pombos:me.pub_pombos||false, pub_resultados:me.pub_resultados||false, pub_estatisticas:me.pub_estatisticas||false, pub_conquistas:me.pub_conquistas||false, descricao:me.descricao||'', username:me.username||'', localidade:me.localidade||me.pombal_morada||'' })
-        }
-      } catch(e) { toast('Erro: '+e.message,'err') }
-      finally { setLoading(false) }
-    }
-    load()
-  }, [user])
+  const load = useCallback(async (reset=true) => {
+    if (reset) setLoading(true)
+    else setLoadingMore(true)
+    try {
+      const [me, foll, notifData, explorData] = await Promise.all([
+        supabase.from('perfis').select('*').eq('user_id', user.id).single().then(r=>r.data||null),
+        supabase.from('followers').select('*').or(`follower_id.eq.${user.id},following_id.eq.${user.id}`).then(r=>r.data||[]),
+        supabase.from('notifications').select('*').eq('user_id', user.id).order('created_at',{ascending:false}).limit(20).then(r=>r.data||[]),
+        supabase.from('perfis').select('user_id,nome,username,localidade,foto_perfil_url,org,privacidade_perfil,descricao').neq('privacidade_perfil','privado').then(r=>r.data||[]),
+      ])
+      setMeuPerfil(me)
+      if (me) setFormPriv({ privacidade_perfil:me.privacidade_perfil||'privado', pub_foto:me.pub_foto||false, pub_pombos:me.pub_pombos||false, pub_resultados:me.pub_resultados||false, pub_estatisticas:me.pub_estatisticas||false, pub_conquistas:me.pub_conquistas||false, descricao:me.descricao||'', username:me.username||'', localidade:me.localidade||me.pombal_morada||'' })
+      const following = foll.filter(f=>f.follower_id===user.id).map(f=>f.following_id)
+      const followers = foll.filter(f=>f.following_id===user.id).map(f=>f.follower_id)
+      setSeguidores({ following, followers })
+      setNotifs(notifData)
+      setExplorar(explorData.filter(p=>p.user_id!==user.id))
+
+      // Feed: posts de quem sigo + os meus
+      const feedIds = [...following, user.id]
+      const offset = reset ? 0 : page * PAGE_SIZE
+      const { data: postsData } = await supabase.from('posts').select('*')
+        .in('user_id', feedIds.length ? feedIds : [user.id])
+        .order('created_at',{ascending:false})
+        .range(offset, offset+PAGE_SIZE-1)
+      const newPosts = postsData||[]
+      if (reset) setPosts(newPosts)
+      else setPosts(p=>[...p,...newPosts])
+      setHasMore(newPosts.length===PAGE_SIZE)
+      if (!reset) setPage(p=>p+1)
+    } catch(e) { toast('Erro: '+e.message,'err') }
+    finally { setLoading(false); setLoadingMore(false) }
+  },[user, page])
+
+  useEffect(()=>{ load(true) },[user])
+
+  // Seguir / deixar de seguir
+  const toggleFollow = async (targetId) => {
+    const jaSegue = seguidores.following.includes(targetId)
+    try {
+      if (jaSegue) {
+        await supabase.from('followers').delete().eq('follower_id',user.id).eq('following_id',targetId)
+        setSeguidores(s=>({...s, following:s.following.filter(id=>id!==targetId)}))
+      } else {
+        await supabase.from('followers').insert({ follower_id:user.id, following_id:targetId })
+        setSeguidores(s=>({...s, following:[...s.following, targetId]}))
+        // Notificação ao seguido
+        await supabase.from('notifications').insert({ user_id:targetId, tipo:'follow', conteudo:`${meuPerfil?.nome||'Alguém'} começou a seguir-te`, referencia_id:user.id })
+      }
+    } catch(e) { toast('Erro: '+e.message,'err') }
+  }
+
+  // Criar post
+  const criarPost = async () => {
+    if (!formPost.conteudo.trim()) { toast('Escreva algo','warn'); return }
+    setSaving(true)
+    try {
+      await supabase.from('posts').insert({
+        user_id: user.id,
+        autor_nome: meuPerfil?.nome||'Columbófilo',
+        autor_avatar: meuPerfil?.foto_perfil_url||null,
+        autor_username: meuPerfil?.username||null,
+        tipo: formPost.tipo,
+        conteudo: formPost.conteudo.trim(),
+      })
+      toast('Post publicado! 🕊️','ok')
+      setModalPost(false)
+      setFormPost({ tipo:'geral', conteudo:'' })
+      load(true)
+    } catch(e) { toast('Erro: '+e.message,'err') }
+    finally { setSaving(false) }
+  }
+
+  // Like
+  const toggleLike = async (post) => {
+    const liked = post._liked
+    try {
+      if (liked) {
+        await supabase.from('post_likes').delete().eq('post_id',post.id).eq('user_id',user.id)
+        await supabase.from('posts').update({ likes_count: Math.max(0,(post.likes_count||0)-1) }).eq('id',post.id)
+      } else {
+        await supabase.from('post_likes').insert({ post_id:post.id, user_id:user.id })
+        await supabase.from('posts').update({ likes_count:(post.likes_count||0)+1 }).eq('id',post.id)
+        if (post.user_id!==user.id) await supabase.from('notifications').insert({ user_id:post.user_id, tipo:'like', conteudo:`${meuPerfil?.nome||'Alguém'} gostou do teu post`, referencia_id:post.id })
+      }
+      setPosts(ps=>ps.map(p=>p.id===post.id?{...p, likes_count:liked?Math.max(0,(p.likes_count||0)-1):(p.likes_count||0)+1, _liked:!liked}:p))
+    } catch(e) {}
+  }
+
+  // Carregar likes do utilizador
+  const loadLikes = async (postIds) => {
+    if (!postIds.length) return
+    const { data } = await supabase.from('post_likes').select('post_id').eq('user_id',user.id).in('post_id',postIds)
+    const likedIds = new Set((data||[]).map(l=>l.post_id))
+    setPosts(ps=>ps.map(p=>({...p, _liked:likedIds.has(p.id)})))
+  }
+
+  useEffect(()=>{ if(posts.length) loadLikes(posts.map(p=>p.id)) },[posts.length])
+
+  // Comentários
+  const openComments = async (post) => {
+    setModalComents(post)
+    const { data } = await supabase.from('comments').select('*').eq('post_id',post.id).order('created_at')
+    setComments(data||[])
+  }
+
+  const sendComment = async () => {
+    if (!formComment.trim()||!modalComents) return
+    try {
+      await supabase.from('comments').insert({ post_id:modalComents.id, user_id:user.id, autor_nome:meuPerfil?.nome||'Eu', autor_avatar:meuPerfil?.foto_perfil_url||null, conteudo:formComment.trim() })
+      await supabase.from('posts').update({ comments_count:(modalComents.comments_count||0)+1 }).eq('id',modalComents.id)
+      if (modalComents.user_id!==user.id) await supabase.from('notifications').insert({ user_id:modalComents.user_id, tipo:'comment', conteudo:`${meuPerfil?.nome||'Alguém'} comentou o teu post`, referencia_id:modalComents.id })
+      setFormComment('')
+      const { data } = await supabase.from('comments').select('*').eq('post_id',modalComents.id).order('created_at')
+      setComments(data||[])
+      setPosts(ps=>ps.map(p=>p.id===modalComents.id?{...p,comments_count:(p.comments_count||0)+1}:p))
+    } catch(e) { toast('Erro','err') }
+  }
+
+  const marcarLidas = async () => {
+    await supabase.from('notifications').update({ lida:true }).eq('user_id',user.id).eq('lida',false)
+    setNotifs(ns=>ns.map(n=>({...n,lida:true})))
+  }
 
   const savePrivacidade = async () => {
     setSavingPriv(true)
     try {
       await supabase.from('perfis').update({ privacidade_perfil:formPriv.privacidade_perfil, pub_foto:formPriv.pub_foto, pub_pombos:formPriv.pub_pombos, pub_resultados:formPriv.pub_resultados, pub_estatisticas:formPriv.pub_estatisticas, pub_conquistas:formPriv.pub_conquistas, descricao:formPriv.descricao, username:formPriv.username||null, localidade:formPriv.localidade }).eq('user_id',user.id)
-      toast('Privacidade actualizada!','ok')
+      toast('Privacidade guardada!','ok')
     } catch(e) { toast('Erro: '+e.message,'err') }
     finally { setSavingPriv(false) }
   }
 
   const partilhar = (p) => {
-    const url = `${window.location.origin}/perfil/${p.username||p.id}`
-    const texto = `Sou columbófilo em ${p.localidade||'Portugal'}! Vê o meu perfil no ChampionsLoft 🕊️`
-    if (navigator.share) {
-      navigator.share({ title:'ChampionsLoft', text:texto, url })
-    } else {
-      navigator.clipboard.writeText(url)
-      toast('Link copiado!','ok')
-    }
+    const url = `${window.location.origin}/perfil/${p.username||p.user_id}`
+    if (navigator.share) navigator.share({ title:'ChampionsLoft', text:`Vê o perfil de ${p.nome} no ChampionsLoft 🕊️`, url })
+    else { navigator.clipboard.writeText(url); toast('Link copiado!','ok') }
   }
 
-  const filtered = perfis.filter(p=>!search||p.nome?.toLowerCase().includes(search.toLowerCase())||p.localidade?.toLowerCase().includes(search.toLowerCase()))
+  const naoLidas = notifs.filter(n=>!n.lida).length
+  const filtroExplorar = explorar.filter(p=>!search||p.nome?.toLowerCase().includes(search.toLowerCase())||p.localidade?.toLowerCase().includes(search.toLowerCase()))
+
+  const tipoIcon = { geral:'🕊️', resultado:'🏆', treino:'🎯', conquista:'🏅' }
+  const tipoCor = { geral:'#64748b', resultado:'#facc15', treino:'#60a5fa', conquista:'#1ed98a' }
+
+  const Avatar = ({url,nome,size=36}) => (
+    <div style={{ width:size, height:size, borderRadius:'50%', background:'rgba(30,217,138,.15)', border:'1px solid rgba(30,217,138,.3)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:size*0.4, overflow:'hidden', flexShrink:0, fontWeight:700, color:'#1ed98a' }}>
+      {url?<img src={url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>:(nome?nome[0].toUpperCase():'🕊️')}
+    </div>
+  )
+
+  const PostCard = ({post}) => (
+    <div className="card card-p" style={{ marginBottom:10 }}>
+      <div style={{ display:'flex', gap:10, marginBottom:10 }}>
+        <Avatar url={post.autor_avatar} nome={post.autor_nome}/>
+        <div style={{ flex:1 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+            <span style={{ fontWeight:600, color:'#fff', fontSize:13 }}>{post.autor_nome||'Columbófilo'}</span>
+            <span style={{ fontSize:11, padding:'1px 6px', borderRadius:99, background:(tipoCor[post.tipo]||'#64748b')+'20', color:tipoCor[post.tipo]||'#64748b' }}>{tipoIcon[post.tipo]} {post.tipo}</span>
+          </div>
+          <div style={{ fontSize:11, color:'#475569' }}>{new Date(post.created_at).toLocaleDateString('pt-PT',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</div>
+        </div>
+        {post.user_id===user.id&&<button className="btn btn-icon btn-sm" onClick={async()=>{ await supabase.from('posts').delete().eq('id',post.id); load(true) }}>🗑️</button>}
+      </div>
+      <div style={{ fontSize:14, color:'#cbd5e1', lineHeight:1.6, marginBottom:10, whiteSpace:'pre-wrap' }}>{post.conteudo}</div>
+      {post.media_url&&<img src={post.media_url} alt="" style={{ width:'100%', borderRadius:10, marginBottom:10, maxHeight:300, objectFit:'cover' }}/>}
+      <div style={{ display:'flex', gap:16, paddingTop:8, borderTop:'1px solid #1e3050' }}>
+        <button onClick={()=>toggleLike(post)} style={{ display:'flex', alignItems:'center', gap:5, background:'none', border:'none', cursor:'pointer', color:post._liked?'#f87171':'#64748b', fontSize:13, fontFamily:'inherit', padding:0 }}>
+          {post._liked?'❤️':'🤍'} {post.likes_count||0}
+        </button>
+        <button onClick={()=>openComments(post)} style={{ display:'flex', alignItems:'center', gap:5, background:'none', border:'none', cursor:'pointer', color:'#64748b', fontSize:13, fontFamily:'inherit', padding:0 }}>
+          💬 {post.comments_count||0}
+        </button>
+        <button onClick={()=>{ if(navigator.share) navigator.share({title:'ChampionsLoft',text:post.conteudo}); else { navigator.clipboard.writeText(post.conteudo); toast('Copiado!','ok') } }}
+          style={{ display:'flex', alignItems:'center', gap:5, background:'none', border:'none', cursor:'pointer', color:'#64748b', fontSize:13, fontFamily:'inherit', padding:0, marginLeft:'auto' }}>
+          📤
+        </button>
+      </div>
+    </div>
+  )
 
   return (
     <div>
       <div className="section-header">
-        <div><div className="section-title">🌐 Comunidade</div><div className="section-sub">{perfis.length} columbófilos públicos</div></div>
+        <div><div className="section-title">🌐 Comunidade</div><div className="section-sub">{seguidores.following.length} a seguir · {seguidores.followers.length} seguidores</div></div>
+        <button className="btn btn-primary" onClick={()=>setModalPost(true)}>✏️ Publicar</button>
       </div>
 
-      <div style={{ display:'flex', gap:4, background:'#1a2840', borderRadius:10, padding:4, marginBottom:20, width:'fit-content' }}>
-        {[['explorar','🔍 Explorar'],['privacidade','🔒 Privacidade'],['meu_perfil','👤 Meu Perfil']].map(([t,l])=>(
-          <button key={t} onClick={()=>setTab(t)} style={{ padding:'8px 14px', borderRadius:8, fontSize:13, fontWeight:500, cursor:'pointer', border:'none', fontFamily:'inherit', background:tab===t?'#1ed98a':'none', color:tab===t?'#0a0f14':'#94a3b8' }}>{l}</button>
+      {/* Tabs */}
+      <div style={{ display:'flex', gap:4, background:'#1a2840', borderRadius:10, padding:4, marginBottom:20, overflowX:'auto' }}>
+        {[
+          ['feed','📰 Feed'],
+          ['explorar',`🔍 Explorar`],
+          ['notificacoes', naoLidas>0?`🔔 (${naoLidas})`:'🔔 Notificações'],
+          ['privacidade','🔒 Privacidade'],
+          ['meu_perfil','👤 Meu Perfil'],
+        ].map(([t,l])=>(
+          <button key={t} onClick={()=>{ setTab(t); if(t==='notificacoes') marcarLidas() }}
+            style={{ padding:'8px 14px', borderRadius:8, fontSize:13, fontWeight:500, cursor:'pointer', border:'none', fontFamily:'inherit', whiteSpace:'nowrap', background:tab===t?'#1ed98a':'none', color:tab===t?'#0a0f14':'#94a3b8' }}>{l}</button>
         ))}
       </div>
 
-      {tab==='explorar' && (
+      {/* FEED */}
+      {tab==='feed'&&(
         <div>
-          <input className="input" style={{ marginBottom:16 }} placeholder="🔍 Pesquisar por nome ou localidade..." value={search} onChange={e=>setSearch(e.target.value)}/>
-          {loading?<div style={{ display:'flex', justifyContent:'center', padding:40 }}><Spinner lg/></div>
-          :filtered.length===0?<EmptyState icon="🌐" title="Sem perfis públicos" desc="Ainda não há columbófilos com perfil público"/>
-          :<div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(220px,1fr))', gap:12 }}>
-            {filtered.map((p,i)=>(
-              <div key={i} className="card" style={{ overflow:'hidden', cursor:'pointer' }} onClick={()=>setSelected(p)}>
-                <div style={{ height:80, background:'linear-gradient(135deg,#141f2e,#1a2840)', display:'flex', alignItems:'center', justifyContent:'center', position:'relative' }}>
-                  {p.foto_pombal_url&&p.pub_foto?<img src={p.foto_pombal_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', opacity:.4 }}/>:null}
-                  <div style={{ width:56, height:56, borderRadius:'50%', background:'rgba(30,217,138,.1)', border:'2px solid rgba(30,217,138,.3)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:24, overflow:'hidden', position:'relative' }}>
-                    {p.foto_perfil_url&&p.pub_foto?<img src={p.foto_perfil_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>:(p.nome?p.nome[0].toUpperCase():'🕊️')}
-                  </div>
-                </div>
-                <div style={{ padding:'12px 14px' }}>
-                  <div style={{ fontWeight:600, color:'#fff', fontSize:14 }}>{p.nome||'—'}</div>
-                  {p.localidade&&<div style={{ fontSize:12, color:'#64748b', marginTop:2 }}>📍 {p.localidade}</div>}
-                  {p.org&&<div style={{ fontSize:11, color:'#94a3b8', marginTop:2 }}>{p.org}</div>}
-                  {p.descricao&&<div style={{ fontSize:12, color:'#64748b', marginTop:6, overflow:'hidden', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical' }}>{p.descricao}</div>}
-                </div>
-              </div>
-            ))}
-          </div>}
+          {loading?<div style={{ display:'flex', justifyContent:'center', padding:60 }}><Spinner lg/></div>
+          :posts.length===0
+            ?<EmptyState icon="📰" title="Feed vazio" desc="Segue outros columbófilos para ver os seus posts, ou publica o primeiro!" action={<button className="btn btn-primary" onClick={()=>setModalPost(true)}>✏️ Publicar</button>}/>
+            :<div>
+              {posts.map(p=><PostCard key={p.id} post={p}/>)}
+              {hasMore&&<button className="btn btn-secondary w-full" style={{ justifyContent:'center', marginTop:8 }} onClick={()=>load(false)} disabled={loadingMore}>{loadingMore?<Spinner/>:'Carregar mais'}</button>}
+            </div>
+          }
         </div>
       )}
 
-      {tab==='privacidade' && (
+      {/* EXPLORAR */}
+      {tab==='explorar'&&(
+        <div>
+          <input className="input" style={{ marginBottom:16 }} placeholder="🔍 Pesquisar columbófilos..." value={search} onChange={e=>setSearch(e.target.value)}/>
+          {filtroExplorar.length===0
+            ?<EmptyState icon="🔍" title="Sem resultados" desc="Nenhum columbófilo público encontrado"/>
+            :<div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+              {filtroExplorar.map((p,i)=>{
+                const segue = seguidores.following.includes(p.user_id)
+                return (
+                  <div key={i} className="card card-p" style={{ display:'flex', alignItems:'center', gap:12 }}>
+                    <Avatar url={p.foto_perfil_url} nome={p.nome} size={44}/>
+                    <div style={{ flex:1, cursor:'pointer' }} onClick={()=>setSelectedPerfil(p)}>
+                      <div style={{ fontWeight:600, color:'#fff', fontSize:13 }}>{p.nome}</div>
+                      {p.localidade&&<div style={{ fontSize:11, color:'#64748b' }}>📍 {p.localidade}</div>}
+                      {p.descricao&&<div style={{ fontSize:11, color:'#94a3b8', marginTop:2, overflow:'hidden', whiteSpace:'nowrap', textOverflow:'ellipsis', maxWidth:200 }}>{p.descricao}</div>}
+                    </div>
+                    <button className={`btn ${segue?'btn-secondary':'btn-primary'} btn-sm`} onClick={()=>toggleFollow(p.user_id)}>
+                      {segue?'✓ A seguir':'+ Seguir'}
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+          }
+        </div>
+      )}
+
+      {/* NOTIFICAÇÕES */}
+      {tab==='notificacoes'&&(
+        <div>
+          {notifs.length===0
+            ?<EmptyState icon="🔔" title="Sem notificações" desc="As notificações de likes, comentários e seguidores aparecerão aqui"/>
+            :<div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+              {notifs.map(n=>(
+                <div key={n.id} className="card card-p" style={{ display:'flex', alignItems:'center', gap:12, opacity:n.lida?.8:1, borderColor:n.lida?'#1e3050':'rgba(30,217,138,.3)' }}>
+                  <span style={{ fontSize:20 }}>{n.tipo==='like'?'❤️':n.tipo==='comment'?'💬':n.tipo==='follow'?'👤':'🔔'}</span>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontSize:13, color:'#cbd5e1' }}>{n.conteudo}</div>
+                    <div style={{ fontSize:11, color:'#475569', marginTop:2 }}>{new Date(n.created_at).toLocaleDateString('pt-PT',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</div>
+                  </div>
+                  {!n.lida&&<div style={{ width:8, height:8, borderRadius:'50%', background:'#1ed98a', flexShrink:0 }}/>}
+                </div>
+              ))}
+            </div>
+          }
+        </div>
+      )}
+
+      {/* PRIVACIDADE */}
+      {tab==='privacidade'&&(
         <div className="card card-p" style={{ maxWidth:500 }}>
           <div style={{ fontWeight:600, color:'#fff', marginBottom:16 }}>🔒 Controlo de Privacidade</div>
-          <div style={{ marginBottom:16 }}>
-            <Field label="Visibilidade do Perfil">
-              <select className="input" value={formPriv.privacidade_perfil} onChange={e=>setFormPriv(f=>({...f,privacidade_perfil:e.target.value}))}>
-                <option value="privado">🔒 Privado (só eu vejo)</option>
-                <option value="publico">🌐 Público (visível a todos)</option>
-              </select>
-            </Field>
-          </div>
+          <Field label="Visibilidade">
+            <select className="input" value={formPriv.privacidade_perfil} onChange={e=>setFormPriv(f=>({...f,privacidade_perfil:e.target.value}))}>
+              <option value="privado">🔒 Privado</option>
+              <option value="publico">🌐 Público</option>
+            </select>
+          </Field>
           {formPriv.privacidade_perfil==='publico'&&(
-            <div style={{ display:'flex', flexDirection:'column', gap:10, marginBottom:16 }}>
-              <div style={{ fontSize:12, color:'#94a3b8', marginBottom:4 }}>O que mostrar publicamente:</div>
-              {[['pub_foto','📸 Foto de perfil e pombal'],['pub_pombos','🐦 Lista de pombos'],['pub_resultados','🏆 Resultados de provas'],['pub_estatisticas','📊 Estatísticas'],['pub_conquistas','🏅 Conquistas']].map(([key,label])=>(
+            <div style={{ marginTop:14, display:'flex', flexDirection:'column', gap:10 }}>
+              {[['pub_foto','📸 Foto de perfil'],['pub_pombos','🐦 Lista de pombos'],['pub_resultados','🏆 Resultados'],['pub_estatisticas','📊 Estatísticas'],['pub_conquistas','🏅 Conquistas']].map(([key,label])=>(
                 <label key={key} style={{ display:'flex', alignItems:'center', gap:10, cursor:'pointer' }}>
                   <input type="checkbox" checked={formPriv[key]||false} onChange={e=>setFormPriv(f=>({...f,[key]:e.target.checked}))} style={{ accentColor:'#1ed98a', width:16, height:16 }}/>
                   <span style={{ fontSize:13, color:'#cbd5e1' }}>{label}</span>
@@ -4385,57 +4582,115 @@ function Comunidade() {
               ))}
             </div>
           )}
-          <Field label="Username (link público)">
+          <div style={{ marginTop:14, display:'flex', flexDirection:'column', gap:12 }}>
+            <Field label="Username">
+              <div style={{ display:'flex', gap:0 }}>
+                <span style={{ padding:'9px 12px', background:'#0f1923', border:'1px solid #243860', borderRight:'none', borderRadius:'10px 0 0 10px', fontSize:13, color:'#64748b' }}>@</span>
+                <input className="input" style={{ borderRadius:'0 10px 10px 0' }} placeholder="seunome" value={formPriv.username} onChange={e=>setFormPriv(f=>({...f,username:e.target.value.toLowerCase().replace(/[^a-z0-9_]/g,'')}))}/>
+              </div>
+              {formPriv.username&&<div style={{ fontSize:11, color:'#1ed98a', marginTop:4 }}>{window.location.origin}/perfil/{formPriv.username}</div>}
+            </Field>
+            <Field label="Localidade"><input className="input" placeholder="Ex: Avis, Alentejo" value={formPriv.localidade} onChange={e=>setFormPriv(f=>({...f,localidade:e.target.value}))}/></Field>
+            <Field label="Descrição"><textarea className="input" rows={3} style={{ resize:'none' }} value={formPriv.descricao} onChange={e=>setFormPriv(f=>({...f,descricao:e.target.value}))}/></Field>
+          </div>
+          <button className="btn btn-primary" style={{ marginTop:16, width:'100%', justifyContent:'center' }} onClick={savePrivacidade} disabled={savingPriv}>{savingPriv?<Spinner/>:'💾'} Guardar</button>
+        </div>
+      )}
+
+      {/* MEU PERFIL */}
+      {tab==='meu_perfil'&&meuPerfil&&(
+        <div style={{ maxWidth:480 }}>
+          <div className="card card-p" style={{ marginBottom:12 }}>
+            <div style={{ display:'flex', alignItems:'center', gap:16, marginBottom:14 }}>
+              <Avatar url={meuPerfil.foto_perfil_url} nome={meuPerfil.nome} size={64}/>
+              <div>
+                <div style={{ fontSize:18, fontWeight:700, color:'#fff' }}>{meuPerfil.nome||'—'}</div>
+                {meuPerfil.username&&<div style={{ fontSize:13, color:'#1ed98a' }}>@{meuPerfil.username}</div>}
+                {meuPerfil.localidade&&<div style={{ fontSize:12, color:'#64748b' }}>📍 {meuPerfil.localidade||meuPerfil.pombal_morada}</div>}
+              </div>
+            </div>
+            <div style={{ display:'flex', gap:24, marginBottom:14, textAlign:'center' }}>
+              <div><div style={{ fontFamily:'Barlow Condensed', fontSize:24, fontWeight:700, color:'#fff' }}>{posts.filter(p=>p.user_id===user.id).length}</div><div style={{ fontSize:11, color:'#64748b' }}>Posts</div></div>
+              <div><div style={{ fontFamily:'Barlow Condensed', fontSize:24, fontWeight:700, color:'#fff' }}>{seguidores.followers.length}</div><div style={{ fontSize:11, color:'#64748b' }}>Seguidores</div></div>
+              <div><div style={{ fontFamily:'Barlow Condensed', fontSize:24, fontWeight:700, color:'#fff' }}>{seguidores.following.length}</div><div style={{ fontSize:11, color:'#64748b' }}>A Seguir</div></div>
+            </div>
+            {meuPerfil.descricao&&<div style={{ fontSize:13, color:'#94a3b8', marginBottom:14, padding:'10px 14px', background:'#1a2840', borderRadius:10 }}>{meuPerfil.descricao}</div>}
             <div style={{ display:'flex', gap:8 }}>
-              <span style={{ padding:'9px 12px', background:'#0f1923', border:'1px solid #243860', borderRadius:'10px 0 0 10px', fontSize:13, color:'#64748b', borderRight:'none' }}>@</span>
-              <input className="input" style={{ borderRadius:'0 10px 10px 0' }} placeholder="seunome" value={formPriv.username} onChange={e=>setFormPriv(f=>({...f,username:e.target.value.toLowerCase().replace(/[^a-z0-9_]/g,'')}))}/>
+              <button className="btn btn-primary" style={{ flex:1, justifyContent:'center' }} onClick={()=>partilhar(meuPerfil)}>📤 Partilhar</button>
+              <button className="btn btn-secondary" onClick={()=>setTab('privacidade')}>🔒 Privacidade</button>
             </div>
-            {formPriv.username&&<div style={{ fontSize:11, color:'#1ed98a', marginTop:4 }}>{window.location.origin}/perfil/{formPriv.username}</div>}
+          </div>
+          {/* Posts próprios */}
+          <div style={{ fontWeight:600, color:'#fff', marginBottom:10 }}>Os meus posts</div>
+          {posts.filter(p=>p.user_id===user.id).length===0
+            ?<div style={{ textAlign:'center', color:'#64748b', fontSize:13, padding:'20px 0' }}>Ainda não publicaste nada</div>
+            :posts.filter(p=>p.user_id===user.id).map(p=><PostCard key={p.id} post={p}/>)
+          }
+        </div>
+      )}
+
+      {/* Modal novo post */}
+      <Modal open={modalPost} onClose={()=>setModalPost(false)} title="✏️ Nova Publicação"
+        footer={<><button className="btn btn-secondary" onClick={()=>setModalPost(false)}>Cancelar</button><button className="btn btn-primary" onClick={criarPost} disabled={saving}>{saving?<Spinner/>:'Publicar'}</button></>}>
+        <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+          <Field label="Tipo">
+            <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+              {[['geral','🕊️ Geral'],['resultado','🏆 Resultado'],['treino','🎯 Treino'],['conquista','🏅 Conquista']].map(([v,l])=>(
+                <button key={v} type="button" className={`chip${formPost.tipo===v?' active':''}`} onClick={()=>setFormPost(f=>({...f,tipo:v}))}>{l}</button>
+              ))}
+            </div>
           </Field>
-          <Field label="Localidade Pública"><input className="input" placeholder="Ex: Avis, Alentejo" value={formPriv.localidade} onChange={e=>setFormPriv(f=>({...f,localidade:e.target.value}))}/></Field>
-          <Field label="Descrição Pública"><textarea className="input" rows={3} style={{ resize:'none', marginTop:14 }} placeholder="Fale um pouco sobre si e o seu pombal..." value={formPriv.descricao} onChange={e=>setFormPriv(f=>({...f,descricao:e.target.value}))}/></Field>
-          <button className="btn btn-primary" style={{ marginTop:16, width:'100%', justifyContent:'center' }} onClick={savePrivacidade} disabled={savingPriv}>{savingPriv?<Spinner/>:'💾'} Guardar Privacidade</button>
+          <Field label="Mensagem *">
+            <textarea className="input" rows={5} style={{ resize:'none' }} placeholder="Partilha uma novidade com a comunidade..." value={formPost.conteudo} onChange={e=>setFormPost(f=>({...f,conteudo:e.target.value}))} maxLength={500}/>
+            <div style={{ fontSize:11, color:'#475569', textAlign:'right', marginTop:4 }}>{formPost.conteudo.length}/500</div>
+          </Field>
         </div>
-      )}
+      </Modal>
 
-      {tab==='meu_perfil' && meuPerfil && (
-        <div className="card card-p" style={{ maxWidth:480 }}>
-          <div style={{ display:'flex', alignItems:'center', gap:16, marginBottom:16 }}>
-            <div style={{ width:72, height:72, borderRadius:'50%', background:'rgba(30,217,138,.1)', border:'2px solid rgba(30,217,138,.3)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:32, overflow:'hidden' }}>
-              {meuPerfil.foto_perfil_url?<img src={meuPerfil.foto_perfil_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>:(meuPerfil.nome?meuPerfil.nome[0].toUpperCase():'🕊️')}
+      {/* Modal comentários */}
+      <Modal open={!!modalComents} onClose={()=>setModalComents(null)} title="💬 Comentários" wide>
+        {modalComents&&(
+          <div style={{ display:'flex', flexDirection:'column', gap:0 }}>
+            <div style={{ background:'#1a2840', borderRadius:10, padding:'10px 14px', marginBottom:14, fontSize:13, color:'#cbd5e1' }}>{modalComents.conteudo}</div>
+            <div style={{ maxHeight:300, overflowY:'auto', display:'flex', flexDirection:'column', gap:8, marginBottom:14 }}>
+              {comments.length===0?<div style={{ textAlign:'center', color:'#64748b', fontSize:13, padding:'20px 0' }}>Sem comentários ainda</div>
+              :comments.map(cm=>(
+                <div key={cm.id} style={{ display:'flex', gap:10 }}>
+                  <Avatar url={cm.autor_avatar} nome={cm.autor_nome} size={32}/>
+                  <div style={{ flex:1, background:'#1a2840', borderRadius:10, padding:'8px 12px' }}>
+                    <div style={{ fontSize:12, fontWeight:600, color:'#fff', marginBottom:4 }}>{cm.autor_nome}</div>
+                    <div style={{ fontSize:13, color:'#cbd5e1' }}>{cm.conteudo}</div>
+                    <div style={{ fontSize:10, color:'#475569', marginTop:4 }}>{new Date(cm.created_at).toLocaleDateString('pt-PT',{hour:'2-digit',minute:'2-digit'})}</div>
+                  </div>
+                </div>
+              ))}
             </div>
-            <div>
-              <div style={{ fontSize:18, fontWeight:700, color:'#fff' }}>{meuPerfil.nome||'—'}</div>
-              {meuPerfil.username&&<div style={{ fontSize:13, color:'#1ed98a' }}>@{meuPerfil.username}</div>}
-              {meuPerfil.localidade&&<div style={{ fontSize:12, color:'#64748b' }}>📍 {meuPerfil.localidade||meuPerfil.pombal_morada}</div>}
+            <div style={{ display:'flex', gap:8 }}>
+              <input className="input" style={{ flex:1 }} placeholder="Escreve um comentário..." value={formComment} onChange={e=>setFormComment(e.target.value)} onKeyDown={e=>e.key==='Enter'&&sendComment()}/>
+              <button className="btn btn-primary" onClick={sendComment}>Enviar</button>
             </div>
           </div>
-          {meuPerfil.descricao&&<div style={{ fontSize:13, color:'#94a3b8', marginBottom:16, padding:'10px 14px', background:'#1a2840', borderRadius:10 }}>{meuPerfil.descricao}</div>}
+        )}
+      </Modal>
+
+      {/* Perfil de outro utilizador */}
+      {selectedPerfil&&(
+        <Modal open={!!selectedPerfil} onClose={()=>setSelectedPerfil(null)} title={`🕊️ ${selectedPerfil.nome}`}>
+          <div style={{ display:'flex', alignItems:'center', gap:14, marginBottom:16 }}>
+            <Avatar url={selectedPerfil.foto_perfil_url} nome={selectedPerfil.nome} size={60}/>
+            <div style={{ flex:1 }}>
+              <div style={{ fontSize:16, fontWeight:700, color:'#fff' }}>{selectedPerfil.nome}</div>
+              {selectedPerfil.localidade&&<div style={{ fontSize:12, color:'#64748b' }}>📍 {selectedPerfil.localidade}</div>}
+              {selectedPerfil.org&&<div style={{ fontSize:12, color:'#94a3b8' }}>{selectedPerfil.org}</div>}
+            </div>
+          </div>
+          {selectedPerfil.descricao&&<div style={{ fontSize:13, color:'#94a3b8', padding:'10px 14px', background:'#1a2840', borderRadius:10, marginBottom:14 }}>{selectedPerfil.descricao}</div>}
           <div style={{ display:'flex', gap:8 }}>
-            <button className="btn btn-primary" style={{ flex:1, justifyContent:'center' }} onClick={()=>partilhar(meuPerfil)}>📤 Partilhar Perfil</button>
-            <button className="btn btn-secondary" onClick={()=>setTab('privacidade')}>🔒 Privacidade</button>
+            <button className={`btn ${seguidores.following.includes(selectedPerfil.user_id)?'btn-secondary':'btn-primary'} btn-sm`} onClick={()=>toggleFollow(selectedPerfil.user_id)}>
+              {seguidores.following.includes(selectedPerfil.user_id)?'✓ A seguir':'+ Seguir'}
+            </button>
+            <button className="btn btn-secondary btn-sm" onClick={()=>partilhar(selectedPerfil)}>📤 Partilhar</button>
           </div>
-          <div style={{ marginTop:12, fontSize:12, color:'#475569', textAlign:'center' }}>
-            Estado: <span style={{ color:meuPerfil.privacidade_perfil==='publico'?'#1ed98a':'#64748b' }}>{meuPerfil.privacidade_perfil==='publico'?'🌐 Público':'🔒 Privado'}</span>
-          </div>
-        </div>
-      )}
-
-      {/* Perfil detalhe */}
-      {selected&&(
-        <Modal open={!!selected} onClose={()=>setSelected(null)} title={`🕊️ ${selected.nome}`}>
-          <div style={{ display:'flex', alignItems:'center', gap:14, marginBottom:14 }}>
-            <div style={{ width:64, height:64, borderRadius:'50%', background:'rgba(30,217,138,.1)', border:'2px solid rgba(30,217,138,.3)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:28, overflow:'hidden' }}>
-              {selected.foto_perfil_url&&selected.pub_foto?<img src={selected.foto_perfil_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>:(selected.nome?selected.nome[0].toUpperCase():'🕊️')}
-            </div>
-            <div>
-              <div style={{ fontSize:16, fontWeight:700, color:'#fff' }}>{selected.nome}</div>
-              {selected.localidade&&<div style={{ fontSize:13, color:'#64748b' }}>📍 {selected.localidade}</div>}
-              {selected.org&&<div style={{ fontSize:12, color:'#94a3b8' }}>{selected.org}</div>}
-            </div>
-          </div>
-          {selected.descricao&&<div style={{ fontSize:13, color:'#94a3b8', padding:'10px 14px', background:'#1a2840', borderRadius:10, marginBottom:12 }}>{selected.descricao}</div>}
-          <button className="btn btn-primary w-full" style={{ justifyContent:'center' }} onClick={()=>partilhar(selected)}>📤 Partilhar Perfil</button>
         </Modal>
       )}
     </div>
