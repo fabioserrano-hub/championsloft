@@ -5516,7 +5516,7 @@ const NAV = [
   { section: 'Principal', items: [{ id: 'dashboard', icon: '📊', label: 'Dashboard' }, { id: 'pombos', icon: '🐦', label: 'Pombos' }, { id: 'pombais', icon: '🏠', label: 'Pombais' }] },
   { section: 'Desporto', items: [{ id: 'provas', icon: '🏆', label: 'Provas' }, { id: 'treinos', icon: '🎯', label: 'Treinos' }, { id: 'calendario', icon: '📅', label: 'Calendário' }, { id: 'checklist', icon: '✅', label: 'Checklist' }] },
   { section: 'Gestão', items: [{ id: 'saude', icon: '🏥', label: 'Saúde' }, { id: 'reproducao', icon: '🥚', label: 'Reprodução' }, { id: 'alimentacao', icon: '🌾', label: 'Alimentação' }, { id: 'financas', icon: '💰', label: 'Finanças' }] },
-  { section: 'Análise', items: [{ id: 'relatorios', icon: '📊', label: 'Relatórios' }, { id: 'epoca', icon: '📅', label: 'Época' }, { id: 'fimepoca', icon: '🏁', label: 'Fim de Época' }, { id: 'meteorologia', icon: '🌦️', label: 'Meteorologia' }] },
+  { section: 'Análise', items: [{ id: 'relatorios', icon: '📊', label: 'Relatórios' }, { id: 'fimepoca', icon: '🏁', label: 'Fim de Época' }, { id: 'epoca', icon: '🗓️', label: 'Gestão Época' }, { id: 'meteorologia', icon: '🌦️', label: 'Meteorologia' }] },
   { section: 'Social', items: [{ id: 'comunidade', icon: '🌐', label: 'Comunidade' }] },
   { section: 'Sistema', items: [{ id: 'precos', icon: '💳', label: 'Planos' }, { id: 'admin', icon: '👑', label: 'Admin' }, { id: 'perfil', icon: '⚙️', label: 'Perfil' }, { id: 'documentos', icon: '📄', label: 'Documentos' }] },
 ]
