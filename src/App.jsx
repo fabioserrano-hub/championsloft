@@ -5563,7 +5563,7 @@ function AppLayout() {
       <div className={`mobile-overlay${sidebarOpen ? ' show' : ''}`} onClick={() => setSidebarOpen(false)} />
 
       {/* Sidebar */}
-      <aside className={`sidebar${sidebarOpen ? ' open' : ''}`}>
+      <aside className={`sidebar${sidebarOpen ? ' open' : ''}`} style={{ overflowY:'auto' }}>
         <div className="logo">
           <div className="logo-icon">🕊️</div>
           <div>
