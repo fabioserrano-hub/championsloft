@@ -5501,4 +5501,3 @@ function AppContent() {
 
   return user ? <AppLayout /> : <Login />
 }
-
