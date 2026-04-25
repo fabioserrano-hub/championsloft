@@ -151,6 +151,37 @@ function ToastProvider({ children }) {
 }
 const useToast = () => useContext(ToastCtx)
 
+function useLicenca() {
+  const { user } = useAuth()
+  const [licenca, setLicenca] = useState(null)
+  useEffect(() => {
+    if (!user) return
+    supabase.from('licencas').select('*').eq('email', user.email).single().then(r=>setLicenca(r.data||null))
+  }, [user])
+  const plano = licenca?.plano || 'gratuito'
+  const ativo = licenca?.ativo !== false
+  const temBase = ativo && ['base','profissional','elite','pro_grupo_1_5','pro_grupo_6_12','pro_grupo_13','elite_grupo_1_5','elite_grupo_6_12','elite_grupo_13'].includes(plano)
+  const temPro = ativo && ['profissional','elite','pro_grupo_1_5','pro_grupo_6_12','pro_grupo_13','elite_grupo_1_5','elite_grupo_6_12','elite_grupo_13'].includes(plano)
+  const temElite = ativo && ['elite','elite_grupo_1_5','elite_grupo_6_12','elite_grupo_13'].includes(plano)
+  return { licenca, plano, temBase, temPro, temElite }
+}
+
+function BloqueioPlano({ plano, nav, children }) {
+  const { temBase, temPro, temElite } = useLicenca()
+  const tem = plano==='base'?temBase:plano==='pro'?temPro:temElite
+  if (tem) return children
+  return (
+    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', minHeight:300, textAlign:'center', padding:24 }}>
+      <div style={{ fontSize:48, marginBottom:16 }}>🔒</div>
+      <div style={{ fontSize:18, fontWeight:600, color:'#fff', marginBottom:8 }}>Funcionalidade Premium</div>
+      <div style={{ fontSize:13, color:'#64748b', marginBottom:24, maxWidth:300 }}>
+        {plano==='elite'?'Disponível no plano Elite AI':plano==='pro'?'Disponível no plano Profissional ou superior':'Disponível no plano Base ou superior'}
+      </div>
+      <button className="btn btn-primary" onClick={()=>nav('precos')}>Ver Planos</button>
+    </div>
+  )
+}
+
 // ─── AUTH CONTEXT ─────────────────────────────────────
 const AuthCtx = createContext(null)
 function AuthProvider({ children }) {
@@ -3455,7 +3486,7 @@ function Relatorios() {
   )
 }
 
-function FimEpoca() {
+function FimEpoca({ nav }) {
   const toast = useToast()
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState('resumo')
@@ -3777,7 +3808,7 @@ Sê específico, profissional e usa os dados fornecidos.`
 
       {/* RELATÓRIO IA */}
       {tab==='ia' && (
-        <div>
+        <BloqueioPlano plano='elite' nav={nav}><div>
           {!textoIA && !gerandoIA && (
             <div className="card card-p" style={{ textAlign:'center', padding:40 }}>
               <div style={{ fontSize:48, marginBottom:16 }}>🧠</div>
@@ -5321,6 +5352,155 @@ function Precos() {
   )
 }
 
+function GestaoEpoca({ nav }) {
+  const toast = useToast()
+  const { user } = useAuth()
+  const [loading, setLoading] = useState(true)
+  const [anoActual, setAnoActual] = useState(new Date().getFullYear())
+  const [stats, setStats] = useState(null)
+  const [confirmNova, setConfirmNova] = useState(false)
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => { load() }, [])
+
+  const load = async () => {
+    setLoading(true)
+    try {
+      const [pombos, provas, treinos, saude, fin, breeding] = await Promise.all([
+        supabase.from('pigeons').select('id,nome,anilha,estado_ext').then(r=>r.data||[]),
+        supabase.from('races').select('id,nome,data_reg,lugar').then(r=>r.data||[]),
+        supabase.from('treinos').select('id').then(r=>r.data||[]),
+        supabase.from('health').select('id').then(r=>r.data||[]),
+        supabase.from('financas').select('id,val,tipo').then(r=>r.data||[]),
+        supabase.from('breeding').select('id,ninhadas').then(r=>r.data||[]),
+      ])
+      const efectivo = pombos.filter(p=>!p.estado_ext||p.estado_ext==='proprio')
+      const vitorias = provas.filter(p=>p.lugar===1).length
+      const receitas = fin.filter(f=>f.tipo==='receita').reduce((s,f)=>s+(f.val||0),0)
+      const despesas = fin.filter(f=>f.tipo==='despesa').reduce((s,f)=>s+(f.val||0),0)
+      const borrachinhos = breeding.reduce((s,b)=>s+(b.ninhadas||0),0)
+      setStats({ pombos:efectivo.length, provas:provas.length, vitorias, treinos:treinos.length, saude:saude.length, receitas, despesas, borrachinhos, acasalamentos:breeding.length })
+    } catch(e) { toast('Erro: '+e.message,'err') }
+    finally { setLoading(false) }
+  }
+
+  const guardarEpoca = async () => {
+    setSaving(true)
+    try {
+      const { data: { user: u } } = await supabase.auth.getUser()
+      // Guardar snapshot da época
+      await supabase.from('posts').insert({
+        user_id: u.id,
+        tipo: 'conquista',
+        autor_nome: 'ChampionsLoft',
+        conteudo: `📊 Época ${anoActual} concluída!
+🐦 ${stats.pombos} pombos · 🏆 ${stats.provas} provas · 🥇 ${stats.vitorias} vitórias
+🥚 ${stats.borrachinhos} borrachinhos nascidos
+💰 Saldo: ${(stats.receitas-stats.despesas).toFixed(2)}€`,
+      })
+      toast('Época guardada e partilhada! ✅', 'ok')
+    } catch(e) { toast('Erro: '+e.message,'err') }
+    finally { setSaving(false) }
+  }
+
+  const iniciarNovaEpoca = async () => {
+    setSaving(true)
+    try {
+      const novoAno = anoActual + 1
+      // Arquivar provas e treinos da época actual
+      // Apenas actualiza o ano - os dados ficam na BD
+      setAnoActual(novoAno)
+      setConfirmNova(false)
+      toast(`Época ${novoAno} iniciada! Podes agora registar novas provas e treinos.`, 'ok')
+    } catch(e) { toast('Erro: '+e.message,'err') }
+    finally { setSaving(false) }
+  }
+
+  if (loading) return <div style={{ display:'flex', justifyContent:'center', padding:60 }}><Spinner lg/></div>
+
+  return (
+    <div>
+      <div className="section-header">
+        <div><div className="section-title">📅 Gestão de Época</div><div className="section-sub">Época {anoActual}</div></div>
+        <button className="btn btn-primary" onClick={()=>nav('fimepoca')}>🏁 Relatório IA</button>
+      </div>
+
+      {/* Stats da época */}
+      {stats && (
+        <>
+          <div className="grid-4 mb-4">
+            <KpiCard icon="🐦" label="Pombos Efectivo" value={stats.pombos} color="text-green"/>
+            <KpiCard icon="🏆" label="Provas" value={stats.provas} color="text-yellow"/>
+            <KpiCard icon="🥇" label="Vitórias" value={stats.vitorias} color="text-green"/>
+            <KpiCard icon="🥚" label="Borrachinhos" value={stats.borrachinhos} color="text-blue"/>
+          </div>
+          <div className="grid-4 mb-6">
+            <KpiCard icon="🎯" label="Treinos" value={stats.treinos} color="text-blue"/>
+            <KpiCard icon="🏥" label="Reg. Saúde" value={stats.saude} color="text-yellow"/>
+            <KpiCard icon="💰" label="Receitas" value={stats.receitas.toFixed(0)+'€'} color="text-green"/>
+            <KpiCard icon="💸" label="Despesas" value={stats.despesas.toFixed(0)+'€'} color="text-red"/>
+          </div>
+
+          <div className="grid-2 mb-4">
+            {/* Guardar época */}
+            <div className="card card-p">
+              <div style={{ fontWeight:600, color:'#fff', marginBottom:8 }}>💾 Guardar Época {anoActual}</div>
+              <div style={{ fontSize:13, color:'#64748b', marginBottom:16 }}>
+                Guarda um resumo da época actual e partilha automaticamente na comunidade.
+              </div>
+              <button className="btn btn-primary" onClick={guardarEpoca} disabled={saving}>
+                {saving?<Spinner/>:'💾'} Guardar e Partilhar Época
+              </button>
+            </div>
+
+            {/* Nova época */}
+            <div className="card card-p" style={{ borderColor:'rgba(234,179,8,.2)' }}>
+              <div style={{ fontWeight:600, color:'#facc15', marginBottom:8 }}>🆕 Iniciar Época {anoActual+1}</div>
+              <div style={{ fontSize:13, color:'#64748b', marginBottom:16 }}>
+                Os dados actuais ficam guardados. Podes continuar a adicionar novos pombos, provas e treinos para a nova época.
+              </div>
+              <button className="btn btn-secondary" onClick={()=>setConfirmNova(true)}>
+                🆕 Iniciar Nova Época
+              </button>
+            </div>
+          </div>
+
+          {/* Checklist fim de época */}
+          <div className="card card-p">
+            <div style={{ fontWeight:600, color:'#fff', marginBottom:14 }}>✅ Checklist de Fim de Época</div>
+            {[
+              { label:'Registar todos os resultados das provas', done:stats.provas>0 },
+              { label:'Actualizar estado dos pombos (dispensar, vender, emprestar)', done:true },
+              { label:'Fechar acasalamentos da época', done:stats.acasalamentos>0 },
+              { label:'Registar borrachinhos nascidos', done:stats.borrachinhos>0 },
+              { label:'Actualizar registos de saúde', done:stats.saude>0 },
+              { label:'Fechar balanço financeiro da época', done:stats.receitas>0||stats.despesas>0 },
+              { label:'Gerar relatório de fim de época com IA', done:false },
+            ].map((item,i)=>(
+              <div key={i} style={{ display:'flex', alignItems:'center', gap:12, padding:'8px 0', borderBottom:'1px solid #1e3050' }}>
+                <span style={{ fontSize:18 }}>{item.done?'✅':'⬜'}</span>
+                <span style={{ fontSize:13, color:item.done?'#64748b':'#cbd5e1', textDecoration:item.done?'line-through':'none' }}>{item.label}</span>
+                {!item.done&&i===6&&<button className="btn btn-primary btn-sm" onClick={()=>nav('fimepoca')}>Gerar</button>}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* Modal confirmar nova época */}
+      <Modal open={confirmNova} onClose={()=>setConfirmNova(false)} title="🆕 Iniciar Nova Época"
+        footer={<><button className="btn btn-secondary" onClick={()=>setConfirmNova(false)}>Cancelar</button><button className="btn btn-primary" onClick={iniciarNovaEpoca} disabled={saving}>{saving?<Spinner/>:'Confirmar'}</button></>}>
+        <div style={{ fontSize:14, color:'#cbd5e1', lineHeight:1.7 }}>
+          <p>Vais iniciar a época <strong style={{ color:'#facc15' }}>{anoActual+1}</strong>.</p>
+          <p style={{ marginTop:8 }}>✅ Os dados da época {anoActual} ficam todos guardados.</p>
+          <p>✅ Podes continuar a consultar resultados anteriores.</p>
+          <p>✅ Podes adicionar novos pombos e provas para {anoActual+1}.</p>
+        </div>
+      </Modal>
+    </div>
+  )
+}
+
 function EmBreve({ icon, title }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh', textAlign: 'center' }}>
@@ -5336,7 +5516,7 @@ const NAV = [
   { section: 'Principal', items: [{ id: 'dashboard', icon: '📊', label: 'Dashboard' }, { id: 'pombos', icon: '🐦', label: 'Pombos' }, { id: 'pombais', icon: '🏠', label: 'Pombais' }] },
   { section: 'Desporto', items: [{ id: 'provas', icon: '🏆', label: 'Provas' }, { id: 'treinos', icon: '🎯', label: 'Treinos' }, { id: 'calendario', icon: '📅', label: 'Calendário' }, { id: 'checklist', icon: '✅', label: 'Checklist' }] },
   { section: 'Gestão', items: [{ id: 'saude', icon: '🏥', label: 'Saúde' }, { id: 'reproducao', icon: '🥚', label: 'Reprodução' }, { id: 'alimentacao', icon: '🌾', label: 'Alimentação' }, { id: 'financas', icon: '💰', label: 'Finanças' }] },
-  { section: 'Análise', items: [{ id: 'relatorios', icon: '📊', label: 'Relatórios' }, { id: 'fimepoca', icon: '🏁', label: 'Fim de Época' }, { id: 'meteorologia', icon: '🌦️', label: 'Meteorologia' }] },
+  { section: 'Análise', items: [{ id: 'relatorios', icon: '📊', label: 'Relatórios' }, { id: 'epoca', icon: '📅', label: 'Época' }, { id: 'fimepoca', icon: '🏁', label: 'Fim de Época' }, { id: 'meteorologia', icon: '🌦️', label: 'Meteorologia' }] },
   { section: 'Social', items: [{ id: 'comunidade', icon: '🌐', label: 'Comunidade' }] },
   { section: 'Sistema', items: [{ id: 'precos', icon: '💳', label: 'Planos' }, { id: 'admin', icon: '👑', label: 'Admin' }, { id: 'perfil', icon: '⚙️', label: 'Perfil' }, { id: 'documentos', icon: '📄', label: 'Documentos' }] },
 ]
@@ -5367,7 +5547,8 @@ function AppLayout() {
       case 'calendario':  return <Calendario />
       case 'checklist':    return <Checklist />
       case 'relatorios':  return <Relatorios />
-      case 'fimepoca':     return <FimEpoca />
+      case 'epoca':        return <GestaoEpoca nav={nav}/>
+      case 'fimepoca':     return <FimEpoca nav={nav}/>
       case 'meteorologia':return <Meteorologia />
       case 'precos':       return <Precos />
       case 'admin':        return <Admin />
@@ -5425,6 +5606,14 @@ function AppLayout() {
             {new Date().toLocaleDateString('pt-PT', { weekday: 'short', day: 'numeric', month: 'short' })}
           </div>
         </header>
+      {typeof pwaPrompt !== 'undefined' && pwaPrompt && (
+        <div style={{ background:'linear-gradient(90deg,#1a2840,#1e3050)', borderBottom:'1px solid #243860', padding:'8px 16px', display:'flex', alignItems:'center', gap:12, flexShrink:0 }}>
+          <span style={{ fontSize:20 }}>📱</span>
+          <span style={{ fontSize:13, color:'#cbd5e1', flex:1 }}>Instala o ChampionsLoft no teu telemóvel!</span>
+          <button className="btn btn-primary btn-sm" onClick={()=>{ pwaPrompt.prompt(); setPwaPrompt(null) }}>Instalar</button>
+          <button className="btn btn-icon btn-sm" onClick={()=>setPwaPrompt(null)}>✕</button>
+        </div>
+      )}
         <style>{`@media (max-width: 768px) { #menu-btn { display: flex !important; } }`}</style>
 
         <main className="page">
@@ -5501,3 +5690,4 @@ function AppContent() {
 
   return user ? <AppLayout /> : <Login />
 }
+
