@@ -82,8 +82,34 @@ export const db = {
     if (error) throw error
     return data
   },
+  async updateProva(id, c) {
+    const { data, error } = await supabase.from('races').update(c).eq('id', id).select().single()
+    if (error) throw error
+    return data
+  },
   async deleteProva(id) {
     const { error } = await supabase.from('races').delete().eq('id', id)
+    if (error) throw error
+  },
+
+  async getResultados(raceId) {
+    const { data, error } = await supabase.from('race_results').select('*, pigeons(nome,anilha,emoji,foto_url)').eq('race_id', raceId).order('posicao', { ascending: true, nullsFirst: false })
+    if (error) throw error
+    return data || []
+  },
+  async createResultado(r) {
+    const uid = await this.uid()
+    const { data, error } = await supabase.from('race_results').insert({ ...r, user_id: uid }).select().single()
+    if (error) throw error
+    return data
+  },
+  async updateResultado(id, c) {
+    const { data, error } = await supabase.from('race_results').update(c).eq('id', id).select().single()
+    if (error) throw error
+    return data
+  },
+  async deleteResultado(id) {
+    const { error } = await supabase.from('race_results').delete().eq('id', id)
     if (error) throw error
   },
 
@@ -146,4 +172,3 @@ export const db = {
     return data.publicUrl
   },
 }
-
