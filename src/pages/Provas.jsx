@@ -137,10 +137,10 @@ export default function Provas({ nav, params }) {
             {provasOrdenadas.map(p => (
               <div key={p.id} className="card card-p" style={{ cursor: 'pointer' }} onClick={() => openDetail(p)}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <div style={{ width: 44, height: 44, borderRadius: 10, background: '#1a2840', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>🏆</div>
+                  <div style={{ width: 44, height: 44, borderRadius: 10, background: '#101F40', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>🏆</div>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 14, fontWeight: 600, color: '#fff' }}>{p.nome}</div>
-                    <div style={{ fontSize: 12, color: '#64748b' }}>{p.tipo} · {p.dist}km · {p.local_solta || '—'} · {new Date(p.data_reg).toLocaleDateString('pt-PT')}</div>
+                    <div style={{ fontSize: 12, color: '#7A8699' }}>{p.tipo} · {p.dist}km · {p.local_solta || '—'} · {new Date(p.data_reg).toLocaleDateString('pt-PT')}</div>
                   </div>
                   <Badge v="blue">{p.tipo}</Badge>
                   <button className="btn btn-icon btn-sm" onClick={e => { e.stopPropagation(); setConfirm(p) }}>🗑️</button>
@@ -188,7 +188,7 @@ export default function Provas({ nav, params }) {
             <div style={{ marginBottom: 16 }}>
               <div className="label" style={{ marginBottom: 6 }}>📍 Local de Solta</div>
               {selected.lat_solta && selected.lon_solta ? (
-                <div style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid #243860', height: 160 }}>
+                <div style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid #1B2D52', height: 160 }}>
                   <iframe width="100%" height="100%" frameBorder="0" style={{ display: 'block' }} src={`https://maps.google.com/maps?q=${selected.lat_solta},${selected.lon_solta}&z=10&output=embed`} />
                 </div>
               ) : <div style={{ fontSize: 13, color: '#94a3b8' }}>{selected.local_solta} (sem coordenadas GPS)</div>}
@@ -196,7 +196,7 @@ export default function Provas({ nav, params }) {
           )}
 
           {meteo && (
-            <div className="card card-p" style={{ marginBottom: 16, background: '#1a2840' }}>
+            <div className="card card-p" style={{ marginBottom: 16, background: '#101F40' }}>
               <div style={{ fontWeight: 600, color: '#fff', marginBottom: 10 }}>🌦️ Condições no dia da solta</div>
               {meteo.hourly ? (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, textAlign: 'center' }}>
@@ -205,20 +205,20 @@ export default function Provas({ nav, params }) {
                     if (idx === undefined || idx < 0) return null
                     return (
                       <div key={h}>
-                        <div style={{ fontSize: 11, color: '#64748b' }}>{h}h</div>
+                        <div style={{ fontSize: 11, color: '#7A8699' }}>{h}h</div>
                         <div style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>{meteo.hourly.temperature_2m?.[idx]}°C</div>
-                        <div style={{ fontSize: 10, color: '#60a5fa' }}>💨 {meteo.hourly.windspeed_10m?.[idx]}km/h</div>
+                        <div style={{ fontSize: 10, color: '#4C8DFF' }}>💨 {meteo.hourly.windspeed_10m?.[idx]}km/h</div>
                       </div>
                     )
                   })}
                 </div>
-              ) : <div style={{ fontSize: 12, color: '#64748b' }}>Sem dados meteorológicos disponíveis</div>}
+              ) : <div style={{ fontSize: 12, color: '#7A8699' }}>Sem dados meteorológicos disponíveis</div>}
             </div>
           )}
 
           <div className="label" style={{ marginBottom: 8 }}>Resultados</div>
           {loadingRes ? <div style={{ display: 'flex', justifyContent: 'center', padding: 30 }}><Spinner /></div>
-            : resultados.length === 0 ? <div style={{ textAlign: 'center', color: '#64748b', padding: '20px 0', fontSize: 13 }}>Nenhum pombo encestado. Use "📦 Encestamento" para adicionar.</div>
+            : resultados.length === 0 ? <div style={{ textAlign: 'center', color: '#7A8699', padding: '20px 0', fontSize: 13 }}>Nenhum pombo encestado. Use "📦 Encestamento" para adicionar.</div>
             : <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {resultados.map(r => (<ResultadoRow key={r.id} r={r} onSave={guardarResultado} />))}
               </div>
@@ -230,20 +230,29 @@ export default function Provas({ nav, params }) {
         <Modal open={modal === 'encestamento'} onClose={() => setModal('detail')} title="📦 Encestamento"
           footer={<><button className="btn btn-secondary" onClick={() => setModal('detail')}>Cancelar</button><button className="btn btn-primary" onClick={confirmarEncestamento} disabled={saving}>{saving ? <Spinner /> : null}Confirmar ({encestados.length})</button></>}>
           <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 12 }}>Seleccione os pombos a encestar para esta prova:</div>
+          {PombosNaoEncestados.some(p => p.estado === 'lesionado') && (
+            <div style={{ background: 'rgba(239,68,68,.08)', border: '1px solid rgba(239,68,68,.2)', borderRadius: 8, padding: '10px 14px', marginBottom: 12, fontSize: 12, color: '#f87171' }}>
+              ⚠️ Há pombos lesionados na lista — evite encestar pombos que não estejam aptos.
+            </div>
+          )}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 360, overflowY: 'auto' }}>
-            {PombosNaoEncestados.map(p => (
-              <div key={p.id} onClick={() => toggleEncestado(p.id)}
-                style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 10, cursor: 'pointer', background: encestados.includes(p.id) ? 'rgba(30,217,138,.08)' : '#1a2840', border: encestados.includes(p.id) ? '1px solid #1ed98a' : '1px solid #243860' }}>
-                <input type="checkbox" checked={encestados.includes(p.id)} onChange={() => {}} style={{ accentColor: '#1ed98a', width: 16, height: 16 }} />
-                <div style={{ width: 28, height: 28, borderRadius: 7, background: '#141f2e', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, overflow: 'hidden', flexShrink: 0 }}>
-                  {p.foto_url ? <img src={p.foto_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : p.emoji}
+            {PombosNaoEncestados.map(p => {
+              const problemaSaude = p.estado === 'lesionado'
+              return (
+                <div key={p.id} onClick={() => toggleEncestado(p.id)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 8, cursor: 'pointer', background: encestados.includes(p.id) ? 'rgba(76,141,255,.08)' : '#101F40', border: encestados.includes(p.id) ? '1px solid #4C8DFF' : problemaSaude ? '1px solid rgba(239,68,68,.3)' : '1px solid #1B2D52' }}>
+                  <input type="checkbox" checked={encestados.includes(p.id)} onChange={() => {}} style={{ accentColor: '#4C8DFF', width: 16, height: 16 }} />
+                  <div style={{ width: 28, height: 28, borderRadius: 6, background: '#0B1830', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, overflow: 'hidden', flexShrink: 0 }}>
+                    {p.foto_url ? <img src={p.foto_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : p.emoji}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, color: '#fff' }}>{p.nome}</div>
+                    <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 10, color: '#7A8699' }}>{p.anilha}</div>
+                  </div>
+                  {problemaSaude && <span style={{ fontSize: 11, color: '#f87171', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>🏥 Lesionado</span>}
                 </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, color: '#fff' }}>{p.nome}</div>
-                  <div style={{ fontFamily: 'JetBrains Mono', fontSize: 10, color: '#64748b' }}>{p.anilha}</div>
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </Modal>
       )}
@@ -266,17 +275,17 @@ function ResultadoRow({ r, onSave }) {
   }
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: '#1a2840', borderRadius: 10, flexWrap: 'wrap' }}>
-      <div style={{ width: 26, height: 26, borderRadius: 6, background: '#141f2e', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, overflow: 'hidden', flexShrink: 0 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: '#101F40', borderRadius: 10, flexWrap: 'wrap' }}>
+      <div style={{ width: 26, height: 26, borderRadius: 6, background: '#0B1830', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, overflow: 'hidden', flexShrink: 0 }}>
         {p?.foto_url ? <img src={p.foto_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (p?.emoji || '🐦')}
       </div>
       <div style={{ flex: '1 1 140px', minWidth: 0 }}>
         <div style={{ fontSize: 12, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p?.nome || '—'}</div>
-        <div style={{ fontFamily: 'JetBrains Mono', fontSize: 9, color: '#64748b' }}>{p?.anilha}</div>
+        <div style={{ fontFamily: 'Space Mono', fontSize: 9, color: '#7A8699' }}>{p?.anilha}</div>
       </div>
       <input className="input" style={{ width: 60, padding: '4px 8px', fontSize: 12 }} type="number" placeholder="Lugar" value={posicao} onChange={e => setPosicao(e.target.value)} onBlur={handleBlur} />
       <input className="input" style={{ width: 90, padding: '4px 8px', fontSize: 12 }} type="time" value={hora} onChange={e => setHora(e.target.value)} onBlur={handleBlur} />
-      {r.velocidade ? <span style={{ fontSize: 11, color: '#1ed98a', fontFamily: 'JetBrains Mono', whiteSpace: 'nowrap' }}>{r.velocidade} km/h</span> : <span style={{ fontSize: 10, color: '#475569' }}>—</span>}
+      {r.velocidade ? <span style={{ fontSize: 11, color: '#2DD4A7', fontFamily: 'Space Mono', whiteSpace: 'nowrap' }}>{r.velocidade} km/h</span> : <span style={{ fontSize: 10, color: '#475569' }}>—</span>}
     </div>
   )
 }
