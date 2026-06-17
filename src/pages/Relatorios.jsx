@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
 import { db } from '../lib/supabase'
 import { useToast, Spinner, Badge } from '../components/ui'
+import { classificarPombo } from './Pombos'
 
-function BarChart({ dados, corPositivo = '#1ed98a', corNegativo = '#f87171', formato = (v) => v }) {
-  if (!dados.length) return <div style={{ fontSize: 12, color: '#64748b', textAlign: 'center', padding: '16px 0' }}>Sem dados</div>
+function BarChart({ dados, corPositivo = '#2DD4A7', corNegativo = '#f87171', formato = (v) => v }) {
+  if (!dados.length) return <div style={{ fontSize: 12, color: '#7A8699', textAlign: 'center', padding: '16px 0' }}>Sem dados</div>
   const max = Math.max(...dados.map(d => Math.abs(d.valor)), 1)
   return (
     <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 140, padding: '0 4px' }}>
@@ -13,7 +14,7 @@ function BarChart({ dados, corPositivo = '#1ed98a', corNegativo = '#f87171', for
           <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
             <div style={{ fontSize: 9, color: '#94a3b8' }}>{formato(d.valor)}</div>
             <div style={{ width: '100%', height: h, borderRadius: '4px 4px 0 0', background: d.valor >= 0 ? corPositivo : corNegativo }} />
-            <div style={{ fontSize: 9, color: '#64748b' }}>{d.label}</div>
+            <div style={{ fontSize: 9, color: '#7A8699' }}>{d.label}</div>
           </div>
         )
       })}
@@ -75,15 +76,23 @@ export default function Relatorios({ nav }) {
 
   const custoEfetivo = depTotal && efectivo.length ? (depTotal / efectivo.length).toFixed(2) : '0.00'
 
+  // Distribuição agregada por classificação automática (mesma lógica usada em Pombos)
+  const distribuicaoClassificacao = {}
+  efectivo.forEach(p => {
+    const c = classificarPombo(p)
+    distribuicaoClassificacao[c.tag] = (distribuicaoClassificacao[c.tag] || { n: 0, cor: c.cor })
+    distribuicaoClassificacao[c.tag].n++
+  })
+
   return (
     <div>
       <div className="section-header">
         <div><div className="section-title">Relatórios</div><div className="section-sub">Indicadores da época {ano}</div></div>
       </div>
 
-      <div style={{ display: 'flex', gap: 4, background: '#1a2840', borderRadius: 10, padding: 4, marginBottom: 16, overflowX: 'auto' }}>
+      <div style={{ display: 'flex', gap: 4, background: '#101F40', borderRadius: 10, padding: 4, marginBottom: 16, overflowX: 'auto' }}>
         {[['desempenho', '🏆 Desempenho'], ['financas', '💰 Finanças'], ['saude', '🏥 Saúde']].map(([t, l]) => (
-          <button key={t} onClick={() => setTab(t)} style={{ flex: 1, padding: '8px 14px', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', border: 'none', fontFamily: 'inherit', whiteSpace: 'nowrap', background: tab === t ? '#1ed98a' : 'none', color: tab === t ? '#0a0f14' : '#94a3b8' }}>{l}</button>
+          <button key={t} onClick={() => setTab(t)} style={{ flex: 1, padding: '8px 14px', borderRadius: 6, fontSize: 13, fontWeight: 500, cursor: 'pointer', border: 'none', fontFamily: 'inherit', whiteSpace: 'nowrap', background: tab === t ? '#1E5FD9' : 'none', color: tab === t ? '#fff' : '#94a3b8' }}>{l}</button>
         ))}
       </div>
 
@@ -107,10 +116,26 @@ export default function Relatorios({ nav }) {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {topPombos.map((p, i) => (
                     <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ width: 18, fontSize: 11, color: '#64748b' }}>{i + 1}</span>
+                      <span style={{ width: 18, fontSize: 11, color: '#7A8699' }}>{i + 1}</span>
                       <span style={{ flex: '0 0 100px', fontSize: 12, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.nome}</span>
-                      <div className="progress" style={{ flex: 1 }}><div className="progress-bar" style={{ width: `${p.percentil || 0}%`, background: '#1ed98a' }} /></div>
-                      <span style={{ fontSize: 11, color: '#1ed98a', fontWeight: 700, width: 36, textAlign: 'right' }}>{p.percentil || 0}%</span>
+                      <div className="progress" style={{ flex: 1 }}><div className="progress-bar" style={{ width: `${p.percentil || 0}%`, background: '#2DD4A7' }} /></div>
+                      <span style={{ fontSize: 11, color: '#2DD4A7', fontWeight: 700, width: 36, textAlign: 'right' }}>{p.percentil || 0}%</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="card card-p mb-6">
+                <div style={{ fontWeight: 600, color: '#fff', marginBottom: 4 }}>🔎 Estado do Efectivo</div>
+                <div style={{ fontSize: 11, color: '#7A8699', marginBottom: 12 }}>Classificação automática calculada a partir de percentil, idade e estado de saúde de cada pombo.</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {Object.entries(distribuicaoClassificacao).sort((a, b) => b[1].n - a[1].n).map(([tag, { n, cor }]) => (
+                    <div key={tag}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 3 }}>
+                        <span style={{ color: '#cbd5e1', display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 6, height: 6, borderRadius: '50%', background: cor }} />{tag}</span>
+                        <span style={{ color: '#94a3b8' }}>{n} ({Math.round((n / efectivo.length) * 100)}%)</span>
+                      </div>
+                      <div className="progress"><div className="progress-bar" style={{ width: `${(n / efectivo.length) * 100}%`, background: cor }} /></div>
                     </div>
                   ))}
                 </div>
@@ -120,9 +145,9 @@ export default function Relatorios({ nav }) {
                 <div style={{ fontWeight: 600, color: '#fff', marginBottom: 12 }}>🎯 Efectivo por Especialidade</div>
                 <div className="grid-4">
                   {Object.entries(porEspecialidade).map(([esp, n]) => (
-                    <div key={esp} style={{ textAlign: 'center', background: '#1a2840', borderRadius: 10, padding: 12 }}>
-                      <div style={{ fontFamily: 'Barlow Condensed', fontSize: 24, fontWeight: 700, color: '#60a5fa' }}>{n}</div>
-                      <div style={{ fontSize: 10, color: '#64748b', textTransform: 'capitalize' }}>{esp.replace('_', ' ')}</div>
+                    <div key={esp} style={{ textAlign: 'center', background: '#101F40', borderRadius: 8, padding: 12 }}>
+                      <div style={{ fontFamily: "'Fraunces',serif", fontSize: 24, fontWeight: 700, color: '#4C8DFF' }}>{n}</div>
+                      <div style={{ fontSize: 10, color: '#7A8699', textTransform: 'capitalize' }}>{esp.replace('_', ' ')}</div>
                     </div>
                   ))}
                 </div>
@@ -157,7 +182,7 @@ export default function Relatorios({ nav }) {
               {pesoMedio && (
                 <div className="card card-p mb-6">
                   <div style={{ fontWeight: 600, color: '#fff', marginBottom: 8 }}>⚖️ Peso Médio do Efectivo</div>
-                  <div style={{ fontFamily: 'Barlow Condensed', fontSize: 32, fontWeight: 700, color: '#60a5fa' }}>{pesoMedio}g</div>
+                  <div style={{ fontFamily: "'Fraunces',serif", fontSize: 32, fontWeight: 700, color: '#4C8DFF' }}>{pesoMedio}g</div>
                 </div>
               )}
               <div style={{ textAlign: 'center' }}>
