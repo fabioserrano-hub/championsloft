@@ -3,6 +3,20 @@ import { useAuth } from '../hooks/useAuth'
 import { useLicenca } from '../hooks/useLicenca'
 import { useToast, Spinner, Badge } from '../components/ui'
 
+// ⚠️ SUBSTITUIR pelos Price IDs reais do Stripe (formato price_xxxxxxxxxxxxx)
+// Cada plano tem um ID para mensal e outro para anual.
+const PRICE_IDS = {
+  base:                 { mensal: 'price_REPLACE_base_mensal',                 anual: 'price_REPLACE_base_anual' },
+  profissional:         { mensal: 'price_REPLACE_profissional_mensal',         anual: 'price_REPLACE_profissional_anual' },
+  elite:                { mensal: 'price_REPLACE_elite_mensal',                anual: 'price_REPLACE_elite_anual' },
+  pro_grupo_1_5:        { mensal: 'price_REPLACE_pro_grupo_1_5_mensal',        anual: 'price_REPLACE_pro_grupo_1_5_anual' },
+  pro_grupo_6_12:       { mensal: 'price_REPLACE_pro_grupo_6_12_mensal',       anual: 'price_REPLACE_pro_grupo_6_12_anual' },
+  pro_grupo_13:         { mensal: 'price_REPLACE_pro_grupo_13_mensal',         anual: 'price_REPLACE_pro_grupo_13_anual' },
+  elite_grupo_1_5:      { mensal: 'price_REPLACE_elite_grupo_1_5_mensal',      anual: 'price_REPLACE_elite_grupo_1_5_anual' },
+  elite_grupo_6_12:     { mensal: 'price_REPLACE_elite_grupo_6_12_mensal',     anual: 'price_REPLACE_elite_grupo_6_12_anual' },
+  elite_grupo_13:       { mensal: 'price_REPLACE_elite_grupo_13_mensal',       anual: 'price_REPLACE_elite_grupo_13_anual' },
+}
+
 const PLANOS_INDIVIDUAL = [
   { id: 'gratuito', nome: 'Gratuito', icon: '🕊️', desc: 'Para experimentar', precoMes: 0, precoAno: 0, feats: ['Até 15 pombos', 'Provas e treinos', 'Saúde básica'], bloqueadas: ['Comunidade', 'Relatório IA'] },
   { id: 'base', nome: 'Base', icon: '🐦', desc: 'Para o columbófilo activo', precoMes: 7.99, precoAno: 79.90, feats: ['Pombos ilimitados', 'Reprodução completa', 'Alimentação & tratamentos', 'Calendário & checklist'], bloqueadas: ['Relatório IA'] },
@@ -30,14 +44,16 @@ export default function Precos({ nav }) {
   const checkout = async (planoId) => {
     if (planoId === 'gratuito') { toast('Já está no plano Gratuito', 'ok'); return }
     if (!user) { toast('Inicie sessão primeiro', 'warn'); return }
+    const priceId = PRICE_IDS[planoId]?.[periodo]
+    if (!priceId || priceId.startsWith('price_REPLACE')) { toast('Plano ainda não configurado no Stripe', 'warn'); return }
     setLoadingPlano(planoId)
     try {
       const res = await fetch('/api/stripe-checkout', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plano: planoId, periodo, email: user.email }),
+        body: JSON.stringify({ priceId, email: user.email, userId: user.id, plano: planoId }),
       })
-      if (!res.ok) throw new Error('Falha ao iniciar checkout')
       const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Falha ao iniciar checkout')
       if (data.url) window.location.href = data.url
       else throw new Error('Sem URL de checkout na resposta')
     } catch (e) { toast('Erro: ' + e.message, 'err') }
