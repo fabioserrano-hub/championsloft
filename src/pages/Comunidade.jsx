@@ -89,9 +89,9 @@ export default function Comunidade({ nav }) {
         {tab === 'feed' && <button className="btn btn-primary" onClick={() => setModalPost(true)}>＋ Publicar</button>}
       </div>
 
-      <div style={{ display: 'flex', gap: 4, background: '#1a2840', borderRadius: 10, padding: 4, marginBottom: 16, overflowX: 'auto' }}>
+      <div style={{ display: 'flex', gap: 4, background: '#101F40', borderRadius: 10, padding: 4, marginBottom: 16, overflowX: 'auto' }}>
         {[['feed', '📰 Feed'], ['ranking', '🏆 Ranking'], ['desafios', '🎯 Desafios'], ['badges', '🏅 Badges']].map(([t, l]) => (
-          <button key={t} onClick={() => setTab(t)} style={{ flex: 1, padding: '8px 12px', borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: 'pointer', border: 'none', fontFamily: 'inherit', whiteSpace: 'nowrap', background: tab === t ? '#1ed98a' : 'none', color: tab === t ? '#0a0f14' : '#94a3b8' }}>{l}</button>
+          <button key={t} onClick={() => setTab(t)} style={{ flex: 1, padding: '8px 12px', borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: 'pointer', border: 'none', fontFamily: 'inherit', whiteSpace: 'nowrap', background: tab === t ? '#1E5FD9' : 'none', color: tab === t ? '#fff' : '#94a3b8' }}>{l}</button>
         ))}
       </div>
 
@@ -104,10 +104,10 @@ export default function Comunidade({ nav }) {
                   {posts.map(p => (
                     <div key={p.id} className="card card-p">
                       <div style={{ display: 'flex', gap: 10, marginBottom: 8 }}>
-                        <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(30,217,138,.1)', border: '1px solid rgba(30,217,138,.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#1ed98a' }}>{(p.autor_nome || '?')[0]}</div>
+                        <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(45,212,167,.1)', border: '1px solid rgba(45,212,167,.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#2DD4A7' }}>{(p.autor_nome || '?')[0]}</div>
                         <div>
                           <div style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>{p.autor_nome}</div>
-                          <div style={{ fontSize: 11, color: '#64748b' }}>{new Date(p.created_at).toLocaleDateString('pt-PT')}</div>
+                          <div style={{ fontSize: 11, color: '#7A8699' }}>{new Date(p.created_at).toLocaleDateString('pt-PT')}</div>
                         </div>
                       </div>
                       <div style={{ fontSize: 13, color: '#cbd5e1' }}>{p.texto}</div>
@@ -123,9 +123,9 @@ export default function Comunidade({ nav }) {
                   {ranking.map((r, i) => (
                     <div key={r.id || i} className="card card-p">
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <span style={{ fontFamily: 'Barlow Condensed', fontSize: 20, fontWeight: 700, width: 26, color: i === 0 ? '#facc15' : i === 1 ? '#cbd5e1' : i === 2 ? '#b45309' : '#475569' }}>{i + 1}</span>
+                        <span style={{ fontFamily: "'Fraunces',serif", fontSize: 20, fontWeight: 700, width: 26, color: i === 0 ? '#D4AF37' : i === 1 ? '#cbd5e1' : i === 2 ? '#b45309' : '#475569' }}>{i + 1}</span>
                         <div style={{ flex: 1, fontSize: 13, color: '#fff' }}>{r.nome}</div>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: '#1ed98a' }}>{r.pontos} pts</div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: '#2DD4A7' }}>{r.pontos} pts</div>
                       </div>
                     </div>
                   ))}
@@ -138,16 +138,16 @@ export default function Comunidade({ nav }) {
                 const prog = progressoDesafio(d)
                 const completo = prog >= d.meta
                 return (
-                  <div key={d.id} className="card card-p" style={{ borderColor: completo ? 'rgba(30,217,138,.3)' : undefined }}>
+                  <div key={d.id} className="card card-p" style={{ borderColor: completo ? 'rgba(45,212,167,.3)' : undefined }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
                       <div style={{ fontSize: 20 }}>{completo ? '✅' : '🎯'}</div>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>{d.titulo}</div>
-                        <div style={{ fontSize: 11, color: '#64748b' }}>{d.desc}</div>
+                        <div style={{ fontSize: 11, color: '#7A8699' }}>{d.desc}</div>
                       </div>
                       <Badge v={completo ? 'green' : 'gray'}>{prog}/{d.meta}</Badge>
                     </div>
-                    <div className="progress"><div className="progress-bar" style={{ width: `${(prog / d.meta) * 100}%`, background: completo ? '#1ed98a' : '#60a5fa' }} /></div>
+                    <div className="progress"><div className="progress-bar" style={{ width: `${(prog / d.meta) * 100}%`, background: completo ? '#2DD4A7' : '#4C8DFF' }} /></div>
                   </div>
                 )
               })}
