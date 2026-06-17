@@ -3,6 +3,7 @@ import { ToastProvider } from './components/ui'
 import { AuthProvider, useAuth } from './hooks/useAuth'
 
 // Pages
+import Landing      from './pages/Landing'
 import Login        from './pages/Login'
 import Dashboard    from './pages/Dashboard'
 import Pombos       from './pages/Pombos'
@@ -164,6 +165,7 @@ import { Spinner } from './components/ui'
 
 function AppContent() {
   const { user, loading } = useAuth()
+  const [mostrarLanding, setMostrarLanding] = useState(true)
 
   if (window.location.pathname === '/sucesso') return <PaginaSucesso />
 
@@ -176,7 +178,9 @@ function AppContent() {
     </div>
   )
 
-  return user ? <AppLayout /> : <Login />
+  if (user) return <AppLayout />
+  if (mostrarLanding) return <Landing onEntrar={() => setMostrarLanding(false)} />
+  return <Login />
 }
 
 // ─── ROOT ─────────────────────────────────────────────
