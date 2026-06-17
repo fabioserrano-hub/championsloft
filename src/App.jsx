@@ -14,6 +14,7 @@ import Saude        from './pages/Saude'
 import Financas     from './pages/Financas'
 import Reproducao   from './pages/Reproducao'
 import Alimentacao  from './pages/Alimentacao'
+import Tratamentos  from './pages/Tratamentos'
 import Calendario   from './pages/Calendario'
 import Checklist    from './pages/Checklist'
 import Relatorios   from './pages/Relatorios'
@@ -43,6 +44,7 @@ const NAV = [
     { id: 'saude',       icon: '🏥', label: 'Saúde' },
     { id: 'reproducao',  icon: '🥚', label: 'Reprodução' },
     { id: 'alimentacao', icon: '🌾', label: 'Alimentação' },
+    { id: 'tratamentos', icon: '🧪', label: 'Tratamentos' },
     { id: 'financas',    icon: '💰', label: 'Finanças' },
   ]},
   { section: 'Análise', items: [
@@ -112,6 +114,7 @@ function AppLayout() {
       case 'treinos':      return <Treinos nav={nav} />
       case 'reproducao':   return <Reproducao nav={nav} params={navParams} />
       case 'alimentacao':  return <Alimentacao nav={nav} />
+      case 'tratamentos':  return <Tratamentos nav={nav} />
       case 'calendario':   return <Calendario nav={nav} />
       case 'checklist':    return <Checklist nav={nav} />
       case 'relatorios':   return <Relatorios nav={nav} />
