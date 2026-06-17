@@ -16,7 +16,7 @@ export default function Dashboard({ nav }) {
     async function load() {
       setLoading(true)
       try {
-        const [pombos, provas, fin, saude, treinos, tarefas, acas, stock, eventos] = await Promise.all([
+        const [pombos, provas, fin, saude, treinos, tarefas, acas, stock, eventos, treatmentPlans, treatmentApps] = await Promise.all([
           db.getPombos(),
           db.getProvas(),
           db.getFinancas(),
@@ -26,6 +26,8 @@ export default function Dashboard({ nav }) {
           supabase.from('breeding').select('*').eq('estado', 'em_progresso').then(r => r.data || []),
           db.getStock().catch(() => []),
           db.getEventosCal().catch(() => []),
+          db.getTreatmentPlans().catch(() => []),
+          db.getTreatmentApplications().catch(() => []),
         ])
 
         const ano = new Date().getFullYear()
@@ -44,6 +46,19 @@ export default function Dashboard({ nav }) {
         const tarefasHojeOuAtraso = tarefas.filter(t => t.estado !== 'concluida' && t.data_prevista && t.data_prevista <= hoje)
         const tarefasProximas = tarefas.filter(t => t.estado !== 'concluida' && t.data_prevista && t.data_prevista > hoje && t.data_prevista <= em7dias)
         const eventosHoje = eventos.filter(e => e.data_evento === hoje)
+
+        // Tratamento de hoje: verifica se há uma aplicação activa esta semana com um item para o dia de hoje
+        const segundaDesta = (() => {
+          const d = new Date()
+          const diff = (d.getDay() + 6) % 7
+          d.setDate(d.getDate() - diff)
+          return d.toISOString().slice(0, 10)
+        })()
+        const DIA_KEYS = ['domingo', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado']
+        const hojeKey = DIA_KEYS[new Date().getDay()]
+        const aplicacaoHoje = treatmentApps.find(a => a.semana_inicio === segundaDesta)
+        const planoHoje = aplicacaoHoje ? treatmentPlans.find(p => p.id === aplicacaoHoje.plan_id) : null
+        const itemTratamentoHoje = planoHoje?.itens?.find(it => it.dia_semana === hojeKey) || null
 
         const alertas = []
 
@@ -75,6 +90,7 @@ export default function Dashboard({ nav }) {
           total: pombos.filter(p => !p.estado_ext || p.estado_ext === 'proprio').length,
           top, vitorias, treinos, acas, ano,
           provasProximas, tarefasHojeOuAtraso, tarefasProximas, eventosHoje, alertas,
+          itemTratamentoHoje, aplicacaoHoje, hojeKey,
         })
       } catch (e) { toast('Erro: ' + e.message, 'err') }
       finally { setLoading(false) }
@@ -95,7 +111,16 @@ export default function Dashboard({ nav }) {
     ['✅', 'Checklist', 'checklist'],
   ]
 
-  const totalHoje = data.tarefasHojeOuAtraso.length + data.eventosHoje.length + data.provasProximas.filter(p => p.data_reg === hojeStr).length
+  const totalHoje = data.tarefasHojeOuAtraso.length + data.eventosHoje.length + data.provasProximas.filter(p => p.data_reg === hojeStr).length + (data.itemTratamentoHoje ? 1 : 0)
+
+  const toggleTratamentoHoje = async () => {
+    if (!data.aplicacaoHoje) return
+    try {
+      const novoEstado = { ...data.aplicacaoHoje.estado_dias, [data.hojeKey]: !data.aplicacaoHoje.estado_dias[data.hojeKey] }
+      await db.updateTreatmentApplication(data.aplicacaoHoje.id, { estado_dias: novoEstado })
+      setData(d => ({ ...d, aplicacaoHoje: { ...d.aplicacaoHoje, estado_dias: novoEstado } }))
+    } catch (e) { toast('Erro: ' + e.message, 'err') }
+  }
 
   return (
     <div>
@@ -118,6 +143,18 @@ export default function Dashboard({ nav }) {
             <div style={{ fontSize: 13, color: '#7A8699', padding: '8px 0' }}>Sem nada agendado para hoje. Bom dia tranquilo no pombal. 🕊️</div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {data.itemTratamentoHoje && (() => {
+                const feito = !!data.aplicacaoHoje.estado_dias[data.hojeKey]
+                return (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', background: '#101F40', borderRadius: 8 }}>
+                    <button onClick={toggleTratamentoHoje} style={{ width: 18, height: 18, borderRadius: 5, border: feito ? 'none' : '2px solid #1B2D52', background: feito ? '#2DD4A7' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, fontSize: 11, padding: 0 }}>
+                      {feito && '✓'}
+                    </button>
+                    <div style={{ flex: 1, fontSize: 13, color: feito ? '#7A8699' : '#fff', textDecoration: feito ? 'line-through' : 'none' }}>🧪 {data.itemTratamentoHoje.produto || 'Tratamento'}{data.itemTratamentoHoje.dosagem ? ` — ${data.itemTratamentoHoje.dosagem}` : ''}</div>
+                    <span style={{ fontSize: 11, color: '#D4AF37' }} onClick={() => nav('tratamentos')}>Hoje</span>
+                  </div>
+                )
+              })()}
               {data.tarefasHojeOuAtraso.map(t => (
                 <div key={'t' + t.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', background: '#101F40', borderRadius: 8, cursor: 'pointer' }} onClick={() => nav('checklist')}>
                   <span style={{ fontSize: 16 }}>✅</span>
