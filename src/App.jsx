@@ -63,17 +63,44 @@ const NAV = [
   ]},
 ]
 
+// Secções abertas por padrão; "Social" e "Sistema" começam fechadas (uso menos frequente)
+const SECCOES_ABERTAS_DEFAULT = ['Principal', 'Desporto', 'Gestão', 'Análise']
+
+function useSidebarCollapse() {
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      const saved = localStorage.getItem('cl_sidebar_collapsed')
+      if (saved) return JSON.parse(saved)
+    } catch {}
+    return NAV.filter(s => !SECCOES_ABERTAS_DEFAULT.includes(s.section)).map(s => s.section)
+  })
+
+  const toggle = (section) => {
+    setCollapsed(prev => {
+      const next = prev.includes(section) ? prev.filter(s => s !== section) : [...prev, section]
+      try { localStorage.setItem('cl_sidebar_collapsed', JSON.stringify(next)) } catch {}
+      return next
+    })
+  }
+
+  return { collapsed, toggle }
+}
+
 // ─── APP LAYOUT ───────────────────────────────────────
 function AppLayout() {
   const { user } = useAuth()
   const [page, setPage] = useState('dashboard')
   const [navParams, setNavParams] = useState({})
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const { collapsed, toggle } = useSidebarCollapse()
 
   const nav = (p, params = {}) => { setPage(p); setNavParams(params); setSidebarOpen(false) }
 
   const initials = user?.user_metadata?.nome?.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase()
     || user?.email?.[0]?.toUpperCase() || 'U'
+
+  const currentItem = NAV.flatMap(s => s.items).find(i => i.id === page)
+  const currentSection = NAV.find(s => s.items.some(i => i.id === page))?.section || ''
 
   const renderPage = () => {
     switch (page) {
@@ -107,7 +134,9 @@ function AppLayout() {
 
       <aside className={`sidebar${sidebarOpen ? ' open' : ''}`} style={{ overflowY: 'auto' }}>
         <div className="logo">
-          <div className="logo-icon">🕊️</div>
+          {/* Quando o logótipo final estiver tratado (PNG/SVG sem fundo), trocar por:
+              <img src="/logo.png" alt="ChampionsLoft" className="logo-img" /> */}
+          <div className="logo-icon">CL</div>
           <div>
             <div className="logo-text">ChampionsLoft</div>
             <div className="logo-sub">Gestão Columbófila</div>
@@ -116,14 +145,19 @@ function AppLayout() {
 
         <nav className="nav">
           {NAV.map(({ section, items }) => (
-            <div key={section} className="nav-section">
-              <div className="nav-section-label">{section}</div>
-              {items.map(item => (
-                <div key={item.id} className={`nav-item${page === item.id ? ' active' : ''}`} onClick={() => nav(item.id)}>
-                  <span className="nav-icon">{item.icon}</span>
-                  <span>{item.label}</span>
-                </div>
-              ))}
+            <div key={section} className={`nav-group${collapsed.includes(section) ? ' collapsed' : ''}`}>
+              <div className="nav-group-head" onClick={() => toggle(section)}>
+                <span className="nav-group-label">{section}</span>
+                <span className="nav-group-chevron">⌄</span>
+              </div>
+              <div className="nav-group-items">
+                {items.map(item => (
+                  <div key={item.id} className={`nav-item${page === item.id ? ' active' : ''}`} onClick={() => nav(item.id)}>
+                    <span className="nav-icon">{item.icon}</span>
+                    <span>{item.label}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           ))}
         </nav>
@@ -146,9 +180,20 @@ function AppLayout() {
       <div className="main">
         <header className="topbar">
           <button className="btn btn-icon" onClick={() => setSidebarOpen(true)} style={{ display: 'none' }} id="menu-btn">☰</button>
-          <div style={{ flex: 1 }} />
-          <div style={{ fontSize: 12, color: '#475569' }}>
-            {new Date().toLocaleDateString('pt-PT', { weekday: 'short', day: 'numeric', month: 'short' })}
+          <div className="tb-crumb">
+            <span className="tb-crumb-section">{currentSection}</span>
+            <span className="tb-crumb-sep">/</span>
+            <span className="tb-crumb-current">{currentItem?.label || 'Dashboard'}</span>
+          </div>
+          <div className="tb-search" onClick={() => nav('pombos')} title="Pesquisa rápida (em breve)">
+            <span className="tb-search-icon">⌕</span>
+            <span className="tb-search-placeholder">Procurar pombo, anilha, prova…</span>
+            <span className="tb-search-kbd">⌘K</span>
+          </div>
+          <div className="tb-right">
+            <div className="tb-date">
+              {new Date().toLocaleDateString('pt-PT', { weekday: 'short', day: 'numeric', month: 'short' })}
+            </div>
           </div>
         </header>
         <style>{`@media (max-width: 768px) { #menu-btn { display: flex !important; } }`}</style>
