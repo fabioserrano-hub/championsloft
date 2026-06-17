@@ -29,7 +29,7 @@ import PaginaSucesso from './pages/PaginaSucesso'
 // ─── NAV CONFIG ───────────────────────────────────────
 const NAV = [
   { section: 'Principal', items: [
-    { id: 'dashboard',   icon: '📊', label: 'Dashboard' },
+    { id: 'dashboard',   icon: '🕊️', label: 'Pombal Hoje' },
     { id: 'pombos',      icon: '🐦', label: 'Pombos' },
     { id: 'pombais',     icon: '🏠', label: 'Pombais' },
   ]},
