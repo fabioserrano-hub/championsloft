@@ -41,7 +41,7 @@ export default function Admin({ nav }) {
       <div style={{ textAlign: 'center', padding: '60px 24px' }}>
         <div style={{ fontSize: 48, marginBottom: 16 }}>🔒</div>
         <div style={{ fontSize: 16, fontWeight: 600, color: '#fff', marginBottom: 8 }}>Acesso Restrito</div>
-        <div style={{ fontSize: 13, color: '#64748b' }}>Esta área é exclusiva para administradores do ChampionsLoft.</div>
+        <div style={{ fontSize: 13, color: '#7A8699' }}>Esta área é exclusiva para administradores do ChampionsLoft.</div>
       </div>
     )
   }
@@ -88,7 +88,7 @@ export default function Admin({ nav }) {
                 <span style={{ color: '#cbd5e1', textTransform: 'capitalize' }}>{plano}</span>
                 <span style={{ color: '#94a3b8' }}>{n} ({Math.round((n / licencas.length) * 100)}%)</span>
               </div>
-              <div className="progress"><div className="progress-bar" style={{ width: `${(n / licencas.length) * 100}%`, background: '#1ed98a' }} /></div>
+              <div className="progress"><div className="progress-bar" style={{ width: `${(n / licencas.length) * 100}%`, background: '#2DD4A7' }} /></div>
             </div>
           ))}
         </div>
@@ -103,7 +103,7 @@ export default function Admin({ nav }) {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                   <div style={{ flex: 1, minWidth: 160 }}>
                     <div style={{ fontSize: 13, fontWeight: 500, color: '#fff' }}>{l.email}</div>
-                    <div style={{ fontSize: 11, color: '#64748b' }}>{l.created_at ? new Date(l.created_at).toLocaleDateString('pt-PT') : '—'}{l.vitalicio ? ' · Vitalícia' : ''}</div>
+                    <div style={{ fontSize: 11, color: '#7A8699' }}>{l.created_at ? new Date(l.created_at).toLocaleDateString('pt-PT') : '—'}{l.vitalicio ? ' · Vitalícia' : ''}</div>
                   </div>
                   <Badge v={planoBadge[l.plano] || 'gray'}>{l.plano || 'gratuito'}</Badge>
                   <Badge v={l.ativo !== false ? 'green' : 'red'}>{l.ativo !== false ? 'Activa' : 'Inactiva'}</Badge>
@@ -123,10 +123,10 @@ export default function Admin({ nav }) {
             </select>
           </Field>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <input type="checkbox" checked={formAtivo} onChange={e => setFormAtivo(e.target.checked)} style={{ width: 16, height: 16, accentColor: '#1ed98a' }} />
+            <input type="checkbox" checked={formAtivo} onChange={e => setFormAtivo(e.target.checked)} style={{ width: 16, height: 16, accentColor: '#2DD4A7' }} />
             <span style={{ fontSize: 13, color: '#cbd5e1' }}>Licença activa</span>
           </div>
-          {modal?.vitalicio && <div style={{ fontSize: 11, color: '#facc15' }}>⚠️ Esta é uma licença vitalícia (admin)</div>}
+          {modal?.vitalicio && <div style={{ fontSize: 11, color: '#D4AF37' }}>⚠️ Esta é uma licença vitalícia (admin)</div>}
         </div>
       </Modal>
     </div>
