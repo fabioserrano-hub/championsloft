@@ -6,7 +6,7 @@ const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julh
 const DIAS_SEMANA = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S']
 const EMPTY = { titulo: '', data_evento: new Date().toISOString().slice(0, 10), tipo: 'Outro', obs: '' }
 const tipoIcon = { 'Prova': '🏆', 'Treino': '🎯', 'Tarefa': '✅', 'Reprodução': '🥚', 'Outro': '📌' }
-const tipoCor = { 'Prova': '#facc15', 'Treino': '#60a5fa', 'Tarefa': '#1ed98a', 'Reprodução': '#c084fc', 'Outro': '#94a3b8' }
+const tipoCor = { 'Prova': '#D4AF37', 'Treino': '#4C8DFF', 'Tarefa': '#2DD4A7', 'Reprodução': '#c084fc', 'Outro': '#94a3b8' }
 
 export default function Calendario({ nav }) {
   const toast = useToast()
@@ -71,7 +71,14 @@ export default function Calendario({ nav }) {
   const irParaOrigem = (ev) => {
     if (ev.tipo === 'Prova') nav?.('provas')
     else if (ev.tipo === 'Treino') nav?.('treinos')
-    else if (ev.tipo === 'Tarefa') nav?.('checklist')
+  }
+
+  const toggleTarefaConcluida = async (ev) => {
+    try {
+      await db.updateTarefa(ev.origem.id, { estado: ev.concluida ? 'por_iniciar' : 'concluida' })
+      toast(ev.concluida ? 'Tarefa reaberta' : 'Tarefa concluída! ✓', 'ok')
+      load()
+    } catch (e) { toast('Erro: ' + e.message, 'err') }
   }
 
   const proximosEventos = todosEventos.filter(e => e.data >= hojeStr && !e.concluida).sort((a, b) => a.data.localeCompare(b.data)).slice(0, 6)
@@ -95,7 +102,7 @@ export default function Calendario({ nav }) {
         : <>
           <div className="card card-p mb-6">
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 4, marginBottom: 8 }}>
-              {DIAS_SEMANA.map((d, i) => <div key={i} style={{ textAlign: 'center', fontSize: 11, color: '#64748b', fontWeight: 600 }}>{d}</div>)}
+              {DIAS_SEMANA.map((d, i) => <div key={i} style={{ textAlign: 'center', fontSize: 11, color: '#7A8699', fontWeight: 600 }}>{d}</div>)}
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 4 }}>
               {diasArray.map((dia, i) => {
@@ -105,8 +112,8 @@ export default function Calendario({ nav }) {
                 const isHoje = dataStr === hojeStr
                 return (
                   <div key={i} onClick={() => setDiaSelecionado(dataStr)}
-                    style={{ aspectRatio: '1', borderRadius: 8, padding: 4, cursor: 'pointer', background: isHoje ? 'rgba(30,217,138,.1)' : diaSelecionado === dataStr ? '#243860' : '#1a2840', border: isHoje ? '1px solid #1ed98a' : '1px solid transparent', display: 'flex', flexDirection: 'column', gap: 2, overflow: 'hidden' }}>
-                    <div style={{ fontSize: 11, fontWeight: isHoje ? 700 : 500, color: isHoje ? '#1ed98a' : '#cbd5e1' }}>{dia}</div>
+                    style={{ aspectRatio: '1', borderRadius: 8, padding: 4, cursor: 'pointer', background: isHoje ? 'rgba(45,212,167,.1)' : diaSelecionado === dataStr ? '#1B2D52' : '#101F40', border: isHoje ? '1px solid #2DD4A7' : '1px solid transparent', display: 'flex', flexDirection: 'column', gap: 2, overflow: 'hidden' }}>
+                    <div style={{ fontSize: 11, fontWeight: isHoje ? 700 : 500, color: isHoje ? '#2DD4A7' : '#cbd5e1' }}>{dia}</div>
                     <div style={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
                       {evs.slice(0, 3).map((e, j) => <div key={j} style={{ width: 5, height: 5, borderRadius: '50%', background: tipoCor[e.tipo] }} />)}
                     </div>
@@ -123,12 +130,16 @@ export default function Calendario({ nav }) {
                 <button className="btn btn-secondary btn-sm" onClick={() => abrirNovoEvento(parseInt(diaSelecionado.split('-')[2]))}>＋ Evento</button>
               </div>
               {eventosNoDia(parseInt(diaSelecionado.split('-')[2])).length === 0
-                ? <div style={{ fontSize: 13, color: '#64748b', textAlign: 'center', padding: '10px 0' }}>Sem eventos neste dia</div>
+                ? <div style={{ fontSize: 13, color: '#7A8699', textAlign: 'center', padding: '10px 0' }}>Sem eventos neste dia</div>
                 : <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                     {eventosNoDia(parseInt(diaSelecionado.split('-')[2])).map(e => (
-                      <div key={e.id} onClick={() => !e.manual && irParaOrigem(e)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', background: '#1a2840', borderRadius: 10, cursor: e.manual ? 'default' : 'pointer' }}>
-                        <span style={{ fontSize: 16 }}>{tipoIcon[e.tipo]}</span>
-                        <span style={{ flex: 1, fontSize: 13, color: e.concluida ? '#64748b' : '#fff', textDecoration: e.concluida ? 'line-through' : 'none' }}>{e.titulo}</span>
+                      <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', background: '#101F40', borderRadius: 8 }}>
+                        {e.tipo === 'Tarefa' ? (
+                          <button onClick={() => toggleTarefaConcluida(e)} style={{ width: 20, height: 20, borderRadius: 6, border: e.concluida ? 'none' : '2px solid #1B2D52', background: e.concluida ? '#2DD4A7' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, fontSize: 12, padding: 0 }}>
+                            {e.concluida && '✓'}
+                          </button>
+                        ) : <span style={{ fontSize: 16 }}>{tipoIcon[e.tipo]}</span>}
+                        <span onClick={() => e.tipo !== 'Tarefa' && !e.manual && irParaOrigem(e)} style={{ flex: 1, fontSize: 13, color: e.concluida ? '#7A8699' : '#fff', textDecoration: e.concluida ? 'line-through' : 'none', cursor: (e.tipo !== 'Tarefa' && !e.manual) ? 'pointer' : 'default' }}>{e.titulo}</span>
                         <Badge v="gray">{e.tipo}</Badge>
                       </div>
                     ))}
@@ -140,13 +151,15 @@ export default function Calendario({ nav }) {
           <div className="card card-p">
             <div style={{ fontWeight: 600, color: '#fff', marginBottom: 12 }}>📅 Próximos Eventos</div>
             {proximosEventos.length === 0
-              ? <div style={{ fontSize: 13, color: '#64748b', textAlign: 'center', padding: '10px 0' }}>Sem eventos agendados</div>
+              ? <div style={{ fontSize: 13, color: '#7A8699', textAlign: 'center', padding: '10px 0' }}>Sem eventos agendados</div>
               : <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {proximosEventos.map(e => (
-                    <div key={e.id} onClick={() => !e.manual && irParaOrigem(e)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0', cursor: e.manual ? 'default' : 'pointer' }}>
-                      <span style={{ fontSize: 16 }}>{tipoIcon[e.tipo]}</span>
-                      <span style={{ flex: 1, fontSize: 13, color: '#fff' }}>{e.titulo}</span>
-                      <span style={{ fontSize: 11, color: '#64748b' }}>{new Date(e.data).toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' })}</span>
+                    <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0' }}>
+                      {e.tipo === 'Tarefa' ? (
+                        <button onClick={() => toggleTarefaConcluida(e)} style={{ width: 18, height: 18, borderRadius: 5, border: '2px solid #1B2D52', background: 'transparent', cursor: 'pointer', flexShrink: 0, padding: 0 }} />
+                      ) : <span style={{ fontSize: 16 }}>{tipoIcon[e.tipo]}</span>}
+                      <span onClick={() => e.tipo !== 'Tarefa' && !e.manual && irParaOrigem(e)} style={{ flex: 1, fontSize: 13, color: '#fff', cursor: (e.tipo !== 'Tarefa' && !e.manual) ? 'pointer' : 'default' }}>{e.titulo}</span>
+                      <span style={{ fontSize: 11, color: '#7A8699' }}>{new Date(e.data).toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' })}</span>
                     </div>
                   ))}
                 </div>
