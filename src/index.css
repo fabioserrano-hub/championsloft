@@ -140,13 +140,14 @@ tr:hover td { background: rgba(16,31,64,.5); }
 .chip:hover { border-color: #4C8DFF; color: #fff; }
 .chip.active { background: rgba(76,141,255,.12); border-color: #4C8DFF; color: #4C8DFF; }
 
-.pombo-card { background: #0B1830; border: 1px solid #1B2D52; border-radius: 10px; overflow: hidden; cursor: pointer; transition: all .3s cubic-bezier(.16,1,.3,1); }
-.pombo-card:hover { transform: translateY(-3px); border-color: #2a4070; box-shadow: 0 16px 36px -10px rgba(0,0,0,.45); }
-.pombo-photo { height: 130px; background: linear-gradient(135deg, #0B1830, #101F40); display: flex; align-items: center; justify-content: center; font-size: 52px; position: relative; overflow: hidden; }
+.pombo-card { background: linear-gradient(160deg, #0D1F3C, #0B1830); border: 1px solid #1B2D52; border-radius: 12px; overflow: hidden; cursor: pointer; transition: all .3s cubic-bezier(.16,1,.3,1); }
+.pombo-card:hover { transform: translateY(-4px); border-color: #2a4a80; box-shadow: 0 20px 40px -12px rgba(0,0,0,.6), 0 0 0 1px rgba(76,141,255,.1); }
+.pombo-photo { height: 180px; background: linear-gradient(135deg, #0B1830 0%, #101F40 50%, #0D2040 100%); display: flex; align-items: center; justify-content: center; font-size: 64px; position: relative; overflow: hidden; }
 .pombo-photo img { width: 100%; height: 100%; object-fit: cover; }
-.pombo-info { padding: 10px 12px; }
-.pombo-anel { font-family: 'Space Mono', monospace; font-size: 10px; color: #D4AF37; margin-bottom: 2px; }
-.pombo-nome { font-size: 13px; font-weight: 600; color: #fff; margin-bottom: 6px; }
+.pombo-photo::after { content: ''; position: absolute; inset: 0; background: linear-gradient(to top, rgba(11,24,48,.8) 0%, transparent 50%); pointer-events: none; }
+.pombo-info { padding: 12px 14px; }
+.pombo-anel { font-family: 'Space Mono', monospace; font-size: 10px; color: #D4AF37; margin-bottom: 3px; letter-spacing: .05em; }
+.pombo-nome { font-size: 14px; font-weight: 700; color: #fff; margin-bottom: 6px; font-family: 'Fraunces', serif; }
 
 .section-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; }
 .section-title { font-family: 'Fraunces', serif; font-size: 20px; font-weight: 700; letter-spacing: -.01em; background: linear-gradient(135deg, #fff 55%, rgba(255,255,255,.7)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
