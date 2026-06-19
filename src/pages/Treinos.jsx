@@ -1,12 +1,13 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { db } from '../lib/supabase'
 import { useToast, Spinner, Modal, EmptyState, Field, Badge } from '../components/ui'
 import { classificarPombo } from './Pombos'
 
-const TIPOS = ['Voo Livre', 'Treino em Linha', 'Solta Local', 'Adestramento']
+const TIPOS = ['Treino em Linha', 'Treino à Volta do Pombal', 'Voo Livre', 'Solta Local', 'Adestramento']
+const TIPO_ICONS = { 'Treino em Linha':'➡️', 'Treino à Volta do Pombal':'🔄', 'Voo Livre':'🕊️', 'Solta Local':'📍', 'Adestramento':'🎯' }
 const RETORNOS = ['Completo', 'Parcial', 'Com Perdas']
 const retornoBadge = { 'Completo': 'green', 'Parcial': 'yellow', 'Com Perdas': 'red' }
-const EMPTY = { local: '', tipo: 'Voo Livre', dist: '', data_reg: new Date().toISOString().slice(0, 10), hora_solta: '08:00', hora_retorno: '', pombos_n: '', retorno: 'Completo', custo: '', obs: '', pombosIds: [] }
+const EMPTY = { local: '', lat_solta: '', lon_solta: '', tipo: 'Treino em Linha', dist: '', data_reg: new Date().toISOString().slice(0, 10), hora_solta: '08:00', hora_retorno: '', pombos_n: '', retorno: 'Completo', custo: '', obs: '', pombosIds: [] }
 
 function calcVel(distKm, horaSolta, horaRetorno) {
   if (!distKm || !horaSolta || !horaRetorno) return null
@@ -21,6 +22,7 @@ export default function Treinos({ nav }) {
   const toast = useToast()
   const [treinos, setTreinos] = useState([])
   const [pombos, setPombos] = useState([])
+  const [perfil, setPerfil] = useState(null)
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(false)
   const [selected, setSelected] = useState(null)
@@ -31,7 +33,7 @@ export default function Treinos({ nav }) {
 
   const load = useCallback(async () => {
     setLoading(true)
-    try { const [t, p] = await Promise.all([db.getTreinos(), db.getPombos()]); setTreinos(t); setPombos(p) }
+    try { const [t, p, pf] = await Promise.all([db.getTreinos(), db.getPombos(), db.getPerfil()]); setTreinos(t); setPombos(p); setPerfil(pf) }
     catch (e) { toast('Erro: ' + e.message, 'err') }
     finally { setLoading(false) }
   }, [])
@@ -40,13 +42,51 @@ export default function Treinos({ nav }) {
 
   const pombosAtivos = pombos.filter(p => (!p.estado_ext || p.estado_ext === 'proprio') && p.estado === 'ativo')
 
-  const openNew = () => { setForm(EMPTY); setSelected(null); setModal(true) }
+  const openNew = () => { setForm(EMPTY); setSelected(null); setModal(true); setPesquisaLocal(''); setResultadosPesquisa([]) }
   const openEdit = (t) => {
     setSelected(t)
-    setForm({ local: t.local || '', tipo: t.tipo || 'Voo Livre', dist: String(t.dist || ''), data_reg: t.data_reg?.slice(0, 10) || '', hora_solta: t.hora_solta || '08:00', hora_retorno: t.hora_retorno || '', pombos_n: String(t.pombos_n || ''), retorno: t.retorno || 'Completo', custo: String(t.custo || ''), obs: t.obs || '', pombosIds: t.pombos_ids || [] })
-    setModal(true)
+    setForm({ local: t.local || '', lat_solta: String(t.lat_solta||''), lon_solta: String(t.lon_solta||''), tipo: t.tipo || 'Treino em Linha', dist: String(t.dist || ''), data_reg: t.data_reg?.slice(0, 10) || '', hora_solta: t.hora_solta || '08:00', hora_retorno: t.hora_retorno || '', pombos_n: String(t.pombos_n || ''), retorno: t.retorno || 'Completo', custo: String(t.custo || ''), obs: t.obs || '', pombosIds: t.pombos_ids || [] })
+    setModal(true); setPesquisaLocal(''); setResultadosPesquisa([])
   }
   const close = () => { setModal(false); setSelected(null) }
+
+  const [pesquisaLocal, setPesquisaLocal] = useState('')
+  const [resultadosPesquisa, setResultadosPesquisa] = useState([])
+  const [pesquisandoLocal, setPesquisandoLocal] = useState(false)
+  const [dropdownAberto, setDropdownAberto] = useState(false)
+  const debounceRef = useRef(null)
+
+  const calcDistanciaAoPombal = (lat, lon) => {
+    if (!perfil?.pombal_lat || !perfil?.pombal_lon || !lat || !lon) return null
+    const R=6371, dLat=(perfil.pombal_lat-lat)*Math.PI/180, dLon=(perfil.pombal_lon-lon)*Math.PI/180
+    const a=Math.sin(dLat/2)**2+Math.cos(lat*Math.PI/180)*Math.cos(perfil.pombal_lat*Math.PI/180)*Math.sin(dLon/2)**2
+    return Math.round(R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)))
+  }
+
+  const pesquisarLocal = (q) => {
+    setPesquisaLocal(q); setDropdownAberto(true)
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    if (q.length < 2) { setResultadosPesquisa([]); return }
+    debounceRef.current = setTimeout(async () => {
+      setPesquisandoLocal(true)
+      try {
+        const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=6&language=pt`)
+        const data = await res.json()
+        const todos = data.results || []
+        const filtrados = todos.filter(l => ['PT','ES'].includes(l.country_code))
+        setResultadosPesquisa(filtrados.length > 0 ? filtrados : todos.slice(0,4))
+      } catch(e) { setResultadosPesquisa([]) }
+      finally { setPesquisandoLocal(false) }
+    }, 350)
+  }
+
+  const selecionarLocal = (loc) => {
+    const dist = calcDistanciaAoPombal(loc.latitude, loc.longitude)
+    sf('local', `${loc.name}${loc.admin1?', '+loc.admin1:''} (${loc.country_code})`)
+    sf('lat_solta', String(loc.latitude)); sf('lon_solta', String(loc.longitude))
+    if (dist && form.tipo === 'Treino em Linha') sf('dist', String(dist))
+    setPesquisaLocal(''); setResultadosPesquisa([]); setDropdownAberto(false)
+  }
 
   const togglePombo = (id) => setForm(f => ({ ...f, pombosIds: f.pombosIds.includes(id) ? f.pombosIds.filter(x => x !== id) : [...f.pombosIds, id] }))
 
@@ -90,7 +130,7 @@ export default function Treinos({ nav }) {
             {treinosOrdenados.map(t => (
               <div key={t.id} className="card card-p">
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <div style={{ width: 44, height: 44, borderRadius: 10, background: '#101F40', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>🎯</div>
+                  <div style={{ width: 44, height: 44, borderRadius: 10, background: '#101F40', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>{TIPO_ICONS[t.tipo] || '🎯'}</div>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 14, fontWeight: 600, color: '#fff' }}>{t.local}</div>
                     <div style={{ fontSize: 12, color: '#7A8699' }}>{t.tipo} · {t.dist ? t.dist + 'km · ' : ''}{t.pombos_n || '?'} pombos · {new Date(t.data_reg).toLocaleDateString('pt-PT')}</div>
@@ -108,9 +148,38 @@ export default function Treinos({ nav }) {
       <Modal open={modal} onClose={close} title={selected ? '✏️ Editar Treino' : '🎯 Novo Treino'} wide
         footer={<><button className="btn btn-secondary" onClick={close}>Cancelar</button><button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? <Spinner /> : null}{selected ? 'Guardar' : 'Registar'}</button></>}>
         <div className="form-grid">
-          <div className="col-2"><Field label="Local *"><input className="input" placeholder="Ex: Évora" value={form.local} onChange={e => sf('local', e.target.value)} /></Field></div>
-          <Field label="Tipo"><select className="input" value={form.tipo} onChange={e => sf('tipo', e.target.value)}>{TIPOS.map(t => <option key={t}>{t}</option>)}</select></Field>
-          <Field label="Distância (km)"><input className="input" type="number" placeholder="80" value={form.dist} onChange={e => sf('dist', e.target.value)} /></Field>
+          <Field label="Tipo"><select className="input" value={form.tipo} onChange={e => { sf('tipo', e.target.value); if (e.target.value === 'Treino à Volta do Pombal') { sf('local', perfil?.pombal_nome || 'Pombal'); sf('dist', ''); } }}>{TIPOS.map(t => <option key={t}>{TIPO_ICONS[t]} {t}</option>)}</select></Field>
+          <div className="col-2">
+            {form.tipo === 'Treino à Volta do Pombal' ? (
+              <Field label="Local (volta ao pombal — sem deslocamento)">
+                <input className="input" value={form.local || perfil?.pombal_nome || 'Pombal'} onChange={e => sf('local', e.target.value)} />
+                <div style={{ fontSize:11, color:'#7A8699', marginTop:4 }}>Distância total em rondas ao pombal</div>
+              </Field>
+            ) : (
+              <Field label="🔍 Local de Solta — pesquise em PT/ES">
+                <div style={{ position:'relative' }}>
+                  <div style={{ display:'flex', gap:6 }}>
+                    <input className="input" placeholder="Ex: Évora, Badajoz..." value={pesquisaLocal} onChange={e => pesquisarLocal(e.target.value)} style={{ flex:1 }} />
+                    {form.local && <button type="button" className="btn btn-secondary btn-sm" onClick={() => { sf('local',''); sf('lat_solta',''); sf('lon_solta',''); sf('dist',''); setPesquisaLocal('') }}>✕</button>}
+                  </div>
+                  {form.local && !pesquisaLocal && <div style={{ fontSize:11, color:'#2DD4A7', marginTop:4 }}>✅ {form.local}{form.dist ? ` · ${form.dist}km ao pombal` : ''}</div>}
+                  {resultadosPesquisa.length > 0 && dropdownAberto && (
+                    <div style={{ position:'absolute', top:'100%', left:0, right:0, background:'#0B1830', border:'1px solid #1B2D52', borderRadius:8, zIndex:200, marginTop:4, boxShadow:'0 8px 24px rgba(0,0,0,.5)' }}>
+                      {resultadosPesquisa.map((loc,i) => (
+                        <div key={i} onClick={() => selecionarLocal(loc)} style={{ padding:'10px 14px', cursor:'pointer', borderBottom:i<resultadosPesquisa.length-1?'1px solid #101F40':'none', fontSize:13 }}
+                          onMouseEnter={e=>e.currentTarget.style.background='#101F40'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+                          <div style={{ color:'#fff', fontWeight:500 }}>{loc.name}{loc.admin2?`, ${loc.admin2}`:''}</div>
+                          <div style={{ fontSize:11, color:'#7A8699' }}>{loc.admin1} · <span style={{ color:loc.country_code==='PT'?'#4C8DFF':'#D4AF37', fontWeight:600 }}>{loc.country_code}</span></div>
+                        </div>
+                      ))}
+                      <div onClick={() => { setResultadosPesquisa([]); setDropdownAberto(false) }} style={{ padding:'8px 14px', fontSize:11, color:'#7A8699', cursor:'pointer', textAlign:'center' }}>Fechar ✕</div>
+                    </div>
+                  )}
+                </div>
+              </Field>
+            )}
+          </div>
+          <Field label="Distância (km)"><input className="input" type="number" placeholder={form.tipo==='Treino à Volta do Pombal'?'Total em rondas':'80'} value={form.dist} onChange={e => sf('dist', e.target.value)} /></Field>
           <Field label="Data"><input className="input" type="date" value={form.data_reg} onChange={e => sf('data_reg', e.target.value)} /></Field>
           <Field label="Hora de Solta"><input className="input" type="time" value={form.hora_solta} onChange={e => sf('hora_solta', e.target.value)} /></Field>
           <Field label="Hora de Retorno"><input className="input" type="time" value={form.hora_retorno} onChange={e => sf('hora_retorno', e.target.value)} /></Field>
