@@ -62,11 +62,13 @@ export default function Tratamentos({ nav }) {
   const [pombosSelecionados, setPombosSelecionados] = useState([])
   const [savingAplicar, setSavingAplicar] = useState(false)
 
+  const [provas, setProvas] = useState([])
+
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [p, a, pr, pb, st] = await Promise.all([db.getTreatmentPlans(), db.getTreatmentApplications(), db.getTreatmentProducts(), db.getPombos(), db.getStock().catch(() => [])])
-      setPlanos(p); setAplicacoes(a); setProdutos(pr); setPombos(pb); setStock(st)
+      const [p, a, pr, pb, st, pv] = await Promise.all([db.getTreatmentPlans(), db.getTreatmentApplications(), db.getTreatmentProducts(), db.getPombos(), db.getStock().catch(() => []), db.getProvas().catch(() => [])])
+      setPlanos(p); setAplicacoes(a); setProdutos(pr); setPombos(pb); setStock(st); setProvas(pv)
     } catch (e) { toast('Erro: ' + e.message, 'err') }
     finally { setLoading(false) }
   }, [])
@@ -203,8 +205,8 @@ export default function Tratamentos({ nav }) {
       </div>
 
       <div style={{ display: 'flex', gap: 4, background: '#101F40', borderRadius: 8, padding: 4, marginBottom: 16, overflowX: 'auto' }}>
-        {[['semana', '📅 Esta Semana'], ['planos', '🧪 Os Meus Planos'], ['produtos', '💊 Biblioteca de Produtos']].map(([t, l]) => (
-          <button key={t} onClick={() => setTab(t)} style={{ flex: 1, padding: '8px 14px', borderRadius: 6, fontSize: 13, fontWeight: 500, cursor: 'pointer', border: 'none', fontFamily: 'inherit', whiteSpace: 'nowrap', background: tab === t ? '#1E5FD9' : 'none', color: tab === t ? '#fff' : '#94a3b8' }}>{l}</button>
+        {[['semana','📋 Esta Semana'],['planos','🗂️ Planos'],['produtos','💊 Biblioteca'],['calendario','📅 Provas']].map(([t,l]) => (
+          <button key={t} onClick={() => setTab(t)} style={{ flex:1, padding:'8px 10px', borderRadius:6, fontSize:12, fontWeight:500, cursor:'pointer', border:'none', fontFamily:'inherit', whiteSpace:'nowrap', background:tab===t?'#1E5FD9':'none', color:tab===t?'#fff':'#94a3b8' }}>{l}</button>
         ))}
       </div>
 
@@ -314,6 +316,75 @@ export default function Tratamentos({ nav }) {
                 ))}
               </div>
           )}
+
+          {tab === 'calendario' && (() => {
+            const hoje = new Date().toISOString().slice(0, 10)
+            const provasFuturas = [...provas]
+              .filter(p => p.data_reg >= hoje)
+              .sort((a, b) => a.data_reg.localeCompare(b.data_reg))
+              .slice(0, 8)
+
+            const sugerirPlano = (prova) => {
+              // Mapear tipo de prova para especialidade do plano
+              const mapa = { 'Velocidade': 'velocidade', 'Meio-Fundo': 'meio_fundo', 'Fundo': 'fundo', 'Grande Fundo': 'grande_fundo', 'Treino Federado': 'geral' }
+              const esp = mapa[prova.tipo] || 'geral'
+              // Preferir plano da mesma especialidade; fallback para geral
+              return planos.find(p => p.especialidade === esp) || planos.find(p => p.especialidade === 'geral') || null
+            }
+
+            return (
+              <div>
+                <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 14 }}>
+                  Próximas provas e o plano de tratamento sugerido para cada uma. Aplique o plano na semana anterior à prova.
+                </div>
+                {provasFuturas.length === 0 ? (
+                  <EmptyState icon="📅" title="Sem provas futuras" desc="Adicione provas com data futura em Provas para ver as sugestões de tratamento" action={<button className="btn btn-secondary" onClick={() => nav?.('provas')}>Ir para Provas →</button>} />
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {provasFuturas.map(prova => {
+                      const diasAte = Math.ceil((new Date(prova.data_reg) - new Date()) / 86400000)
+                      const planoSugerido = sugerirPlano(prova)
+                      const urgente = diasAte <= 7
+                      return (
+                        <div key={prova.id} className="card card-p" style={urgente ? { borderColor: 'rgba(212,175,55,.3)', background: 'rgba(212,175,55,.04)' } : undefined}>
+                          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                            <div style={{ flex: 1, minWidth: 160 }}>
+                              <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4 }}>
+                                <div style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>{prova.nome}</div>
+                                {urgente && <span style={{ fontSize: 10, fontWeight: 700, color: '#D4AF37', background: 'rgba(212,175,55,.15)', padding: '1px 8px', borderRadius: 10 }}>URGENTE</span>}
+                              </div>
+                              <div style={{ fontSize: 11, color: '#7A8699' }}>
+                                {prova.tipo} · {prova.dist}km · {new Date(prova.data_reg).toLocaleDateString('pt-PT')}
+                              </div>
+                              <div style={{ fontSize: 11, color: urgente ? '#D4AF37' : '#94a3b8', marginTop: 4, fontWeight: urgente ? 600 : 400 }}>
+                                {diasAte === 0 ? '🏁 Hoje!' : diasAte === 1 ? '⚡ Amanhã!' : `📅 Em ${diasAte} dias`}
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, justifyContent: 'center' }}>
+                              {planoSugerido ? (
+                                <>
+                                  <div style={{ fontSize: 11, color: '#94a3b8' }}>Plano sugerido:</div>
+                                  <div style={{ fontSize: 12, fontWeight: 600, color: '#2DD4A7' }}>🧪 {planoSugerido.nome}</div>
+                                  <button className="btn btn-primary btn-sm" onClick={() => { abrirAplicar(planoSugerido); setTab('semana') }}>
+                                    Aplicar esta semana
+                                  </button>
+                                </>
+                              ) : (
+                                <div style={{ fontSize: 11, color: '#7A8699' }}>
+                                  Sem plano para {prova.tipo}.<br />
+                                  <button onClick={() => setTab('planos')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#4C8DFF', fontSize: 11, padding: 0 }}>Criar plano →</button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )
+          })()}
         </>
       )}
 
