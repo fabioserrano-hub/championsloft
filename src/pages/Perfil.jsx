@@ -8,6 +8,7 @@ export default function Perfil() {
   const toast = useToast()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [exportando, setExportando] = useState(false)
   const [fotoPerfilFile, setFotoPerfilFile] = useState(null)
   const [fotoPombalFile, setFotoPombalFile] = useState(null)
   const [fotoPerfilPreview, setFotoPerfilPreview] = useState(null)
@@ -59,19 +60,57 @@ export default function Perfil() {
     finally { setSaving(false) }
   }
 
+  const exportarBackup = async () => {
+    setExportando(true)
+    try {
+      const [pombos, provas, saude, financas, acasalamentos, treinos, tarefas, stock, vacinas] = await Promise.all([
+        db.getPombos().catch(() => []),
+        db.getProvas().catch(() => []),
+        db.getSaude().catch(() => []),
+        db.getFinancas().catch(() => []),
+        db.getAcasalamentos().catch(() => []),
+        supabase.from('treinos').select('*').then(r => r.data || []).catch(() => []),
+        db.getTarefas().catch(() => []),
+        db.getStock().catch(() => []),
+        db.getVacinas().catch(() => []),
+      ])
+      const backup = {
+        versao: '1.0',
+        data_exportacao: new Date().toISOString(),
+        columbofilo: { nome: form.nome, email: user?.email, fed: form.fed, org: form.org },
+        dados: { pombos, provas, saude, financas, acasalamentos, treinos, tarefas, stock, vacinas },
+        estatisticas: {
+          total_pombos: pombos.length,
+          total_provas: provas.length,
+          total_registos_saude: saude.length,
+          total_acasalamentos: acasalamentos.length,
+        }
+      }
+      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `championsloft-backup-${new Date().toISOString().slice(0,10)}.json`
+      document.body.appendChild(a); a.click(); document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      toast('Backup exportado com sucesso!', 'ok')
+    } catch (e) { toast('Erro ao exportar: ' + e.message, 'err') }
+    finally { setExportando(false) }
+  }
+
   if (loading) return <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}><Spinner lg /></div>
 
   const FotoUpload = ({ id, preview, url, onChange, icon, label }) => (
     <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
       <div onClick={() => document.getElementById(id).click()}
-        style={{ width: 80, height: 80, borderRadius: 14, border: '2px dashed #243860', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', cursor: 'pointer', flexShrink: 0, background: '#1a2840', position: 'relative' }}>
+        style={{ width: 80, height: 80, borderRadius: 14, border: '2px dashed #1B2D52', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', cursor: 'pointer', flexShrink: 0, background: '#101F40', position: 'relative' }}>
         {(preview || url) ? <img src={preview || url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: 32 }}>{icon}</span>}
-        <div style={{ position: 'absolute', bottom: 4, right: 4, background: '#1ed98a', borderRadius: '50%', width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}>📷</div>
+        <div style={{ position: 'absolute', bottom: 4, right: 4, background: '#2DD4A7', borderRadius: '50%', width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}>📷</div>
       </div>
       <div>
         <input type="file" id={id} accept="image/*" style={{ display: 'none' }} onChange={onChange} />
         <div style={{ fontSize: 13, fontWeight: 500, color: '#fff' }}>{label}</div>
-        <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>Toque na imagem para alterar</div>
+        <div style={{ fontSize: 11, color: '#7A8699', marginTop: 2 }}>Toque na imagem para alterar</div>
       </div>
     </div>
   )
@@ -110,12 +149,31 @@ export default function Perfil() {
             <Field label="Latitude GPS"><input className="input" placeholder="38.80234" value={form.pombal_lat} onChange={e => sf('pombal_lat', e.target.value)} /></Field>
             <Field label="Longitude GPS"><input className="input" placeholder="-9.38142" value={form.pombal_lon} onChange={e => sf('pombal_lon', e.target.value)} /></Field>
             {form.pombal_lat && form.pombal_lon && (
-              <div style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid #243860', height: 140 }}>
+              <div style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid #1B2D52', height: 140 }}>
                 <iframe width="100%" height="100%" frameBorder="0" style={{ display: 'block' }}
                   src={`https://maps.google.com/maps?q=${form.pombal_lat},${form.pombal_lon}&z=14&output=embed`} />
               </div>
             )}
           </div>
+        </div>
+      </div>
+
+      {/* Secção de Backup */}
+      <div className="card card-p" style={{ marginTop: 16 }}>
+        <div style={{ fontWeight: 600, color: '#fff', marginBottom: 6 }}>💾 Backup dos Dados</div>
+        <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 14 }}>
+          Exporta todos os seus dados (pombos, provas, saúde, finanças, acasalamentos, treinos, tarefas, stock e vacinas) num ficheiro JSON. Guarde numa localização segura como cópia de segurança.
+        </div>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+          <button className="btn btn-primary" onClick={exportarBackup} disabled={exportando}>
+            {exportando ? <Spinner /> : '📥'} {exportando ? 'A exportar...' : 'Descarregar Backup (JSON)'}
+          </button>
+          <div style={{ fontSize: 11, color: '#7A8699' }}>
+            Última exportação: agora
+          </div>
+        </div>
+        <div style={{ marginTop: 12, fontSize: 11, color: '#7A8699', lineHeight: 1.6 }}>
+          💡 O ficheiro pode ser reimportado no futuro para restaurar os seus dados. Guarde-o no Google Drive, Dropbox ou outro serviço de cloud pessoal.
         </div>
       </div>
     </div>
