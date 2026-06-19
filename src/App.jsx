@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { ToastProvider } from './components/ui'
 import { AuthProvider, useAuth } from './hooks/useAuth'
+import { supabase } from './lib/supabase'
 
 // Pages
 import Landing      from './pages/Landing'
@@ -218,8 +219,18 @@ function AppLayout() {
           </div>
           <div className="tb-right">
             <button className="btn btn-icon" onClick={() => window.print()} title="Imprimir página" style={{ fontSize: 16 }}>🖨️</button>
-            <div className="tb-date">
-              {new Date().toLocaleDateString('pt-PT', { weekday: 'short', day: 'numeric', month: 'short' })}
+            <div className="tb-date" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <button onClick={() => nav('perfil')} title="O meu perfil" style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px', borderRadius: 8, transition: 'background .2s' }}
+                onMouseEnter={e => e.currentTarget.style.background='rgba(76,141,255,.1)'}
+                onMouseLeave={e => e.currentTarget.style.background='none'}>
+                <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'linear-gradient(135deg,#1E5FD9,#4C8DFF)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#fff', flexShrink: 0 }}>{initials}</div>
+                <span style={{ fontSize: 13, fontWeight: 600, color: '#fff', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.user_metadata?.nome?.split(' ')[0] || user?.email?.split('@')[0] || 'Perfil'}</span>
+              </button>
+              <button onClick={() => supabase.auth.signOut()} title="Sair da aplicação" style={{ background: 'none', border: '1px solid #1B2D52', cursor: 'pointer', borderRadius: 8, padding: '6px 10px', fontSize: 12, color: '#7A8699', fontFamily: 'inherit', transition: 'all .2s' }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor='#f87171'; e.currentTarget.style.color='#f87171' }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor='#1B2D52'; e.currentTarget.style.color='#7A8699' }}>
+                Sair
+              </button>
             </div>
           </div>
         </header>
