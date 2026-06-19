@@ -18,6 +18,76 @@ const PLANOS_DEFAULT = [
   { nome: 'Desparasitação Externa', descricao: 'Controlo de piolhos e ácaros. Recomendada 3x por ano.', periodicidade_dias: 120, obrigatoria: false },
 ]
 
+const DOENCAS = [
+  { nome: 'Paramyxovírus (Newcastle)', cat: 'Viral', urgencia: 'alta', sintomas: 'Tremores, torção do pescoço (opisthotonus), paralisia das pernas, diarreia aquosa esverdeada, desorientação. Pode ser fatal.', tratamento: 'Sem tratamento específico. Suporte: eletrólitos, vitaminas, isolamento rigoroso. Prevenção: vacinação obrigatória anual (Colombovac PMV ou Nobilis Paramyxo).', prevencao: 'Vacinação obrigatória por lei em Portugal. Vacinar antes da época de treinos.', icon: '🔴' },
+  { nome: 'Tricomoníase (Borrachinho)', cat: 'Protozoário', urgencia: 'media', sintomas: 'Placas amarelas/esbranquiçadas na garganta e boca, dificuldade em engolir, perda de peso, penas eriçadas. Em borrachinhos pode ser fatal rapidamente.', tratamento: 'Ronidazol (Ronivet) ou Metronidazol. Tratar todo o efectivo durante 5-7 dias. Limpar e desinfectar comedouros e bebedouros.', prevencao: 'Tratamento preventivo 2x por ano (antes da reprodução e antes das provas). Higiene dos bebedouros.', icon: '🟡' },
+  { nome: 'Coccidiose', cat: 'Protozoário', urgencia: 'media', sintomas: 'Diarreia verde ou castanha, perda de peso, fraqueza, penas sujas na zona cloacal. Mais grave em jovens.', tratamento: 'Sulfaclorpiridazina (Coxiprol), Toltrazuril (Baycox), ou Amprolio. Tratamento 3-5 dias. Higienizar o pombal.', prevencao: 'Limpeza regular do pombal. Tratamento preventivo em jovens. Evitar sobrelotação.', icon: '🟡' },
+  { nome: 'Salmonela (Paratifose)', cat: 'Bacteriana', urgencia: 'alta', sintomas: 'Diarreia (por vezes sanguinolenta), letargia, articulações inchadas, torção do pescoço, infertilidade na reprodução. Pode ser crónica.', tratamento: 'Enrofloxacina ou Trimetoprim+Sulfa durante 10-14 dias. Atenção: pode tornar-se portador crónico. Isolamento obrigatório.', prevencao: 'Vacinação disponível. Higiene rigorosa. Desinfeção do pombal. Controlo de roedores.', icon: '🔴' },
+  { nome: 'Ornitose/Clamidiose', cat: 'Bacteriana', urgencia: 'media', sintomas: 'Corrimento ocular/nasal, dificuldade respiratória, fezes esverdeadas. Atenção: zoonose (transmissível ao Homem).', tratamento: 'Doxiciclina durante 30-45 dias. Tratamento prolongado é essencial. Notificação obrigatória.', prevencao: 'Higiene e ventilação do pombal. Quarentena de pombos novos. Usar máscara ao limpar o pombal.', icon: '⚠️' },
+  { nome: 'Varíola Columbídea (Poxvírus)', cat: 'Viral', urgencia: 'media', sintomas: 'Pústulas/crostas nas zonas sem penas (pálpebras, bico, patas). Forma húmida: lesões na garganta com dificuldade respiratória.', tratamento: 'Sem tratamento específico. Suporte vitamínico (A e E). Retirar crostas com antisséptico suave. Isolamento.', prevencao: 'Vacinação disponível (Nobilis Pox). Controlo de insectos picadores (mosquitos, piolhos).', icon: '🟡' },
+  { nome: 'Candidíase (Muguet)', cat: 'Fúngica', urgencia: 'baixa', sintomas: 'Placas brancas espessas na boca e inglúvio, dificuldade em engolir, regurgitação. Frequente após antibioterapia.', tratamento: 'Nistatina ou Fluconazol. Probióticos após tratamento para restaurar flora intestinal.', prevencao: 'Evitar uso prolongado de antibióticos. Probióticos preventivos. Higiene dos comedouros.', icon: '🟢' },
+  { nome: 'Adenovírus (Doença do Jovem)', cat: 'Viral', urgencia: 'alta', sintomas: 'Vómitos, regurgitação de água (às vezes amarela), diarreia, anorexia. Afecta principalmente jovens de 3-10 meses.', tratamento: 'Sem tratamento específico. Suporte: eletrólitos, vitaminas B. Medicação de suporte (antibiótico para infecções secundárias).', prevencao: 'Higiene rigorosa. Evitar stress. Vitaminas preventivas em jovens.', icon: '🔴' },
+  { nome: 'Herpesvírus (Doença de Pacheco)', cat: 'Viral', urgencia: 'alta', sintomas: 'Morte súbita ou rápida deterioração, hepatite, descoordenação, prostração. Pode matar em 24-48h.', tratamento: 'Aciclovir pode ajudar se diagnosticado precocemente. Suporte intensivo.', prevencao: 'Quarentena rigorosa de novos animais (mínimo 30 dias). Desinfeção com produtos eficazes contra vírus.', icon: '🔴' },
+  { nome: 'Piojo/Piolho (Ectoparasitas)', cat: 'Parasitária', urgencia: 'baixa', sintomas: 'Agitação, coçar constante, penas danificadas, má condição da plumagem, perda de peso gradual.', tratamento: 'Ivermectina (Ivomec) spot-on ou spray. Permetrina em spray no pombal. Tratar pombos e pombal simultaneamente.', prevencao: 'Banhos regulares. Areia com pó antiparasitário. Inspecção regular das penas.', icon: '🟢' },
+  { nome: 'Aspergilose', cat: 'Fúngica', urgencia: 'media', sintomas: 'Dificuldade respiratória, respiração ofegante, perda de peso progressiva, letargia. Frequente em ambientes húmidos.', tratamento: 'Itraconazol ou Voriconazol durante 6-8 semanas. Tratamento prolongado. Prognóstico reservado.', prevencao: 'Ventilação adequada do pombal. Evitar palha húmida ou ração mofada. Controlo da humidade.', icon: '🟡' },
+  { nome: 'Enterite Bacteriana', cat: 'Bacteriana', urgencia: 'media', sintomas: 'Diarreia, fezes moles ou líquidas, desidratação, perda de peso. Pode ser causada por E. coli, Campylobacter, etc.', tratamento: 'Antibiótico após antibiograma (amoxicilina, enrofloxacina). Eletrólitos para hidratação. Probióticos no final.', prevencao: 'Higiene dos bebedouros e comedouros. Água fresca diária. Evitar sobrelotação.', icon: '🟡' },
+]
+
+const urgenciaConfig = { alta: { cor: '#f87171', label: 'Alta Urgência' }, media: { cor: '#D4AF37', label: 'Atenção' }, baixa: { cor: '#2DD4A7', label: 'Baixa Urgência' } }
+
+function DoencasTab() {
+  const [catFiltro, setCatFiltro] = useState('Todas')
+  const [expandida, setExpandida] = useState(null)
+  const cats = ['Todas', ...new Set(DOENCAS.map(d => d.cat))]
+  const filtradas = catFiltro === 'Todas' ? DOENCAS : DOENCAS.filter(d => d.cat === catFiltro)
+
+  return (
+    <div>
+      <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 14 }}>
+        Enciclopédia de doenças típicas dos pombos-correio — sintomas, tratamentos e prevenção. Consulte sempre um veterinário para diagnóstico definitivo.
+      </div>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
+        {cats.map(c => (
+          <button key={c} onClick={() => setCatFiltro(c)} style={{ padding: '5px 12px', borderRadius: 20, fontSize: 11, fontWeight: 500, cursor: 'pointer', border: 'none', fontFamily: 'inherit', background: catFiltro === c ? '#1E5FD9' : '#101F40', color: catFiltro === c ? '#fff' : '#94a3b8' }}>{c}</button>
+        ))}
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {filtradas.map((d, i) => {
+          const urg = urgenciaConfig[d.urgencia]
+          const exp = expandida === i
+          return (
+            <div key={i} className="card card-p" style={{ cursor: 'pointer', borderLeft: `3px solid ${urg.cor}` }} onClick={() => setExpandida(exp ? null : i)}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 18 }}>{d.icon}</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>{d.nome}</span>
+                    <span style={{ fontSize: 10, color: urg.cor, background: `${urg.cor}18`, padding: '1px 8px', borderRadius: 10 }}>{urg.label}</span>
+                    <span style={{ fontSize: 10, color: '#7A8699', background: '#101F40', padding: '1px 8px', borderRadius: 10 }}>{d.cat}</span>
+                  </div>
+                  {!exp && <div style={{ fontSize: 11, color: '#7A8699', marginTop: 2 }}>{d.sintomas.slice(0, 70)}...</div>}
+                </div>
+                <span style={{ fontSize: 12, color: '#475569' }}>{exp ? '▾' : '▸'}</span>
+              </div>
+              {exp && (
+                <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,.06)', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {[['🩺 Sintomas', d.sintomas], ['💊 Tratamento', d.tratamento], ['🛡️ Prevenção', d.prevencao]].map(([label, texto]) => (
+                    <div key={label}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: '#D4AF37', marginBottom: 3 }}>{label}</div>
+                      <div style={{ fontSize: 12, color: '#cbd5e1', lineHeight: 1.6 }}>{texto}</div>
+                    </div>
+                  ))}
+                  <div style={{ fontSize: 10, color: '#475569', marginTop: 4, fontStyle: 'italic' }}>⚕️ Consulte sempre um médico veterinário para diagnóstico e tratamento adequados.</div>
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 export default function Saude({ nav, params }) {
   const toast = useToast()
   const { user } = useAuth()
@@ -149,7 +219,7 @@ export default function Saude({ nav, params }) {
       </div>
 
       <div style={{ display:'flex', gap:4, background:'#101F40', borderRadius:8, padding:4, marginBottom:16 }}>
-        {[['registos','🏥 Registos'],['vacinas',`💉 Vacinas${alertasTotal?` (${alertasTotal})`:''}`],['planos','📋 Planos']].map(([t,l]) => (
+        {[['registos','🏥 Registos'],['vacinas',`💉 Vacinas${alertasTotal?` (${alertasTotal})`:''}`],['planos','📋 Planos'],['doencas','📖 Doenças']].map(([t,l]) => (
           <button key={t} onClick={() => setTab(t)} style={{ flex:1, padding:'8px 10px', borderRadius:6, fontSize:12, fontWeight:500, cursor:'pointer', border:'none', fontFamily:'inherit', background:tab===t?'#1E5FD9':'none', color:tab===t?'#fff':'#94a3b8' }}>{l}</button>
         ))}
       </div>
@@ -264,6 +334,8 @@ export default function Saude({ nav, params }) {
           )}
         </div>
       )}
+
+      {tab==='doencas' && <DoencasTab />}
 
       <Modal open={modal} onClose={close} title={selected?'✏️ Editar Registo':'🏥 Novo Registo de Saúde'}
         footer={<><button className="btn btn-secondary" onClick={close}>Cancelar</button><button className="btn btn-primary" onClick={save} disabled={saving}>{saving?<Spinner />:null}{selected?'Guardar':'Registar'}</button></>}>
