@@ -30,9 +30,6 @@ function calcRumoVoo(latSolta, lonSolta, latPombal, lonPombal) {
 
 // Classifica o vento relativo ao rumo de voo: cauda (favorável), proa (contra), ou lateral
 function classificarVento(rumoVoo, direcaoVento) {
-  // direcaoVento é a direção DE ONDE o vento vem (convenção meteorológica padrão).
-  // Se o vento vem da mesma direção do rumo de voo, está a "empurrar pelas costas" -> vento de cauda.
-  // Se vem da direção oposta ao rumo de voo, está a soprar de frente -> vento de proa.
   let diff = Math.abs(rumoVoo - direcaoVento)
   if (diff > 180) diff = 360 - diff
   if (diff <= 45) return { tipo: 'Vento de Cauda', icon: '⬆️', cor: '#2DD4A7', desc: 'Vento a favor — condições propícias a boas médias' }
@@ -130,7 +127,6 @@ export default function Provas({ nav, params }) {
     setSelected(p); setModal('detail'); setLoadingRes(true)
     try {
       setResultados(await db.getResultados(p.id))
-      // Histórico de desempenho em provas semelhantes (mesma distância ±50km ou mesmo local de solta)
       const semelhantes = provas.filter(o => o.id !== p.id && (
         (p.local_solta && o.local_solta === p.local_solta) ||
         (p.dist && o.dist && Math.abs(o.dist - p.dist) <= 50)
@@ -197,6 +193,18 @@ export default function Provas({ nav, params }) {
     finally { setLoadingMeteo(false) }
   }
 
+  // NOVA FUNÇÃO: Abrir a meteorologia com a rota pré-selecionada
+  const abrirMeteoRota = () => {
+    if (!selected || !perfil?.pombal_lat) {
+      toast('Defina as coordenadas do pombal no Perfil', 'warn');
+      return;
+    }
+    // Fecha o modal de detalhes atual
+    close();
+    // Navega para a página de meteorologia passando o ID da prova e as coordenadas
+    nav('meteorologia', { provaId: selected.id });
+  }
+
   const provasOrdenadas = [...provas].sort((a, b) => new Date(b.data_reg) - new Date(a.data_reg))
   const PombosNaoEncestados = pombos.filter(p => (!p.estado_ext || p.estado_ext === 'proprio') && p.estado === 'ativo')
   const PombosNaoEncestadosClassificados = PombosNaoEncestados
@@ -215,7 +223,6 @@ export default function Provas({ nav, params }) {
     return true
   })
 
-  // Calcula distância em linha reta entre dois pontos GPS (fórmula Haversine)
   const calcDistanciaAoPombal = (lat, lon) => {
     if (!perfil?.pombal_lat || !perfil?.pombal_lon || !lat || !lon) return null
     const R = 6371
@@ -225,7 +232,6 @@ export default function Provas({ nav, params }) {
     return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)))
   }
 
-  // Ao alterar GPS manualmente, calcula distância ao pombal
   const onLatLonChange = (campo, valor) => {
     sf(campo, valor)
     const lat = campo === 'lat_solta' ? parseFloat(valor) : parseFloat(form.lat_solta)
@@ -252,7 +258,6 @@ export default function Provas({ nav, params }) {
       try {
         const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=8&language=pt`)
         const data = await res.json()
-        // Filtrar PT e ES mas se nao houver resultados mostrar todos
         const todos = data.results || []
         const filtrados = todos.filter(l => ['PT','ES'].includes(l.country_code))
         setResultadosPesquisa(filtrados.length > 0 ? filtrados : todos.slice(0, 5))
@@ -390,6 +395,7 @@ export default function Provas({ nav, params }) {
             <div style={{ display: 'flex', gap: 8, width: '100%', flexWrap: 'wrap' }}>
               <button className="btn btn-secondary btn-sm" onClick={() => openEncestamento(selected)}>📦 Encestamento ({resultados.length})</button>
               <button className="btn btn-secondary btn-sm" onClick={buscarMeteo} disabled={loadingMeteo}>{loadingMeteo ? <Spinner /> : '🌦️'} MeteoProva</button>
+              <button className="btn btn-primary btn-sm" onClick={abrirMeteoRota} disabled={!perfil?.pombal_lat}>🌦️ Ver Rota de Voo</button>
               <div style={{ flex: 1 }} />
               <button className="btn btn-secondary" onClick={close}>Fechar</button>
               <button className="btn btn-primary" onClick={() => openEdit(selected)}>✏️ Editar</button>
@@ -418,8 +424,31 @@ export default function Provas({ nav, params }) {
             <div style={{ marginBottom: 16 }}>
               <div className="label" style={{ marginBottom: 6 }}>📍 Local de Solta</div>
               {selected.lat_solta && selected.lon_solta ? (
-                <div style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid #1B2D52', height: 160 }}>
-                  <iframe width="100%" height="100%" frameBorder="0" style={{ display: 'block' }} src={`https://maps.google.com/maps?q=${selected.lat_solta},${selected.lon_solta}&z=10&output=embed`} />
+                <div style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid #1B2D52', height: 200, position: 'relative' }}>
+                  {/* Mapas com Rota */}
+                  <iframe width="100%" height="100%" frameBorder="0" style={{ display: 'block' }} 
+                    src={`https://maps.google.com/maps?q=${selected.lat_solta},${selected.lon_solta}&z=10&output=embed`} />
+                  
+                  {/* Camada SVG para desenhar a rota entre solta e pombal */}
+                  {perfil?.pombal_lat && perfil?.pombal_lon && (
+                    <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', opacity: 0.8 }}>
+                      <svg width="100%" height="100%" style={{ position: 'absolute' }}>
+                        <line 
+                          x1="50%" y1="50%" 
+                          x2="50%" y2="10%" // O iframe do google maps está centrado no ponto de solta, a rota aponta para norte (pombal)
+                          stroke="#f87171" strokeWidth="3" strokeDasharray="6,4" 
+                        />
+                        <circle cx="50%" cy="50%" r="5" fill="#1E5FD9" />
+                        <circle cx="50%" cy="10%" r="5" fill="#2DD4A7" />
+                      </svg>
+                      <div style={{ position: 'absolute', top: '8%', left: '52%', fontSize: 10, color: '#2DD4A7', background: '#0a0f14', padding: '2px 6px', borderRadius: 4, border: '1px solid #2DD4A7', pointerEvents: 'auto' }}>
+                        🏠 Pombal
+                      </div>
+                      <div style={{ position: 'absolute', bottom: '8%', right: '15%', fontSize: 10, color: '#1E5FD9', background: '#0a0f14', padding: '2px 6px', borderRadius: 4, border: '1px solid #1E5FD9', pointerEvents: 'auto' }}>
+                        📍 Solta
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : <div style={{ fontSize: 13, color: '#94a3b8' }}>{selected.local_solta} (sem coordenadas GPS)</div>}
             </div>
