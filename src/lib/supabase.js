@@ -327,20 +327,98 @@ export const db = {
     return data
   },
 
-  async getFeedPosts() {
-    const { data, error } = await supabase.from('community_posts').select('*').order('created_at', { ascending: false }).limit(30)
+  async getFeedPosts(limite = 20, offset = 0) {
+    const uid = await this.uid()
+    // Posts de quem sigo + os meus próprios
+    const { data: seguidos } = await supabase.from('followers').select('following_id').eq('follower_id', uid)
+    const ids = [...(seguidos || []).map(s => s.following_id), uid]
+    const { data, error } = await supabase.from('posts').select('*').in('user_id', ids).order('created_at', { ascending: false }).range(offset, offset + limite - 1)
     if (error) { if (error.code === '42P01') return []; throw error }
     return data || []
   },
-  async createFeedPost(p) {
+  async getAllPosts(limite = 20, offset = 0) {
+    const { data, error } = await supabase.from('posts').select('*').order('created_at', { ascending: false }).range(offset, offset + limite - 1)
+    if (error) { if (error.code === '42P01') return []; throw error }
+    return data || []
+  },
+  async createPost(p) {
     const uid = await this.uid()
-    const { data, error } = await supabase.from('community_posts').insert({ ...p, user_id: uid }).select().single()
+    const { data, error } = await supabase.from('posts').insert({ ...p, user_id: uid }).select().single()
     if (error) throw error
     return data
   },
-  async deleteFeedPost(id) {
-    const { error } = await supabase.from('community_posts').delete().eq('id', id)
+  async deletePost(id) {
+    const { error } = await supabase.from('posts').delete().eq('id', id)
     if (error) throw error
+  },
+  async toggleLike(postId) {
+    const uid = await this.uid()
+    const { data: existing } = await supabase.from('post_likes').select('id').eq('post_id', postId).eq('user_id', uid).maybeSingle()
+    if (existing) {
+      await supabase.from('post_likes').delete().eq('id', existing.id)
+      await supabase.from('posts').update({ likes_count: supabase.rpc('decrement', { x: 1 }) }).eq('id', postId)
+      return false
+    } else {
+      await supabase.from('post_likes').insert({ post_id: postId, user_id: uid })
+      await supabase.from('posts').update({ likes_count: supabase.rpc('increment', { x: 1 }) }).eq('id', postId)
+      return true
+    }
+  },
+  async getMyLikes() {
+    const uid = await this.uid()
+    const { data } = await supabase.from('post_likes').select('post_id').eq('user_id', uid)
+    return new Set((data || []).map(l => l.post_id))
+  },
+  async getComments(postId) {
+    const { data, error } = await supabase.from('comments').select('*').eq('post_id', postId).order('created_at')
+    if (error) return []
+    return data || []
+  },
+  async createComment(postId, conteudo, autorNome) {
+    const uid = await this.uid()
+    const { data, error } = await supabase.from('comments').insert({ post_id: postId, user_id: uid, autor_nome: autorNome, conteudo }).select().single()
+    if (error) throw error
+    await supabase.from('posts').update({ comments_count: (await supabase.from('comments').select('id', { count: 'exact' }).eq('post_id', postId)).count }).eq('id', postId)
+    return data
+  },
+  async getFollowing() {
+    const uid = await this.uid()
+    const { data } = await supabase.from('followers').select('following_id').eq('follower_id', uid)
+    return new Set((data || []).map(f => f.following_id))
+  },
+  async toggleFollow(targetId) {
+    const uid = await this.uid()
+    const { data: existing } = await supabase.from('followers').select('id').eq('follower_id', uid).eq('following_id', targetId).maybeSingle()
+    if (existing) {
+      await supabase.from('followers').delete().eq('id', existing.id)
+      return false
+    } else {
+      await supabase.from('followers').insert({ follower_id: uid, following_id: targetId })
+      return true
+    }
+  },
+  async getNotificacoes() {
+    const uid = await this.uid()
+    const { data, error } = await supabase.from('notifications').select('*').eq('user_id', uid).order('created_at', { ascending: false }).limit(20)
+    if (error) { if (error.code === '42P01') return []; throw error }
+    return data || []
+  },
+  async marcarNotifLida(id) {
+    await supabase.from('notifications').update({ lida: true }).eq('id', id)
+  },
+  async marcarTodasNotifLidas() {
+    const uid = await this.uid()
+    await supabase.from('notifications').update({ lida: true }).eq('user_id', uid)
+  },
+  async getExplorar() {
+    const { data } = await supabase.from('perfis').select('*').eq('publico', true).limit(30)
+    return data || []
+  },
+
+  async getFeedPostsLegacy() {
+    const { data, error } = await supabase.from('community_posts').select('*').order('created_at', { ascending: false }).limit(30)
+    if (error) { if (error.code === '42P01') return []; throw error }
+    return data || []
   },
   async getRankingComunidade() {
     const { data, error } = await supabase.from('community_ranking').select('*').order('pontos', { ascending: false }).limit(50)
