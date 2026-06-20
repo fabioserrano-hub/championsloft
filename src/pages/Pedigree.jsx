@@ -206,56 +206,54 @@ export default function Pedigree({ nav, params }) {
       doc.text('PEDIGREE PREMIUM · championsloft.app', W-7, 7, {align:'right'})
 
       // === CABEÇALHO PREMIUM ===
-      // Fundo do cabeçalho com gradiente simulado
-      doc.setFillColor(248,249,252); doc.rect(0,10,W,32,'F')
-      doc.setDrawColor(...LGREY); doc.setLineWidth(0.3); doc.line(0,42,W,42)
+      doc.setFillColor(248,249,252); doc.rect(0,10,W,36,'F')
+      doc.setDrawColor(...LGREY); doc.setLineWidth(0.3); doc.line(0,46,W,46)
+      doc.setFillColor(...GOLD); doc.rect(7,13,2.5,30,'F')
 
-      // Linha dourada decorativa
-      doc.setFillColor(...GOLD); doc.rect(7,13,2,26,'F')
-
-      let hx = 12; const hy = 13
-      // Foto do columbófilo (circular com borda dourada)
+      let hx = 13; const hy = 13
+      // Foto do columbófilo — maior, circular com borda dourada
       if (fotoPerfilB64) {
-        doc.setFillColor(...GOLD); doc.circle(hx+8,hy+8,8.5,'F')
-        doc.addImage(fotoPerfilB64,'JPEG',hx+0.5,hy+0.5,16,16)
-        doc.setFontSize(4); doc.setTextColor(150,155,170)
-        doc.text('Columbófilo', hx+8, hy+19, {align:'center'})
-        hx += 22
+        doc.setFillColor(...GOLD); doc.circle(hx+11,hy+11,11.5,'F')
+        doc.addImage(fotoPerfilB64,'JPEG',hx+0.5,hy+0.5,21,21)
+        doc.setFontSize(4.5); doc.setTextColor(140,148,168)
+        doc.text('Columbófilo', hx+11, hy+24.5, {align:'center'})
+        hx += 26
       }
-      // Logo do columbófilo (se tiver)
-      if (logoB64) {
-        doc.setFillColor(...[240,242,246]); doc.roundedRect(hx,hy,16,16,1,1,'F')
-        doc.addImage(logoB64,'JPEG',hx+0.5,hy+0.5,15,15)
-        doc.setFontSize(4); doc.setTextColor(150,155,170)
-        doc.text('Logo', hx+8, hy+19, {align:'center'})
-        hx += 22
+      // Foto do pombal — maior, rectangular com borda
+      if (fotoPombalB64) {
+        doc.setFillColor(...LGREY); doc.roundedRect(hx,hy,21,21,1,1,'F')
+        doc.addImage(fotoPombalB64,'JPEG',hx+0.5,hy+0.5,20,20)
+        doc.setDrawColor(...LGREY); doc.setLineWidth(0.4); doc.roundedRect(hx,hy,21,21,1,1,'S')
+        doc.setFontSize(4.5); doc.setTextColor(140,148,168)
+        doc.text('Pombal', hx+10.5, hy+24.5, {align:'center'})
+        hx += 26
       }
 
-      // Info do columbófilo
+      // Texto info
       const infoX = hx + 3
-      doc.setFontSize(15); doc.setFont('helvetica','bold'); doc.setTextColor(...GOLD)
-      doc.text('PEDIGREE', infoX, hy+8)
-      doc.setFontSize(9.5); doc.setTextColor(...NAVY)
-      doc.text(perfil?.nome||'', infoX, hy+14)
-      doc.setFontSize(6.5); doc.setFont('helvetica','normal'); doc.setTextColor(70,85,130)
-      let iy = hy+19
+      doc.setFontSize(17); doc.setFont('helvetica','bold'); doc.setTextColor(...GOLD)
+      doc.text('PEDIGREE', infoX, hy+9)
+      doc.setFontSize(10); doc.setTextColor(...NAVY)
+      doc.text(perfil?.nome||'', infoX, hy+15)
+      doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor(70,85,130)
+      let iy = hy+20
       if (perfil?.pombal_nome) { doc.text(perfil.pombal_nome+(perfil?.pombal_morada?' · '+perfil.pombal_morada:''), infoX, iy); iy+=4 }
       if (perfil?.org) { doc.setTextColor(120,128,155); doc.text(perfil.org+(perfil?.fed?' · '+perfil.fed:''), infoX, iy) }
 
-      // Data (canto direito)
-      doc.setFontSize(5.5); doc.setFont('helvetica','bold'); doc.setTextColor(140,148,168)
-      doc.text('DATA DE EMISSÃO', W-7, hy+6, {align:'right'})
-      doc.setFontSize(11); doc.setFont('helvetica','bold'); doc.setTextColor(...NAVY)
-      doc.text(new Date().toLocaleDateString('pt-PT'), W-7, hy+13, {align:'right'})
-      doc.setFontSize(5); doc.setFont('helvetica','normal'); doc.setTextColor(165,170,185)
-      doc.text('Documento oficial', W-7, hy+19, {align:'right'})
-      doc.text('ChampionsLoft © '+new Date().getFullYear(), W-7, hy+23, {align:'right'})
+      // Data (direita)
+      doc.setFontSize(6); doc.setFont('helvetica','bold'); doc.setTextColor(140,148,168)
+      doc.text('DATA DE EMISSÃO', W-8, hy+6, {align:'right'})
+      doc.setFontSize(12); doc.setFont('helvetica','bold'); doc.setTextColor(...NAVY)
+      doc.text(new Date().toLocaleDateString('pt-PT'), W-8, hy+14, {align:'right'})
+      doc.setFontSize(5.5); doc.setFont('helvetica','normal'); doc.setTextColor(165,172,188)
+      doc.text('Documento oficial', W-8, hy+20, {align:'right'})
+      doc.text('ChampionsLoft © '+new Date().getFullYear(), W-8, hy+25, {align:'right'})
 
       // === LAYOUT RAMIFICADO ===
       // Disposição clássica de pedigree: pombo à esquerda, ramifica para a direita
       // Col 0 (pombo): x=7, Col 1 (pais): x=58, Col 2 (avós): x=148, Col 3 (bisavós): x=208
-      const TOP = hy + 28
-      const BOTTOM = H - 12
+      const TOP = hy + 36
+      const BOTTOM = H - 11
 
       // Alturas de cada linha por geração
       // Geração 2 (pais): 2 rows
@@ -289,69 +287,61 @@ export default function Pedigree({ nav, params }) {
         const node = typeof nodeKey==='string' ? arvore[nodeKey] : null
         if (!node) return
         const isEmpty = !node.nome && !node.anilha
-        const bh = h - VPAD*2
-        const by = y + VPAD
+        const bh = h - VPAD*2, by = y + VPAD
+        const bc = tipo==='main'?GOLD:tipo==='pai_p'?[35,70,165]:tipo==='pai_m'?[130,20,20]:
+                   tipo==='avo_pp'||tipo==='avo_pm'?[60,105,195]:tipo==='avo_mp'||tipo==='avo_mm'?[155,35,35]:[170,178,195]
         // Sombra
-        doc.setFillColor(195,205,220); doc.roundedRect(x+0.8,by+0.8,w,bh,2,2,'F')
+        doc.setFillColor(190,200,215); doc.roundedRect(x+1,by+1,w,bh,2,2,'F')
         // Fundo branco
         doc.setFillColor(...WHITE)
-        const bc = tipo==='main'?GOLD:tipo==='pai_p'?[35,70,165]:tipo==='pai_m'?[130,20,20]:
-                   tipo==='avo_pp'||tipo==='avo_pm'?[60,105,195]:tipo==='avo_mp'||tipo==='avo_mm'?[155,35,35]:
-                   [160,170,190]
-        doc.setDrawColor(...bc); doc.setLineWidth(tipo==='main'?0.7:0.35)
+        doc.setDrawColor(...bc); doc.setLineWidth(tipo==='main'?0.8:0.45)
         doc.roundedRect(x,by,w,bh,2,2,'FD')
-        // Barra lateral colorida com gradiente simulado
-        doc.setFillColor(...bc)
-        doc.roundedRect(x,by,1.8,bh,1,1,'F')
-        // Faixa de titulo no topo do box
-        if (!isEmpty && bh > 20) {
-          doc.setFillColor(...bc.map(v=>Math.min(255,v+140)))
-          doc.rect(x+1.8,by,w-1.8,4,'F')
+        // Faixa de título colorida no topo
+        if (!isEmpty) {
+          doc.setFillColor(...bc)
+          doc.roundedRect(x,by,w,5,2,2,'F')
+          doc.setFillColor(...bc); doc.rect(x,by+3,w,2,'F')
         }
-
         if (isEmpty) {
-          doc.setFontSize(5); doc.setTextColor(185,192,208)
+          doc.setFontSize(5); doc.setTextColor(190,195,210)
           doc.text('—', x+w/2, by+bh/2+1.5, {align:'center'}); return
         }
-
-        let ty = by + (bh>20?5.5:3.5)
-        // Foto
+        let ty = by+7.5
+        // Foto do pombo
         const foto = imgs[typeof nodeKey==='string'?nodeKey:null]
-        const fotoH = bh > 32 ? (bh > 45 ? 22 : 16) : bh > 22 ? 10 : 0
-        if (foto && fotoH > 0) {
-          doc.addImage(foto,'JPEG',x+2,ty,w-4,fotoH)
-          // Linha fina abaixo da foto
-          doc.setDrawColor(...LGREY); doc.setLineWidth(0.2)
-          doc.line(x+2,ty+fotoH+0.5,x+w-2,ty+fotoH+0.5)
-          ty += fotoH + 2
+        const fotoH = bh>32?(bh>45?20:14):bh>22?9:0
+        if (foto && fotoH>0) {
+          doc.addImage(foto,'JPEG',x+1.5,ty,w-3,fotoH)
+          doc.setDrawColor(220,225,235); doc.setLineWidth(0.2)
+          doc.line(x+1.5,ty+fotoH+0.5,x+w-1.5,ty+fotoH+0.5)
+          ty += fotoH+2
         }
         // Anilha
         if (node.anilha) {
-          doc.setFontSize(tipo==='main'?6:4.5); doc.setFont('courier','bold'); doc.setTextColor(...GOLD)
-          doc.text(node.anilha.substring(0,20), x+2.8, ty); ty+=3.2
+          doc.setFontSize(tipo==='main'?6:4.8); doc.setFont('courier','bold'); doc.setTextColor(...GOLD)
+          doc.text(node.anilha.substring(0,20), x+2.5, ty); ty+=3.2
         }
         // Nome
         if (node.nome) {
-          const fs = tipo==='main'?8.5:bh>28?7:bh>18?6:5.5
+          const fs = tipo==='main'?9:bh>28?7:bh>18?6:5.5
           doc.setFontSize(fs); doc.setFont('helvetica','bold'); doc.setTextColor(...NAVY)
-          doc.text(node.nome.substring(0,16), x+2.8, ty); ty+=fs*0.45+1.8
+          doc.text(node.nome.substring(0,17), x+2.5, ty); ty+=fs*0.45+2
         }
         // Cor
         if (node.cor && bh>20) {
-          doc.setFontSize(4.5); doc.setFont('helvetica','normal'); doc.setTextColor(95,105,135)
-          doc.text(node.cor.substring(0,20), x+2.8, ty); ty+=3
+          doc.setFontSize(4.8); doc.setFont('helvetica','normal'); doc.setTextColor(95,105,135)
+          doc.text(node.cor.substring(0,20), x+2.5, ty); ty+=3
         }
         // Linhagem
         if (node.linhagem && bh>26) {
-          doc.setFontSize(4.5); doc.setTextColor(...[35,70,165])
-          doc.text(node.linhagem.substring(0,20), x+2.8, ty); ty+=3
+          doc.setFontSize(4.5); doc.setTextColor(...[40,75,170])
+          doc.text(node.linhagem.substring(0,20), x+2.5, ty); ty+=3
         }
         // Conquistas
-        if (node.conquistas && ty < by+bh-3) {
+        if (node.conquistas && ty < by+bh-2) {
           doc.setFontSize(4.2); doc.setTextColor(...GREEN)
-          doc.text(node.conquistas.substring(0,38), x+2.8, ty, {maxWidth:w-5})
+          doc.text(node.conquistas.substring(0,38), x+2.5, ty, {maxWidth:w-4})
         }
-        // Externo
         if (node.externo) {
           doc.setFontSize(4); doc.setTextColor(165,75,25)
           doc.text('Ext.', x+w-3.5, by+bh-2)
