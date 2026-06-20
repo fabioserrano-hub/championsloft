@@ -158,7 +158,6 @@ export default function Pedigree({ nav, params }) {
     if (!arvore) return
     toast('A gerar PDF...', 'ok')
     try {
-      // Carregar jsPDF dinamicamente
       await new Promise((res, rej) => {
         if (window.jspdf) return res()
         const s = document.createElement('script')
@@ -169,160 +168,223 @@ export default function Pedigree({ nav, params }) {
       const { jsPDF } = window.jspdf
       const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
       const W = 297, H = 210
-      const gold = [184, 134, 11]
-      const darkBlue = [5, 13, 26]
-      const white = [255, 255, 255]
-      const grey = [240, 240, 245]
-      const textDark = [17, 17, 17]
+      const GOLD = [180, 134, 11]
+      const GOLD_L = [218, 175, 50]
+      const NAVY = [15, 30, 65]
+      const BLUE = [30, 60, 120]
+      const WHITE = [255, 255, 255]
+      const GREY = [245, 246, 248]
+      const LGREY = [220, 225, 235]
+      const BLACK = [20, 20, 20]
+      const GREEN = [0, 120, 80]
+      const RED_L = [140, 20, 20]
+      const BLUE_L = [20, 60, 160]
 
-      // Fundo
-      doc.setFillColor(...darkBlue)
+      // === FUNDO BRANCO ===
+      doc.setFillColor(...WHITE)
       doc.rect(0, 0, W, H, 'F')
 
-      // Barra dourada topo
-      doc.setFillColor(...gold)
-      doc.rect(0, 0, W, 10, 'F')
+      // === BARRA TOPO DOURADA ===
+      doc.setFillColor(...NAVY)
+      doc.rect(0, 0, W, 12, 'F')
+      // Linha dourada
+      doc.setFillColor(...GOLD)
+      doc.rect(0, 11, W, 1.5, 'F')
+      // Texto topo
+      doc.setFontSize(9); doc.setFont('helvetica','bold')
+      doc.setTextColor(...GOLD)
+      doc.text('CHAMPIONSLOFT', 8, 8)
+      doc.setFontSize(6.5); doc.setFont('helvetica','normal')
+      doc.setTextColor(180, 190, 210)
+      doc.text('PEDIGREE PREMIUM · championsloft.app', W - 7, 8, { align: 'right' })
+
+      // === CABEÇALHO ===
+      let hy = 16
+      // Coluna esquerda: fotos
+      let fx = 7
+      if (perfil?.foto_perfil_url) {
+        // placeholder círculo
+        doc.setFillColor(...LGREY)
+        doc.circle(fx + 8, hy + 8, 8, 'F')
+        doc.setFontSize(5); doc.setTextColor(...NAVY)
+        doc.text('Foto', fx + 8, hy + 9, { align: 'center' })
+        fx += 20
+      }
+      if (perfil?.logo_url || logoUrl) {
+        doc.setFillColor(...LGREY)
+        doc.roundedRect(fx, hy, 16, 16, 1, 1, 'F')
+        doc.setFontSize(5); doc.setTextColor(...NAVY)
+        doc.text('Logo', fx + 8, hy + 9, { align: 'center' })
+        fx += 20
+      }
+
+      // Coluna info
+      const infoX = perfil?.foto_perfil_url || perfil?.logo_url || logoUrl ? 50 : 7
+      doc.setFontSize(20); doc.setFont('helvetica','bold')
+      doc.setTextColor(...GOLD)
+      doc.text('PEDIGREE', infoX, hy + 8)
+      doc.setFontSize(11); doc.setTextColor(...NAVY)
+      doc.text(perfil?.nome || '', infoX, hy + 14)
+      doc.setFontSize(7.5); doc.setFont('helvetica','normal')
+      doc.setTextColor(...BLUE)
+      let iy = hy + 19
+      if (perfil?.pombal_nome) { doc.text(`${perfil.pombal_nome}${perfil?.pombal_morada ? '  ·  ' + perfil.pombal_morada : ''}`, infoX, iy); iy += 4 }
+      if (perfil?.org) { doc.setTextColor(100, 100, 120); doc.text(`${perfil.org}${perfil?.fed ? '  ·  ' + perfil.fed : ''}`, infoX, iy) }
+
+      // Coluna direita: data
+      doc.setFontSize(6.5); doc.setFont('helvetica','bold')
+      doc.setTextColor(130, 130, 150)
+      doc.text('DATA DE EMISSÃO', W - 7, hy + 5, { align: 'right' })
       doc.setFontSize(11); doc.setFont('helvetica','bold')
-      doc.setTextColor(...darkBlue)
-      doc.text('CHAMPIONSLOFT', 8, 7)
-      doc.setFontSize(7); doc.setFont('helvetica','normal')
-      doc.text('PEDIGREE PREMIUM · championsloft.app', W - 8, 7, { align: 'right' })
+      doc.setTextColor(...NAVY)
+      doc.text(new Date().toLocaleDateString('pt-PT'), W - 7, hy + 11, { align: 'right' })
+      doc.setFontSize(6); doc.setFont('helvetica','normal')
+      doc.setTextColor(160, 160, 170)
+      doc.text('Documento oficial', W - 7, hy + 17, { align: 'right' })
+      doc.text(`ChampionsLoft © ${new Date().getFullYear()}`, W - 7, hy + 21, { align: 'right' })
 
-      // Cabeçalho info columbófilo
-      let cx = 8, cy = 16
-      doc.setFillColor(11, 24, 48)
-      doc.roundedRect(cx, cy, W - 16, 28, 2, 2, 'F')
-      doc.setFontSize(18); doc.setFont('helvetica','bold')
-      doc.setTextColor(...gold)
-      doc.text('PEDIGREE', cx + 8, cy + 10)
-      doc.setFontSize(11); doc.setTextColor(...white)
-      doc.text(perfil?.nome || '', cx + 8, cy + 17)
-      doc.setFontSize(8); doc.setTextColor(180, 180, 180)
-      if (perfil?.pombal_nome) doc.text(`🏠 ${perfil.pombal_nome}${perfil?.pombal_morada ? ' · ' + perfil.pombal_morada : ''}`, cx + 8, cy + 22)
-      if (perfil?.org) doc.text(`${perfil.org}${perfil?.fed ? ' · ' + perfil.fed : ''}`, cx + 8, cy + 27)
-      doc.setFontSize(8); doc.setTextColor(...gold)
-      doc.text('DATA DE EMISSÃO', W - 16, cy + 8, { align: 'right' })
-      doc.setFontSize(10); doc.setFont('helvetica','bold'); doc.setTextColor(...white)
-      doc.text(new Date().toLocaleDateString('pt-PT'), W - 16, cy + 14, { align: 'right' })
-      doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor(150, 150, 150)
-      doc.text('Documento oficial', W - 16, cy + 20, { align: 'right' })
-      doc.text(`ChampionsLoft © ${new Date().getFullYear()}`, W - 16, cy + 25, { align: 'right' })
+      // Linha separadora
+      doc.setDrawColor(...GOLD)
+      doc.setLineWidth(0.5)
+      doc.line(7, hy + 25, W - 7, hy + 25)
 
-      cy = 50
-      // Pombo principal
-      const drawNode = (node, x, y, w, h, destaque = false) => {
-        doc.setFillColor(...(destaque ? [11, 30, 60] : [8, 20, 40]))
-        doc.setDrawColor(...(destaque ? gold : [30, 50, 90]))
+      // === CONTEÚDO ===
+      const cy = hy + 30
+
+      // Função para desenhar box de ancestral
+      const box = (node, x, y, w, h, tipo = 'normal') => {
+        const isEmpty = !node?.nome && !node?.anilha
+        // Sombra subtil
+        doc.setFillColor(210, 215, 225)
+        doc.roundedRect(x + 0.5, y + 0.5, w, h, 1.5, 1.5, 'F')
+        // Fundo
+        doc.setFillColor(...(isEmpty ? [248,248,252] : tipo === 'main' ? [240, 244, 255] : WHITE))
+        doc.setDrawColor(...(tipo === 'main' ? GOLD : isEmpty ? LGREY : LGREY))
+        doc.setLineWidth(tipo === 'main' ? 0.6 : 0.3)
         doc.roundedRect(x, y, w, h, 1.5, 1.5, 'FD')
-        if (!node?.nome && !node?.anilha) {
-          doc.setFontSize(6); doc.setTextColor(80, 80, 100)
-          doc.text('+', x + w/2, y + h/2 - 1, { align: 'center' })
-          doc.text('Desconhecido', x + w/2, y + h/2 + 3, { align: 'center' })
+        // Barra lateral colorida
+        if (!isEmpty) {
+          const barCol = tipo === 'pai' ? BLUE_L : tipo === 'mae' ? RED_L : tipo === 'main' ? GOLD : NAVY
+          doc.setFillColor(...barCol)
+          doc.roundedRect(x, y, 1.2, h, 0.5, 0.5, 'F')
+        }
+        if (isEmpty) {
+          doc.setFontSize(5); doc.setFont('helvetica','normal')
+          doc.setTextColor(180, 180, 195)
+          doc.text('—', x + w/2, y + h/2 + 1.5, { align: 'center' })
           return
         }
         let ty = y + 4
         if (node.anilha) {
-          doc.setFontSize(5.5); doc.setFont('courier','normal'); doc.setTextColor(...gold)
-          doc.text(node.anilha.substring(0, 18), x + 2, ty)
-          ty += 3.5
+          doc.setFontSize(5); doc.setFont('courier','bold')
+          doc.setTextColor(...GOLD)
+          doc.text(node.anilha.substring(0, 20), x + 3, ty)
+          ty += 3.2
         }
         if (node.nome) {
-          doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.setTextColor(...white)
-          doc.text(node.nome.substring(0, 16), x + 2, ty)
-          ty += 3.5
+          doc.setFontSize(tipo === 'main' ? 7.5 : 6.5); doc.setFont('helvetica','bold')
+          doc.setTextColor(...NAVY)
+          doc.text(node.nome.substring(0, 18), x + 3, ty)
+          ty += 3.2
         }
         if (node.cor) {
-          doc.setFontSize(5.5); doc.setFont('helvetica','normal'); doc.setTextColor(180, 180, 180)
-          doc.text(node.cor.substring(0, 20), x + 2, ty)
-          ty += 3
+          doc.setFontSize(5); doc.setFont('helvetica','normal')
+          doc.setTextColor(100, 100, 130)
+          doc.text(node.cor.substring(0, 22), x + 3, ty)
+          ty += 2.8
         }
-        if (node.conquistas) {
-          doc.setFontSize(5); doc.setTextColor(45, 212, 167)
-          const linhas = node.conquistas.substring(0, 60)
-          doc.text(linhas, x + 2, ty, { maxWidth: w - 4 })
+        if (node.linhagem) {
+          doc.setFontSize(5); doc.setTextColor(...BLUE_L)
+          doc.text(node.linhagem.substring(0, 22), x + 3, ty)
+          ty += 2.8
+        }
+        if (node.conquistas && ty < y + h - 2) {
+          doc.setFontSize(4.5); doc.setTextColor(...GREEN)
+          doc.text(node.conquistas.substring(0, 35), x + 3, ty, { maxWidth: w - 5 })
         }
         if (node.externo) {
-          doc.setFontSize(5); doc.setTextColor(200, 100, 50)
-          doc.text('Externo', x + 2, y + h - 2)
+          doc.setFontSize(4.5); doc.setTextColor(180, 80, 30)
+          doc.text('Externo', x + w - 3, y + h - 2, { align: 'right' })
         }
       }
 
-      // Pombo principal box
-      doc.setFillColor(11, 30, 60)
-      doc.setDrawColor(...gold)
-      doc.roundedRect(8, cy, 42, 52, 2, 2, 'FD')
-      doc.setFontSize(7.5); doc.setFont('courier','normal'); doc.setTextColor(...gold)
-      doc.text(arvore.pombo.anilha || '', 10, cy + 7)
-      doc.setFontSize(11); doc.setFont('helvetica','bold'); doc.setTextColor(...white)
-      doc.text(arvore.pombo.nome || '', 10, cy + 13)
-      doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor(180, 180, 180)
-      if (arvore.pombo.cor) doc.text(arvore.pombo.cor, 10, cy + 18)
+      const label = (txt, x, y, cor = NAVY) => {
+        doc.setFontSize(5); doc.setFont('helvetica','bold')
+        doc.setTextColor(...cor)
+        doc.text(txt.toUpperCase(), x, y)
+      }
+
+      // POMBO PRINCIPAL
+      const mainW = 40, mainH = 50
+      box(arvore.pombo, 7, cy, mainW, mainH, 'main')
+      // Conquistas abaixo
       if (arvore.pombo.conquistas) {
-        doc.setFontSize(6); doc.setTextColor(45, 212, 167)
-        doc.text(arvore.pombo.conquistas.substring(0, 40), 10, cy + 23, { maxWidth: 36 })
+        doc.setFontSize(5.5); doc.setFont('helvetica','italic'); doc.setTextColor(...GREEN)
+        doc.text(`🏆 ${arvore.pombo.conquistas.substring(0, 45)}`, 7, cy + mainH + 4, { maxWidth: mainW })
       }
 
-      // Labels
-      const labelCol = (x, y, txt, cor = gold) => {
-        doc.setFontSize(5.5); doc.setFont('helvetica','bold'); doc.setTextColor(...cor)
-        doc.text(txt, x, y)
-      }
-
+      const treeX = 52
       // PAIS
-      const pX = 54
-      labelCol(pX, cy + 2, 'PAIS')
-      labelCol(pX, cy + 5, 'PAI', [100, 150, 255])
-      drawNode(arvore.pai, pX, cy + 6, 44, 22, true)
-      labelCol(pX + 48, cy + 5, 'MÃE', [255, 130, 130])
-      drawNode(arvore.mae, pX + 48, cy + 6, 44, 22, true)
+      label('Pais', treeX, cy - 1)
+      label('Pai', treeX, cy + 3, BLUE_L)
+      box(arvore.pai, treeX, cy + 4, 50, 28, 'pai')
+      label('Mãe', treeX + 54, cy + 3, RED_L)
+      box(arvore.mae, treeX + 54, cy + 4, 50, 28, 'mae')
 
       // AVÓS
       if (geracoes >= 2) {
-        labelCol(pX, cy + 31, 'AVÓS')
-        const avoW = 20, avoH = 18
+        const avoY = cy + 36
+        label('Avós', treeX, avoY - 1)
+        const avoW = 25, avoH = 22
         const avos = [
-          [arvore.avo_pp, 'P-Pai', [100,150,255]], [arvore.avo_pm, 'P-Mãe', [100,150,255]],
-          [arvore.avo_mp, 'M-Pai', [255,130,130]], [arvore.avo_mm, 'M-Mãe', [255,130,130]]
+          [arvore.avo_pp, 'P-Pai', BLUE_L], [arvore.avo_pm, 'P-Mãe', [50, 100, 200]],
+          [arvore.avo_mp, 'M-Pai', RED_L], [arvore.avo_mm, 'M-Mãe', [180, 40, 80]]
         ]
-        avos.forEach(([node, label, cor], i) => {
-          const ax = pX + i * (avoW + 2)
-          labelCol(ax, cy + 34, label, cor)
-          drawNode(node, ax, cy + 35, avoW, avoH)
+        avos.forEach(([node, lbl, cor], i) => {
+          const ax = treeX + i * (avoW + 2)
+          label(lbl, ax, avoY + 2, cor)
+          box(node, ax, avoY + 3, avoW, avoH)
         })
       }
 
       // BISAVÓS
       if (geracoes >= 3) {
-        const bisY = cy + 55
-        labelCol(pX, bisY - 2, 'BISAVÓS')
-        const bisW = 20, bisH = 14
+        const bisY = cy + 62
+        label('Bisavós', treeX, bisY - 1)
+        const bisW = 22, bisH = 17
         const bisavos = [
-          [arvore.bis_ppp,'PP-Pai',[80,120,220]],[arvore.bis_ppm,'PP-Mãe',[80,120,220]],
-          [arvore.bis_pmp,'PM-Pai',[100,170,255]],[arvore.bis_pmm,'PM-Mãe',[100,170,255]],
-          [arvore.bis_mpp,'MP-Pai',[220,80,80]],[arvore.bis_mpm,'MP-Mãe',[220,80,80]],
-          [arvore.bis_mmp,'MM-Pai',[255,100,150]],[arvore.bis_mmm,'MM-Mãe',[255,100,150]]
+          [arvore.bis_ppp,'PP-Pai',[30,70,180]],[arvore.bis_ppm,'PP-Mãe',[30,70,180]],
+          [arvore.bis_pmp,'PM-Pai',[80,130,220]],[arvore.bis_pmm,'PM-Mãe',[80,130,220]],
+          [arvore.bis_mpp,'MP-Pai',[160,30,30]],[arvore.bis_mpm,'MP-Mãe',[160,30,30]],
+          [arvore.bis_mmp,'MM-Pai',[200,60,100]],[arvore.bis_mmm,'MM-Mãe',[200,60,100]]
         ]
-        bisavos.forEach(([node, label, cor], i) => {
-          const bx = pX + i * (bisW + 2)
-          labelCol(bx, bisY, label, cor)
-          drawNode(node, bx, bisY + 1, bisW, bisH)
+        bisavos.forEach(([node, lbl, cor], i) => {
+          const bx = treeX + i * (bisW + 2)
+          label(lbl, bx, bisY + 2, cor)
+          box(node, bx, bisY + 3, bisW, bisH)
         })
+        // Legenda
+        doc.setFontSize(4.5); doc.setFont('helvetica','normal'); doc.setTextColor(160, 160, 180)
+        doc.text('PP=Pai do Pai · PM=Pai da Mãe · MP=Mãe do Pai · MM=Mãe da Mãe', treeX, bisY + bisH + 6)
       }
 
-      // Rodapé
-      doc.setFillColor(11, 24, 48)
-      doc.rect(0, H - 8, W, 8, 'F')
-      doc.setFontSize(6); doc.setFont('helvetica','normal'); doc.setTextColor(100, 100, 120)
-      doc.text('Documento gerado pela ChampionsLoft · championsloft.app', 8, H - 3)
-      doc.text(`© ${new Date().getFullYear()} ${perfil?.nome || ''}`, W - 8, H - 3, { align: 'right' })
+      // === RODAPÉ ===
+      doc.setFillColor(...NAVY)
+      doc.rect(0, H - 9, W, 9, 'F')
+      doc.setFillColor(...GOLD)
+      doc.rect(0, H - 9, W, 0.8, 'F')
+      doc.setFontSize(5.5); doc.setFont('helvetica','normal')
+      doc.setTextColor(160, 170, 200)
+      doc.text('Documento gerado pela ChampionsLoft · championsloft.app', 8, H - 3.5)
+      doc.setTextColor(...GOLD)
+      doc.text(`© ${new Date().getFullYear()} ${perfil?.nome || ''}`, W - 8, H - 3.5, { align: 'right' })
 
       doc.save(`pedigree-${arvore.pombo.nome || 'pombo'}.pdf`)
-      toast('PDF gerado!', 'ok')
+      toast('PDF gerado com sucesso!', 'ok')
     } catch(e) {
-      toast('Erro ao gerar PDF: ' + e.message, 'err')
+      toast('Erro: ' + e.message, 'err')
     }
   }
-
   const PomboNode = ({ nodeKey, label, destaque, mini }) => {
     if (!arvore) return null
     const node = arvore[nodeKey]
