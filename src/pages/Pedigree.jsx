@@ -154,98 +154,173 @@ export default function Pedigree({ nav, params }) {
     toast('Guardado!', 'ok')
   }
 
-  const imprimirPedigree = () => {
+  const gerarPDF = async () => {
     if (!arvore) return
-    const p = arvore.pombo
-    const nodeHtml = (node, label, cor = '#1a1a6e', mini = false) => {
-      if (!node?.nome && !node?.anilha) return `<div class="node mini" style="border:1px dashed #ccc;color:#999;font-size:${mini?8:10}px;padding:${mini?4:8}px;border-radius:6px;min-width:${mini?70:90}px"><div style="text-align:center">+<br/>${label||'Desconhecido'}</div></div>`
-      return `<div class="node" style="border:1px solid ${cor};border-radius:6px;padding:${mini?'4px 6px':'8px 10px'};min-width:${mini?70:90}px;background:#f9f9f9;font-size:${mini?8:10}px">
-        ${node.foto_url && !mini ? `<img src="${node.foto_url}" style="width:100%;height:40px;object-fit:cover;border-radius:3px;margin-bottom:4px"/>` : ''}
-        <div style="font-family:monospace;font-size:${mini?7:8}px;color:#B8860B">${node.anilha||''}</div>
-        <div style="font-weight:700;color:#111;font-size:${mini?9:11}px">${node.nome||''}</div>
-        ${node.cor&&!mini?`<div style="color:#555;font-size:8px">${node.cor}</div>`:''}
-        ${node.linhagem&&!mini?`<div style="color:#1a1a6e;font-size:8px">${node.linhagem}</div>`:''}
-        ${node.conquistas&&!mini?`<div style="color:#006400;font-size:7px;margin-top:2px">${node.conquistas}</div>`:''}
-        ${node.externo?`<div style="color:#cc4400;font-size:7px">🌍 Externo</div>`:''}
-      </div>`
-    }
-    const w = window.open('', '_blank', 'width=1100,height=800')
-    w.document.write(`<!DOCTYPE html><html><head>
-      <meta charset="utf-8"/>
-      <title>Pedigree · ${p.nome}</title>
-      <style>
-        @page { size: A4 landscape; margin: 8mm; }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: Arial, sans-serif; background: white; color: #111; font-size: 10px; }
-        .header-bar { background: linear-gradient(90deg,#B8860B,#DAA520,#B8860B); padding: 5px 14px; display: flex; justify-content: space-between; align-items: center; border-radius: 8px 8px 0 0; }
-        .header-body { border: 2px solid #DAA520; border-top: none; border-radius: 0 0 8px 8px; padding: 12px 16px; display: flex; gap: 14px; align-items: center; margin-bottom: 14px; }
-        .section-label { font-size: 8px; font-weight: 700; letter-spacing: 1px; color: #555; text-transform: uppercase; margin-bottom: 4px; }
-        .row { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 10px; }
-        .col { display: flex; flex-direction: column; }
-        .node { break-inside: avoid; }
-        .pombo-main { border: 2px solid #DAA520; border-radius: 8px; padding: 10px; width: 160px; flex-shrink: 0; background: #fff; }
-        img.foto-main { width: 100%; height: 100px; object-fit: cover; border-radius: 4px; margin-bottom: 6px; }
-        .footer { border-top: 1px solid #ccc; margin-top: 12px; padding-top: 6px; display: flex; justify-content: space-between; font-size: 8px; color: #888; }
-      </style>
-    </head><body>
-      <div class="header-bar">
-        <div style="display:flex;align-items:center;gap:8px">
-          <img src="/logo.png" style="height:24px;object-fit:contain" onerror="this.style.display='none'"/>
-          <span style="font-weight:900;color:#111;font-size:12px;letter-spacing:1px">CHAMPIONSLOFT</span>
-        </div>
-        <div style="font-size:9px;color:#111;font-weight:600">PEDIGREE PREMIUM · championsloft.app</div>
-      </div>
-      <div class="header-body">
-        ${perfil?.foto_perfil_url ? `<div style="text-align:center"><img src="${perfil.foto_perfil_url}" style="width:50px;height:50px;border-radius:50%;border:2px solid #DAA520;object-fit:cover"/><div style="font-size:7px;color:#666;margin-top:2px">Columbófilo</div></div>` : ''}
-        ${perfil?.logo_url ? `<div style="text-align:center"><img src="${perfil.logo_url}" style="width:50px;height:50px;border-radius:6px;object-fit:contain;border:1px solid #ccc"/><div style="font-size:7px;color:#666;margin-top:2px">Logo</div></div>` : ''}
-        <div style="flex:1">
-          <div style="font-size:22px;font-weight:900;color:#B8860B;line-height:1">PEDIGREE</div>
-          <div style="font-size:14px;font-weight:700;color:#111;margin-top:3px">${perfil?.nome||''}</div>
-          ${perfil?.pombal_nome?`<div style="font-size:10px;color:#444;margin-top:1px">🏠 ${perfil.pombal_nome}${perfil?.pombal_morada?` · ${perfil.pombal_morada}`:''}</div>`:''}
-          ${perfil?.org?`<div style="font-size:9px;color:#666">${perfil.org}${perfil?.fed?` · ${perfil.fed}`:''}</div>`:''}
-        </div>
-        <div style="text-align:right">
-          <div style="font-size:8px;color:#888;text-transform:uppercase;letter-spacing:1px">Data de emissão</div>
-          <div style="font-size:13px;font-weight:700">${new Date().toLocaleDateString('pt-PT')}</div>
-          <div style="font-size:8px;color:#888;margin-top:4px">Documento oficial</div>
-          <div style="font-size:8px;color:#888">ChampionsLoft © ${new Date().getFullYear()}</div>
-        </div>
-      </div>
+    toast('A gerar PDF...', 'ok')
+    try {
+      // Carregar jsPDF dinamicamente
+      await new Promise((res, rej) => {
+        if (window.jspdf) return res()
+        const s = document.createElement('script')
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'
+        s.onload = res; s.onerror = rej
+        document.head.appendChild(s)
+      })
+      const { jsPDF } = window.jspdf
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+      const W = 297, H = 210
+      const gold = [184, 134, 11]
+      const darkBlue = [5, 13, 26]
+      const white = [255, 255, 255]
+      const grey = [240, 240, 245]
+      const textDark = [17, 17, 17]
 
-      <div class="row">
-        <div class="pombo-main">
-          ${p.foto_url?`<img class="foto-main" src="${p.foto_url}"/>`:`<div style="height:80px;display:flex;align-items:center;justify-content:center;font-size:40px">🐦</div>`}
-          <div style="font-family:monospace;font-size:8px;color:#B8860B">${p.anilha||''}</div>
-          <div style="font-size:14px;font-weight:900;color:#111">${p.nome||''}</div>
-          ${p.cor?`<div style="font-size:9px;color:#555">${p.cor}</div>`:''}
-          ${arvore.pombo.conquistas?`<div style="font-size:8px;color:#006400;margin-top:4px">🏆 ${arvore.pombo.conquistas}</div>`:''}
-        </div>
-        <div style="flex:1">
-          <div class="section-label">Pais</div>
-          <div class="row" style="margin-bottom:8px">
-            <div><div style="font-size:8px;color:#1a1a6e;margin-bottom:2px">PAI</div>${nodeHtml(arvore.pai,'Pai','#1a1a6e')}</div>
-            <div><div style="font-size:8px;color:#8b0000;margin-bottom:2px">MÃE</div>${nodeHtml(arvore.mae,'Mãe','#8b0000')}</div>
-          </div>
-          ${geracoes>=2?`<div class="section-label">Avós</div>
-          <div class="row" style="margin-bottom:8px">
-            <div><div style="font-size:7px;color:#1a1a6e;margin-bottom:2px">P-Pai</div>${nodeHtml(arvore.avo_pp,'P-Pai','#1a1a6e')}</div>
-            <div><div style="font-size:7px;color:#1a1a6e;margin-bottom:2px">P-Mãe</div>${nodeHtml(arvore.avo_pm,'P-Mãe','#1a5c8e')}</div>
-            <div><div style="font-size:7px;color:#8b0000;margin-bottom:2px">M-Pai</div>${nodeHtml(arvore.avo_mp,'M-Pai','#8b0000')}</div>
-            <div><div style="font-size:7px;color:#8b0000;margin-bottom:2px">M-Mãe</div>${nodeHtml(arvore.avo_mm,'M-Mãe','#c00050')}</div>
-          </div>`:''}
-          ${geracoes>=3?`<div class="section-label">Bisavós</div>
-          <div class="row" style="flex-wrap:wrap;gap:4px">
-            ${[['bis_ppp','PP-Pai','#1a1a6e'],['bis_ppm','PP-Mãe','#1a1a6e'],['bis_pmp','PM-Pai','#3a7abf'],['bis_pmm','PM-Mãe','#3a7abf'],['bis_mpp','MP-Pai','#8b0000'],['bis_mpm','MP-Mãe','#8b0000'],['bis_mmp','MM-Pai','#c00050'],['bis_mmm','MM-Mãe','#c00050']].map(([k,l,c])=>`<div><div style="font-size:7px;color:${c};margin-bottom:2px">${l}</div>${nodeHtml(arvore[k],l,c,true)}</div>`).join('')}
-          </div>`:''}
-        </div>
-      </div>
-      <div class="footer">
-        <span>Documento gerado pela ChampionsLoft · championsloft.app</span>
-        <span>© ${new Date().getFullYear()} ${perfil?.nome||''}</span>
-      </div>
-      <script>window.onload=()=>{window.print()}</script>
-    </body></html>`)
-    w.document.close()
+      // Fundo
+      doc.setFillColor(...darkBlue)
+      doc.rect(0, 0, W, H, 'F')
+
+      // Barra dourada topo
+      doc.setFillColor(...gold)
+      doc.rect(0, 0, W, 10, 'F')
+      doc.setFontSize(11); doc.setFont('helvetica','bold')
+      doc.setTextColor(...darkBlue)
+      doc.text('CHAMPIONSLOFT', 8, 7)
+      doc.setFontSize(7); doc.setFont('helvetica','normal')
+      doc.text('PEDIGREE PREMIUM · championsloft.app', W - 8, 7, { align: 'right' })
+
+      // Cabeçalho info columbófilo
+      let cx = 8, cy = 16
+      doc.setFillColor(11, 24, 48)
+      doc.roundedRect(cx, cy, W - 16, 28, 2, 2, 'F')
+      doc.setFontSize(18); doc.setFont('helvetica','bold')
+      doc.setTextColor(...gold)
+      doc.text('PEDIGREE', cx + 8, cy + 10)
+      doc.setFontSize(11); doc.setTextColor(...white)
+      doc.text(perfil?.nome || '', cx + 8, cy + 17)
+      doc.setFontSize(8); doc.setTextColor(180, 180, 180)
+      if (perfil?.pombal_nome) doc.text(`🏠 ${perfil.pombal_nome}${perfil?.pombal_morada ? ' · ' + perfil.pombal_morada : ''}`, cx + 8, cy + 22)
+      if (perfil?.org) doc.text(`${perfil.org}${perfil?.fed ? ' · ' + perfil.fed : ''}`, cx + 8, cy + 27)
+      doc.setFontSize(8); doc.setTextColor(...gold)
+      doc.text('DATA DE EMISSÃO', W - 16, cy + 8, { align: 'right' })
+      doc.setFontSize(10); doc.setFont('helvetica','bold'); doc.setTextColor(...white)
+      doc.text(new Date().toLocaleDateString('pt-PT'), W - 16, cy + 14, { align: 'right' })
+      doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor(150, 150, 150)
+      doc.text('Documento oficial', W - 16, cy + 20, { align: 'right' })
+      doc.text(`ChampionsLoft © ${new Date().getFullYear()}`, W - 16, cy + 25, { align: 'right' })
+
+      cy = 50
+      // Pombo principal
+      const drawNode = (node, x, y, w, h, destaque = false) => {
+        doc.setFillColor(...(destaque ? [11, 30, 60] : [8, 20, 40]))
+        doc.setDrawColor(...(destaque ? gold : [30, 50, 90]))
+        doc.roundedRect(x, y, w, h, 1.5, 1.5, 'FD')
+        if (!node?.nome && !node?.anilha) {
+          doc.setFontSize(6); doc.setTextColor(80, 80, 100)
+          doc.text('+', x + w/2, y + h/2 - 1, { align: 'center' })
+          doc.text('Desconhecido', x + w/2, y + h/2 + 3, { align: 'center' })
+          return
+        }
+        let ty = y + 4
+        if (node.anilha) {
+          doc.setFontSize(5.5); doc.setFont('courier','normal'); doc.setTextColor(...gold)
+          doc.text(node.anilha.substring(0, 18), x + 2, ty)
+          ty += 3.5
+        }
+        if (node.nome) {
+          doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.setTextColor(...white)
+          doc.text(node.nome.substring(0, 16), x + 2, ty)
+          ty += 3.5
+        }
+        if (node.cor) {
+          doc.setFontSize(5.5); doc.setFont('helvetica','normal'); doc.setTextColor(180, 180, 180)
+          doc.text(node.cor.substring(0, 20), x + 2, ty)
+          ty += 3
+        }
+        if (node.conquistas) {
+          doc.setFontSize(5); doc.setTextColor(45, 212, 167)
+          const linhas = node.conquistas.substring(0, 60)
+          doc.text(linhas, x + 2, ty, { maxWidth: w - 4 })
+        }
+        if (node.externo) {
+          doc.setFontSize(5); doc.setTextColor(200, 100, 50)
+          doc.text('Externo', x + 2, y + h - 2)
+        }
+      }
+
+      // Pombo principal box
+      doc.setFillColor(11, 30, 60)
+      doc.setDrawColor(...gold)
+      doc.roundedRect(8, cy, 42, 52, 2, 2, 'FD')
+      doc.setFontSize(7.5); doc.setFont('courier','normal'); doc.setTextColor(...gold)
+      doc.text(arvore.pombo.anilha || '', 10, cy + 7)
+      doc.setFontSize(11); doc.setFont('helvetica','bold'); doc.setTextColor(...white)
+      doc.text(arvore.pombo.nome || '', 10, cy + 13)
+      doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor(180, 180, 180)
+      if (arvore.pombo.cor) doc.text(arvore.pombo.cor, 10, cy + 18)
+      if (arvore.pombo.conquistas) {
+        doc.setFontSize(6); doc.setTextColor(45, 212, 167)
+        doc.text(arvore.pombo.conquistas.substring(0, 40), 10, cy + 23, { maxWidth: 36 })
+      }
+
+      // Labels
+      const labelCol = (x, y, txt, cor = gold) => {
+        doc.setFontSize(5.5); doc.setFont('helvetica','bold'); doc.setTextColor(...cor)
+        doc.text(txt, x, y)
+      }
+
+      // PAIS
+      const pX = 54
+      labelCol(pX, cy + 2, 'PAIS')
+      labelCol(pX, cy + 5, 'PAI', [100, 150, 255])
+      drawNode(arvore.pai, pX, cy + 6, 44, 22, true)
+      labelCol(pX + 48, cy + 5, 'MÃE', [255, 130, 130])
+      drawNode(arvore.mae, pX + 48, cy + 6, 44, 22, true)
+
+      // AVÓS
+      if (geracoes >= 2) {
+        labelCol(pX, cy + 31, 'AVÓS')
+        const avoW = 20, avoH = 18
+        const avos = [
+          [arvore.avo_pp, 'P-Pai', [100,150,255]], [arvore.avo_pm, 'P-Mãe', [100,150,255]],
+          [arvore.avo_mp, 'M-Pai', [255,130,130]], [arvore.avo_mm, 'M-Mãe', [255,130,130]]
+        ]
+        avos.forEach(([node, label, cor], i) => {
+          const ax = pX + i * (avoW + 2)
+          labelCol(ax, cy + 34, label, cor)
+          drawNode(node, ax, cy + 35, avoW, avoH)
+        })
+      }
+
+      // BISAVÓS
+      if (geracoes >= 3) {
+        const bisY = cy + 55
+        labelCol(pX, bisY - 2, 'BISAVÓS')
+        const bisW = 20, bisH = 14
+        const bisavos = [
+          [arvore.bis_ppp,'PP-Pai',[80,120,220]],[arvore.bis_ppm,'PP-Mãe',[80,120,220]],
+          [arvore.bis_pmp,'PM-Pai',[100,170,255]],[arvore.bis_pmm,'PM-Mãe',[100,170,255]],
+          [arvore.bis_mpp,'MP-Pai',[220,80,80]],[arvore.bis_mpm,'MP-Mãe',[220,80,80]],
+          [arvore.bis_mmp,'MM-Pai',[255,100,150]],[arvore.bis_mmm,'MM-Mãe',[255,100,150]]
+        ]
+        bisavos.forEach(([node, label, cor], i) => {
+          const bx = pX + i * (bisW + 2)
+          labelCol(bx, bisY, label, cor)
+          drawNode(node, bx, bisY + 1, bisW, bisH)
+        })
+      }
+
+      // Rodapé
+      doc.setFillColor(11, 24, 48)
+      doc.rect(0, H - 8, W, 8, 'F')
+      doc.setFontSize(6); doc.setFont('helvetica','normal'); doc.setTextColor(100, 100, 120)
+      doc.text('Documento gerado pela ChampionsLoft · championsloft.app', 8, H - 3)
+      doc.text(`© ${new Date().getFullYear()} ${perfil?.nome || ''}`, W - 8, H - 3, { align: 'right' })
+
+      doc.save(`pedigree-${arvore.pombo.nome || 'pombo'}.pdf`)
+      toast('PDF gerado!', 'ok')
+    } catch(e) {
+      toast('Erro ao gerar PDF: ' + e.message, 'err')
+    }
   }
 
   const PomboNode = ({ nodeKey, label, destaque, mini }) => {
@@ -295,7 +370,7 @@ export default function Pedigree({ nav, params }) {
     <div id="pedigree-root">
       <div className="section-header" id="pedigree-config-card">
         <div><div className="section-title">🌳 Pedigree</div></div>
-        {arvore && <button className="btn btn-secondary btn-sm" onClick={imprimirPedigree}>🖨️ Imprimir / PDF</button>}
+        {arvore && <button className="btn btn-primary btn-sm" onClick={gerarPDF}>📥 Descarregar PDF</button>}
       </div>
 
       <div className="card card-p" id="pedigree-config-card" style={{ marginBottom: 16 }}>
