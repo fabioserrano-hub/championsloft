@@ -21,20 +21,30 @@ function initArvore(pombo) {
 }
 
 function preencherDeDB(arvore, pombos) {
-  const find = (anilha) => pombos.find(p => p.anilha === anilha)
+  const findByAnilha = (v) => pombos.find(p => p.anilha === v)
+  const findByNome = (v) => pombos.find(p => p.nome === v)
+  const findPai = (pombo) => {
+    if (!pombo?.pai) return null
+    return findByAnilha(pombo.pai) || findByNome(pombo.pai) || null
+  }
+  const findMae = (pombo) => {
+    if (!pombo?.mae) return null
+    return findByAnilha(pombo.mae) || findByNome(pombo.mae) || null
+  }
   const fill = (node, pombo) => pombo ? { ...node, anilha: pombo.anilha, nome: pombo.nome, cor: pombo.cor||'', foto_url: pombo.foto_url||'', linhagem: node.linhagem||'', conquistas: node.conquistas||`${pombo.provas||0} provas · percentil ${pombo.percentil||0}%`, desc: node.desc||'' } : node
 
-  const pai = find(arvore.pombo.anilha) ? find(find(arvore.pombo.anilha)?.pai) : null
-  const mae = find(arvore.pombo.anilha) ? find(find(arvore.pombo.anilha)?.mae) : null
+  const pomboPrincipal = findByAnilha(arvore.pombo.anilha)
+  const pai = findPai(pomboPrincipal)
+  const mae = findMae(pomboPrincipal)
 
   return {
     ...arvore,
     pai: fill(arvore.pai, pai),
     mae: fill(arvore.mae, mae),
-    avo_pp: fill(arvore.avo_pp, pai ? find(pai.pai) : null),
-    avo_pm: fill(arvore.avo_pm, pai ? find(pai.mae) : null),
-    avo_mp: fill(arvore.avo_mp, mae ? find(mae.pai) : null),
-    avo_mm: fill(arvore.avo_mm, mae ? find(mae.mae) : null),
+    avo_pp: fill(arvore.avo_pp, findPai(pai)),
+    avo_pm: fill(arvore.avo_pm, findMae(pai)),
+    avo_mp: fill(arvore.avo_mp, findPai(mae)),
+    avo_mm: fill(arvore.avo_mm, findMae(mae)),
   }
 }
 
@@ -73,6 +83,8 @@ export default function Pedigree({ nav }) {
     const pombo = pombos.find(p => p.id === id)
     const saved = localStorage.getItem(CHAVE_STORAGE + id)
     const base = saved ? JSON.parse(saved) : initArvore(pombo)
+    // Sempre actualizar o nó do pombo principal com dados actuais
+    base.pombo = { ...base.pombo, anilha: pombo?.anilha||'', nome: pombo?.nome||'', cor: pombo?.cor||'', foto_url: pombo?.foto_url||'' }
     const preenchido = preencherDeDB(base, pombos)
     setArvore(preenchido)
   }
@@ -212,7 +224,20 @@ export default function Pedigree({ nav }) {
           {/* Cabeçalho premium para impressão */}
           <div className="card card-p" style={{ marginBottom: 16, background: 'linear-gradient(135deg,#050D1A,#0B1830)' }}>
             <div style={{ display:'flex', gap:16, alignItems:'flex-start' }}>
-              {logoUrl && <img src={logoUrl} alt="Logo" style={{ width:64, height:64, objectFit:'cover', borderRadius:10, flexShrink:0 }} />}
+              <div style={{ display:'flex', gap:8, flexShrink:0 }}>
+                {perfil?.foto_perfil_url && (
+                  <div style={{ textAlign:'center' }}>
+                    <img src={perfil.foto_perfil_url} alt="" style={{ width:56, height:56, objectFit:'cover', borderRadius:'50%', border:'2px solid #D4AF37' }} />
+                    <div style={{ fontSize:8, color:'#7A8699', marginTop:2 }}>Columbófilo</div>
+                  </div>
+                )}
+                {logoUrl && (
+                  <div style={{ textAlign:'center' }}>
+                    <img src={logoUrl} alt="Logo" style={{ width:56, height:56, objectFit:'cover', borderRadius:10, border:'2px solid #1B2D52' }} />
+                    <div style={{ fontSize:8, color:'#7A8699', marginTop:2 }}>Pombal</div>
+                  </div>
+                )}
+              </div>
               <div style={{ flex:1 }}>
                 <div style={{ fontFamily:"'Fraunces',serif", fontSize:22, fontWeight:900, color:'#D4AF37', marginBottom:2 }}>PEDIGREE</div>
                 <div style={{ fontSize:16, fontWeight:600, color:'#fff' }}>{perfil?.nome || 'Columbófilo'}</div>
