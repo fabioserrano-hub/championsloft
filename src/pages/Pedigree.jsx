@@ -159,18 +159,23 @@ export default function Pedigree({ nav, params }) {
     style.id = 'pedigree-print-style'
     style.textContent = `
       @media print {
-        @page { size: A4 landscape; margin: 10mm; }
+        @page { size: A4 landscape; margin: 8mm; }
+        body { background: #050D1A !important; }
         body > *:not(#pedigree-root) { display: none !important; }
-        #pedigree-root { display: block !important; font-family: 'Inter', sans-serif; }
-        .sidebar, .topbar, .section-header > button, .btn { display: none !important; }
-        * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-scheme: dark !important; }
-        .pedigree-card { page-break-inside: avoid; break-inside: avoid; }
+        #pedigree-root { display: block !important; background: #050D1A !important; color: #ffffff !important; }
         #pedigree-config-card { display: none !important; }
+        * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        div, span, p { color: inherit !important; }
+        .card, .card-p { background: #0B1830 !important; border: 1px solid #1B2D52 !important; }
+        .pedigree-card { page-break-inside: avoid !important; break-inside: avoid !important; }
+        button { display: none !important; }
+        input, select { display: none !important; }
+        label { display: none !important; }
       }
     `
     document.head.appendChild(style)
     window.print()
-    setTimeout(() => document.head.removeChild(style), 2000)
+    setTimeout(() => { try { document.head.removeChild(style) } catch(e) {} }, 3000)
   }
 
   const PomboNode = ({ nodeKey, label, destaque, mini }) => {
