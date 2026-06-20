@@ -155,27 +155,97 @@ export default function Pedigree({ nav, params }) {
   }
 
   const imprimirPedigree = () => {
-    const style = document.createElement('style')
-    style.id = 'pedigree-print-style'
-    style.textContent = `
-      @media print {
+    if (!arvore) return
+    const p = arvore.pombo
+    const nodeHtml = (node, label, cor = '#1a1a6e', mini = false) => {
+      if (!node?.nome && !node?.anilha) return `<div class="node mini" style="border:1px dashed #ccc;color:#999;font-size:${mini?8:10}px;padding:${mini?4:8}px;border-radius:6px;min-width:${mini?70:90}px"><div style="text-align:center">+<br/>${label||'Desconhecido'}</div></div>`
+      return `<div class="node" style="border:1px solid ${cor};border-radius:6px;padding:${mini?'4px 6px':'8px 10px'};min-width:${mini?70:90}px;background:#f9f9f9;font-size:${mini?8:10}px">
+        ${node.foto_url && !mini ? `<img src="${node.foto_url}" style="width:100%;height:40px;object-fit:cover;border-radius:3px;margin-bottom:4px"/>` : ''}
+        <div style="font-family:monospace;font-size:${mini?7:8}px;color:#B8860B">${node.anilha||''}</div>
+        <div style="font-weight:700;color:#111;font-size:${mini?9:11}px">${node.nome||''}</div>
+        ${node.cor&&!mini?`<div style="color:#555;font-size:8px">${node.cor}</div>`:''}
+        ${node.linhagem&&!mini?`<div style="color:#1a1a6e;font-size:8px">${node.linhagem}</div>`:''}
+        ${node.conquistas&&!mini?`<div style="color:#006400;font-size:7px;margin-top:2px">${node.conquistas}</div>`:''}
+        ${node.externo?`<div style="color:#cc4400;font-size:7px">🌍 Externo</div>`:''}
+      </div>`
+    }
+    const w = window.open('', '_blank', 'width=1100,height=800')
+    w.document.write(`<!DOCTYPE html><html><head>
+      <meta charset="utf-8"/>
+      <title>Pedigree · ${p.nome}</title>
+      <style>
         @page { size: A4 landscape; margin: 8mm; }
-        body { background: #050D1A !important; }
-        body > *:not(#pedigree-root) { display: none !important; }
-        #pedigree-root { display: block !important; background: #050D1A !important; color: #ffffff !important; }
-        #pedigree-config-card { display: none !important; }
-        * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-        div, span, p { color: inherit !important; }
-        .card, .card-p { background: #0B1830 !important; border: 1px solid #1B2D52 !important; }
-        .pedigree-card { page-break-inside: avoid !important; break-inside: avoid !important; }
-        button { display: none !important; }
-        input, select { display: none !important; }
-        label { display: none !important; }
-      }
-    `
-    document.head.appendChild(style)
-    window.print()
-    setTimeout(() => { try { document.head.removeChild(style) } catch(e) {} }, 3000)
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: Arial, sans-serif; background: white; color: #111; font-size: 10px; }
+        .header-bar { background: linear-gradient(90deg,#B8860B,#DAA520,#B8860B); padding: 5px 14px; display: flex; justify-content: space-between; align-items: center; border-radius: 8px 8px 0 0; }
+        .header-body { border: 2px solid #DAA520; border-top: none; border-radius: 0 0 8px 8px; padding: 12px 16px; display: flex; gap: 14px; align-items: center; margin-bottom: 14px; }
+        .section-label { font-size: 8px; font-weight: 700; letter-spacing: 1px; color: #555; text-transform: uppercase; margin-bottom: 4px; }
+        .row { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 10px; }
+        .col { display: flex; flex-direction: column; }
+        .node { break-inside: avoid; }
+        .pombo-main { border: 2px solid #DAA520; border-radius: 8px; padding: 10px; width: 160px; flex-shrink: 0; background: #fff; }
+        img.foto-main { width: 100%; height: 100px; object-fit: cover; border-radius: 4px; margin-bottom: 6px; }
+        .footer { border-top: 1px solid #ccc; margin-top: 12px; padding-top: 6px; display: flex; justify-content: space-between; font-size: 8px; color: #888; }
+      </style>
+    </head><body>
+      <div class="header-bar">
+        <div style="display:flex;align-items:center;gap:8px">
+          <img src="/logo.png" style="height:24px;object-fit:contain" onerror="this.style.display='none'"/>
+          <span style="font-weight:900;color:#111;font-size:12px;letter-spacing:1px">CHAMPIONSLOFT</span>
+        </div>
+        <div style="font-size:9px;color:#111;font-weight:600">PEDIGREE PREMIUM · championsloft.app</div>
+      </div>
+      <div class="header-body">
+        ${perfil?.foto_perfil_url ? `<div style="text-align:center"><img src="${perfil.foto_perfil_url}" style="width:50px;height:50px;border-radius:50%;border:2px solid #DAA520;object-fit:cover"/><div style="font-size:7px;color:#666;margin-top:2px">Columbófilo</div></div>` : ''}
+        ${perfil?.logo_url ? `<div style="text-align:center"><img src="${perfil.logo_url}" style="width:50px;height:50px;border-radius:6px;object-fit:contain;border:1px solid #ccc"/><div style="font-size:7px;color:#666;margin-top:2px">Logo</div></div>` : ''}
+        <div style="flex:1">
+          <div style="font-size:22px;font-weight:900;color:#B8860B;line-height:1">PEDIGREE</div>
+          <div style="font-size:14px;font-weight:700;color:#111;margin-top:3px">${perfil?.nome||''}</div>
+          ${perfil?.pombal_nome?`<div style="font-size:10px;color:#444;margin-top:1px">🏠 ${perfil.pombal_nome}${perfil?.pombal_morada?` · ${perfil.pombal_morada}`:''}</div>`:''}
+          ${perfil?.org?`<div style="font-size:9px;color:#666">${perfil.org}${perfil?.fed?` · ${perfil.fed}`:''}</div>`:''}
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:8px;color:#888;text-transform:uppercase;letter-spacing:1px">Data de emissão</div>
+          <div style="font-size:13px;font-weight:700">${new Date().toLocaleDateString('pt-PT')}</div>
+          <div style="font-size:8px;color:#888;margin-top:4px">Documento oficial</div>
+          <div style="font-size:8px;color:#888">ChampionsLoft © ${new Date().getFullYear()}</div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="pombo-main">
+          ${p.foto_url?`<img class="foto-main" src="${p.foto_url}"/>`:`<div style="height:80px;display:flex;align-items:center;justify-content:center;font-size:40px">🐦</div>`}
+          <div style="font-family:monospace;font-size:8px;color:#B8860B">${p.anilha||''}</div>
+          <div style="font-size:14px;font-weight:900;color:#111">${p.nome||''}</div>
+          ${p.cor?`<div style="font-size:9px;color:#555">${p.cor}</div>`:''}
+          ${arvore.pombo.conquistas?`<div style="font-size:8px;color:#006400;margin-top:4px">🏆 ${arvore.pombo.conquistas}</div>`:''}
+        </div>
+        <div style="flex:1">
+          <div class="section-label">Pais</div>
+          <div class="row" style="margin-bottom:8px">
+            <div><div style="font-size:8px;color:#1a1a6e;margin-bottom:2px">PAI</div>${nodeHtml(arvore.pai,'Pai','#1a1a6e')}</div>
+            <div><div style="font-size:8px;color:#8b0000;margin-bottom:2px">MÃE</div>${nodeHtml(arvore.mae,'Mãe','#8b0000')}</div>
+          </div>
+          ${geracoes>=2?`<div class="section-label">Avós</div>
+          <div class="row" style="margin-bottom:8px">
+            <div><div style="font-size:7px;color:#1a1a6e;margin-bottom:2px">P-Pai</div>${nodeHtml(arvore.avo_pp,'P-Pai','#1a1a6e')}</div>
+            <div><div style="font-size:7px;color:#1a1a6e;margin-bottom:2px">P-Mãe</div>${nodeHtml(arvore.avo_pm,'P-Mãe','#1a5c8e')}</div>
+            <div><div style="font-size:7px;color:#8b0000;margin-bottom:2px">M-Pai</div>${nodeHtml(arvore.avo_mp,'M-Pai','#8b0000')}</div>
+            <div><div style="font-size:7px;color:#8b0000;margin-bottom:2px">M-Mãe</div>${nodeHtml(arvore.avo_mm,'M-Mãe','#c00050')}</div>
+          </div>`:''}
+          ${geracoes>=3?`<div class="section-label">Bisavós</div>
+          <div class="row" style="flex-wrap:wrap;gap:4px">
+            ${[['bis_ppp','PP-Pai','#1a1a6e'],['bis_ppm','PP-Mãe','#1a1a6e'],['bis_pmp','PM-Pai','#3a7abf'],['bis_pmm','PM-Mãe','#3a7abf'],['bis_mpp','MP-Pai','#8b0000'],['bis_mpm','MP-Mãe','#8b0000'],['bis_mmp','MM-Pai','#c00050'],['bis_mmm','MM-Mãe','#c00050']].map(([k,l,c])=>`<div><div style="font-size:7px;color:${c};margin-bottom:2px">${l}</div>${nodeHtml(arvore[k],l,c,true)}</div>`).join('')}
+          </div>`:''}
+        </div>
+      </div>
+      <div class="footer">
+        <span>Documento gerado pela ChampionsLoft · championsloft.app</span>
+        <span>© ${new Date().getFullYear()} ${perfil?.nome||''}</span>
+      </div>
+      <script>window.onload=()=>{window.print()}</script>
+    </body></html>`)
+    w.document.close()
   }
 
   const PomboNode = ({ nodeKey, label, destaque, mini }) => {
