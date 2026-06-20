@@ -77,22 +77,29 @@ export default function Pedigree({ nav }) {
 
   useEffect(() => { load() }, [load])
 
-  const selecionarPombo = (id) => {
+  const selecionarPombo = async (id) => {
     setPomboSel(id)
     if (!id) { setArvore(null); return }
     const pombo = pombos.find(p => p.id === id)
-    const saved = localStorage.getItem(CHAVE_STORAGE + id)
-    const base = saved ? JSON.parse(saved) : initArvore(pombo)
-    // Sempre actualizar o nó do pombo principal com dados actuais
+    // Tentar Supabase primeiro, fallback localStorage
+    let base = null
+    try { base = await db.getPedigree(id) } catch(e) {}
+    if (!base) {
+      const local = localStorage.getItem(CHAVE_STORAGE + id)
+      base = local ? JSON.parse(local) : null
+    }
+    if (!base) base = initArvore(pombo)
     base.pombo = { ...base.pombo, anilha: pombo?.anilha||'', nome: pombo?.nome||'', cor: pombo?.cor||'', foto_url: pombo?.foto_url||'' }
-    const preenchido = preencherDeDB(base, pombos)
-    setArvore(preenchido)
+    setArvore(preencherDeDB(base, pombos))
   }
 
   const updateArvore = (key, campo, valor) => {
     setArvore(a => {
       const nova = { ...a, [key]: { ...a[key], [campo]: valor } }
-      if (pomboSel) localStorage.setItem(CHAVE_STORAGE + pomboSel, JSON.stringify(nova))
+      if (pomboSel) {
+        localStorage.setItem(CHAVE_STORAGE + pomboSel, JSON.stringify(nova))
+        db.savePedigree(pomboSel, nova).catch(() => {})
+      }
       return nova
     })
   }
@@ -105,10 +112,14 @@ export default function Pedigree({ nav }) {
   const guardarNode = () => {
     setArvore(a => {
       const nova = { ...a, [modalNode]: { ...formNode } }
-      if (pomboSel) localStorage.setItem(CHAVE_STORAGE + pomboSel, JSON.stringify(nova))
+      if (pomboSel) {
+        localStorage.setItem(CHAVE_STORAGE + pomboSel, JSON.stringify(nova))
+        db.savePedigree(pomboSel, nova).catch(() => {})
+      }
       return nova
     })
     setModalNode(null)
+    toast('Guardado!', 'ok')
   }
 
   const imprimirPedigree = () => {
