@@ -333,17 +333,48 @@ export default function Comunidade({ nav }) {
   const [showCartao, setShowCartao] = useState(false)
 
   // Formatar conteúdo com hashtags clicáveis
+  const [modalRepost, setModalRepost] = useState(null)
+  const [modalGrupo, setModalGrupo] = useState(false)
+  const [grupos, setGrupos] = useState([
+    { id:'vel', nome:'Velocidade PT', icon:'⚡', membros:234, desc:'Provas de velocidade em Portugal' },
+    { id:'fundo', nome:'Fundo & G.Fundo', icon:'🏔️', membros:187, desc:'Especialistas em longas distâncias' },
+    { id:'jan', nome:'Linha Janssen', icon:'🧬', membros:156, desc:'Criadores da linha Janssen' },
+    { id:'norte', nome:'Norte de Portugal', icon:'🗺️', membros:98, desc:'Columbófilos do Norte' },
+    { id:'centro', nome:'Centro Portugal', icon:'🗺️', membros:76, desc:'Região Centro' },
+    { id:'sul', nome:'Sul & Alentejo', icon:'🗺️', membros:54, desc:'Região Sul' },
+  ])
+  const [gruposJunto, setGruposJunto] = useState(new Set())
+
   const formatConteudo = (texto) => {
     if (!texto) return null
     return texto.split('\n').map((linha, li) => (
       <div key={li}>
-        {linha.split(/(\#\w+)/g).map((part, i) =>
+        {linha.split(/(\#\w+|@\w+)/g).map((part, i) =>
           part.startsWith('#')
             ? <span key={i} style={{ color:'#4C8DFF', cursor:'pointer', fontWeight:500 }} onClick={() => setHashtagFiltro(part)}>{part}</span>
-            : part
+            : part.startsWith('@')
+              ? <span key={i} style={{ color:'#2DD4A7', fontWeight:600, cursor:'pointer' }}>{part}</span>
+              : part
         )}
       </div>
     ))
+  }
+
+  const repostar = async (post) => {
+    if (!modalRepost) return
+    setSavingPost(true)
+    try {
+      await db.createPost({
+        autor_nome: nome,
+        autor_avatar: perfil?.foto_perfil_url || '',
+        autor_username: user?.email?.split('@')[0] || 'user',
+        tipo: post.tipo,
+        conteudo: `🔁 Repost de @${post.autor_username||post.autor_nome}\n\n${post.conteudo}`,
+        likes_count: 0, comments_count: 0,
+      })
+      toast('Repostado!', 'ok'); setModalRepost(null); load()
+    } catch(e) { toast('Erro: '+e.message,'err') }
+    finally { setSavingPost(false) }
   }
 
   const PostCard = ({ post }) => {
@@ -402,6 +433,10 @@ export default function Comunidade({ nav }) {
             }} style={{ display:'flex', alignItems:'center', gap:4, background:'none', border:'none', cursor:'pointer', fontSize:13, color:'#7A8699', padding:'4px 8px', borderRadius:6 }}>
               🔗
             </button>
+            <button onClick={() => setModalRepost(post)}
+              style={{ display:'flex', alignItems:'center', gap:4, background:'none', border:'none', cursor:'pointer', fontSize:13, color:'#7A8699', padding:'4px 8px', borderRadius:6 }}>
+              🔁
+            </button>
             {souEu && <button onClick={async () => { await db.deletePost(post.id).catch(()=>{}); setPosts(ps=>ps.filter(p=>p.id!==post.id)) }}
               style={{ marginLeft:'auto', background:'none', border:'none', cursor:'pointer', fontSize:13, color:'#475569', padding:'4px 8px', borderRadius:6 }}>🗑️</button>}
           </div>
@@ -426,7 +461,7 @@ export default function Comunidade({ nav }) {
       </div>
 
       <div style={{ display:'flex', gap:4, background:'#101F40', borderRadius:8, padding:4, marginBottom:16, overflowX:'auto' }}>
-        {[['feed','📰 Feed'],['explorar','🔍 Explorar'],['desafios','🎯 Desafios'],['notifs',`🔔${nNaoLidas?` (${nNaoLidas})`:''}`],['ranking','🏆 Ranking']].map(([t,l]) => (
+        {[['feed','📰 Feed'],['explorar','🔍 Explorar'],['grupos','👥 Grupos'],['desafios','🎯 Desafios'],['notifs',`🔔${nNaoLidas?` (${nNaoLidas})`:''}`],['ranking','🏆 Ranking']].map(([t,l]) => (
           <button key={t} onClick={() => setTab(t)} style={{ flex:'none', padding:'8px 10px', borderRadius:6, fontSize:11, fontWeight:500, cursor:'pointer', border:'none', fontFamily:'inherit', whiteSpace:'nowrap', background:tab===t?'#1E5FD9':'none', color:tab===t?'#fff':'#94a3b8' }}>{l}</button>
         ))}
       </div>
@@ -616,6 +651,39 @@ export default function Comunidade({ nav }) {
             </div>
           )}
 
+          {tab==='grupos' && (
+            <div>
+              <div style={{ fontSize:12, color:'#94a3b8', marginBottom:12 }}>Grupos por especialidade e região. Junta-te para ver posts e interagir com columbófilos da mesma área.</div>
+              <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                {grupos.map(g => {
+                  const junto = gruposJunto.has(g.id)
+                  return (
+                    <div key={g.id} className="card card-p" style={{ borderLeft:`3px solid ${junto?'#2DD4A7':'#1B2D52'}` }}>
+                      <div style={{ display:'flex', gap:12, alignItems:'center' }}>
+                        <div style={{ width:44, height:44, borderRadius:10, background: junto?'rgba(45,212,167,.15)':'#101F40', display:'flex', alignItems:'center', justifyContent:'center', fontSize:22, flexShrink:0 }}>{g.icon}</div>
+                        <div style={{ flex:1 }}>
+                          <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                            <span style={{ fontSize:14, fontWeight:700, color:'#fff' }}>{g.nome}</span>
+                            {junto && <span style={{ fontSize:9, color:'#2DD4A7', background:'rgba(45,212,167,.1)', padding:'1px 6px', borderRadius:8 }}>Membro</span>}
+                          </div>
+                          <div style={{ fontSize:11, color:'#7A8699' }}>{g.desc}</div>
+                          <div style={{ fontSize:10, color:'#475569', marginTop:2 }}>👥 {g.membros + (junto?1:0)} membros</div>
+                        </div>
+                        <button onClick={() => setGruposJunto(s => { const n=new Set(s); junto?n.delete(g.id):n.add(g.id); return n })}
+                          className={`btn btn-sm ${junto?'btn-secondary':'btn-primary'}`}>
+                          {junto ? '✓ Junto' : '+ Juntar'}
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+              <div style={{ marginTop:14, padding:'10px 14px', background:'rgba(76,141,255,.06)', border:'1px solid rgba(76,141,255,.15)', borderRadius:8, fontSize:12, color:'#7A8699', textAlign:'center' }}>
+                🚀 Grupos com publicações próprias e mapa de membros — em breve
+              </div>
+            </div>
+          )}
+
           {tab==='desafios' && (
             <div>
               {/* Streak */}
@@ -771,9 +839,34 @@ export default function Comunidade({ nav }) {
             </div>
           </div>
         )}
+        {/* Menções rápidas */}
+        {explorar.length > 0 && (
+          <div style={{ marginTop:10 }}>
+            <div style={{ fontSize:11, color:'#7A8699', marginBottom:6 }}>@ Mencionar:</div>
+            <div style={{ display:'flex', gap:6, overflowX:'auto', paddingBottom:4 }}>
+              {explorar.slice(0,6).map(p => (
+                <button key={p.id} onClick={() => setFormPost(f=>({...f, conteudo: f.conteudo + ` @${p.nome?.split(' ')[0].toLowerCase()}` }))}
+                  style={{ flexShrink:0, padding:'3px 10px', background:'rgba(45,212,167,.1)', border:'1px solid rgba(45,212,167,.2)', borderRadius:12, fontSize:11, color:'#2DD4A7', cursor:'pointer' }}>
+                  @{p.nome?.split(' ')[0]}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </Modal>
-
-      {/* Modal comentários */}
+      {/* Modal repost */}
+      <Modal open={!!modalRepost} onClose={() => setModalRepost(null)} title="🔁 Repost"
+        footer={<><button className="btn btn-secondary" onClick={() => setModalRepost(null)}>Cancelar</button><button className="btn btn-primary" onClick={() => repostar(modalRepost)} disabled={savingPost}>{savingPost?<Spinner/>:null}Repostar</button></>}>
+        {modalRepost && (
+          <div>
+            <div style={{ background:'#101F40', borderRadius:8, padding:'10px 14px', marginBottom:12, borderLeft:'3px solid #4C8DFF' }}>
+              <div style={{ fontSize:11, fontWeight:600, color:'#4C8DFF', marginBottom:4 }}>{modalRepost.autor_nome}</div>
+              <div style={{ fontSize:12, color:'#94a3b8' }}>{modalRepost.conteudo.slice(0,150)}{modalRepost.conteudo.length>150?'...':''}</div>
+            </div>
+            <div style={{ fontSize:12, color:'#7A8699' }}>O post será partilhado no teu feed com referência ao autor original.</div>
+          </div>
+        )}
+      </Modal>
       <Modal open={!!modalComments} onClose={() => { setModalComments(null); setComments([]) }} title="💬 Comentários"
         footer={<><input className="input" placeholder="Escreve um comentário..." value={novoComment} onChange={e => setNovoComment(e.target.value)} onKeyDown={e => e.key==='Enter' && enviarComment()} style={{ flex:1 }} /><button className="btn btn-primary btn-sm" onClick={enviarComment} disabled={savingComment}>{savingComment?<Spinner />:'Enviar'}</button></>}>
         {comments.length===0 ? <div style={{ textAlign:'center', color:'#7A8699', padding:'20px 0' }}>Sem comentários ainda. Sê o primeiro!</div>
