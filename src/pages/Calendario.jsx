@@ -5,8 +5,8 @@ import { useToast, Spinner, Modal, EmptyState, Field, Badge } from '../component
 const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
 const DIAS_SEMANA = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S']
 const EMPTY = { titulo: '', data_ev: new Date().toISOString().slice(0, 10), tipo: 'Outro', obs: '' }
-const tipoIcon = { 'Prova': '🏆', 'Treino': '🎯', 'Tarefa': '✅', 'Reprodução': '🥚', 'Outro': '📌' }
 const tipoCor = { 'Prova': '#D4AF37', 'Treino': '#4C8DFF', 'Tarefa': '#2DD4A7', 'Reprodução': '#c084fc', 'Outro': '#94a3b8' }
+const tipoIcon = { 'Prova': '🏆', 'Treino': '🎯', 'Tarefa': '✅', 'Reprodução': '🥚', 'Outro': '📌' }
 
 // Parser de CSV simples: aceita vírgula ou ponto-e-vírgula como separador, sem dependências externas.
 // Suficiente para ficheiros bem formados como os exportados por federações/folhas de cálculo.
@@ -68,11 +68,13 @@ export default function Calendario({ nav }) {
   const [mapeamento, setMapeamento] = useState({ nome: '', data: '', dist: '', local: '', especialidade: '' })
   const [importando, setImportando] = useState(false)
 
+  const [acasalamentos, setAcasalamentos] = useState([])
+
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [p, t, tf, ev] = await Promise.all([db.getProvas(), db.getTreinos(), db.getTarefas(), db.getEventosCal()])
-      setProvas(p); setTreinos(t); setTarefas(tf); setEventos(ev)
+      const [p, t, tf, ev, ac] = await Promise.all([db.getProvas(), db.getTreinos(), db.getTarefas(), db.getEventosCal(), db.getAcasalamentos()])
+      setProvas(p); setTreinos(t); setTarefas(tf); setEventos(ev); setAcasalamentos(ac)
     } catch (e) { toast('Erro: ' + e.message, 'err') }
     finally { setLoading(false) }
   }, [])
@@ -84,6 +86,9 @@ export default function Calendario({ nav }) {
     ...treinos.map(t => ({ id: 'treino-' + t.id, titulo: t.local, data: t.data_reg?.slice(0, 10), tipo: 'Treino', origem: t })),
     ...tarefas.filter(t => t.data_prevista).map(t => ({ id: 'tarefa-' + t.id, titulo: t.titulo, data: t.data_prevista, tipo: 'Tarefa', origem: t, concluida: t.estado === 'concluida' })),
     ...eventos.map(e => ({ id: 'evento-' + e.id, titulo: e.titulo, data: e.data_ev?.slice(0, 10), tipo: e.tipo || 'Outro', origem: e, manual: true })),
+    // Eclosões previstas da reprodução
+    ...acasalamentos.filter(a => a.data_eclosao_prev && a.estado === 'em_progresso').map(a => ({ id: 'eclosao-' + a.id, titulo: `🐣 Eclosão: ${a.pai_nome?.split(' ')[0]} × ${a.mae_nome?.split(' ')[0]}${a.cacifo ? ` (#${a.cacifo})` : ''}`, data: a.data_eclosao_prev?.slice(0, 10), tipo: 'Reprodução', origem: a })),
+    ...acasalamentos.filter(a => a.data_postura && a.estado === 'em_progresso').map(a => ({ id: 'postura-' + a.id, titulo: `🥚 Postura: ${a.pai_nome?.split(' ')[0]} × ${a.mae_nome?.split(' ')[0]}`, data: a.data_postura?.slice(0, 10), tipo: 'Reprodução', origem: a })),
   ].filter(e => e.data)
 
   const ano = mesAtual.getFullYear(), mes = mesAtual.getMonth()
