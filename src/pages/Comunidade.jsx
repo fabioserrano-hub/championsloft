@@ -461,7 +461,7 @@ export default function Comunidade({ nav }) {
       </div>
 
       <div style={{ display:'flex', gap:4, background:'#101F40', borderRadius:8, padding:4, marginBottom:16, overflowX:'auto' }}>
-        {[['feed','📰 Feed'],['explorar','🔍 Explorar'],['grupos','👥 Grupos'],['desafios','🎯 Desafios'],['notifs',`🔔${nNaoLidas?` (${nNaoLidas})`:''}`],['ranking','🏆 Ranking']].map(([t,l]) => (
+        {[['feed','📰 Feed'],['explorar','🔍 Explorar'],['mapa','🗺️ Mapa'],['grupos','👥 Grupos'],['desafios','🎯 Desafios'],['notifs',`🔔${nNaoLidas?` (${nNaoLidas})`:''}`],['ranking','🏆 Ranking']].map(([t,l]) => (
           <button key={t} onClick={() => setTab(t)} style={{ flex:'none', padding:'8px 10px', borderRadius:6, fontSize:11, fontWeight:500, cursor:'pointer', border:'none', fontFamily:'inherit', whiteSpace:'nowrap', background:tab===t?'#1E5FD9':'none', color:tab===t?'#fff':'#94a3b8' }}>{l}</button>
         ))}
       </div>
@@ -650,6 +650,75 @@ export default function Comunidade({ nav }) {
               }
             </div>
           )}
+
+          {tab==='mapa' && (() => {
+            const comGPS = explorar.filter(p => p.pombal_lat && p.pombal_lon)
+            const meuPerfil = { ...perfil, _eu: true }
+            const todos = perfil?.pombal_lat ? [meuPerfil, ...comGPS.filter(p=>p.user_id!==user?.id)] : comGPS
+            const mapHtml = `<!DOCTYPE html><html><head>
+              <meta name="viewport" content="width=device-width,initial-scale=1"/>
+              <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+              <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+              <style>html,body,#map{margin:0;padding:0;height:100%;width:100%}
+              .meu-marker{background:#D4AF37;border:2px solid #fff;border-radius:50%;width:14px;height:14px;}
+              .outro-marker{background:#4C8DFF;border:2px solid #fff;border-radius:50%;width:12px;height:12px;}
+              </style></head><body>
+              <div id="map"></div><script>
+              const map=L.map('map').setView([39.5,${perfil?.pombal_lon||-8},6);
+              L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OSM'}).addTo(map);
+              const dados=${JSON.stringify(todos.map(p=>({lat:p.pombal_lat,lon:p.pombal_lon,nome:p.nome||'Columbófilo',pombal:p.pombal_nome||'',org:p.org||'',eu:!!p._eu})))};
+              dados.forEach(d=>{
+                const icon=L.divIcon({className:'',html:'<div style="background:'+(d.eu?'#D4AF37':'#4C8DFF')+';border:2px solid #fff;border-radius:50%;width:'+(d.eu?16:12)+'px;height:'+(d.eu?16:12)+'px;box-shadow:0 2px 6px rgba(0,0,0,.4)"></div>',iconSize:[d.eu?16:12,d.eu?16:12],iconAnchor:[d.eu?8:6,d.eu?8:6]});
+                L.marker([d.lat,d.lon],{icon}).addTo(map).bindPopup('<div style="font-family:sans-serif;min-width:140px"><strong style="color:#0B1830">'+d.nome+'</strong>'+(d.pombal?'<br>🏠 '+d.pombal:'')+(d.org?'<br><small style="color:#666">'+d.org+'</small>':'')+(d.eu?'<br><span style="color:#B8960C;font-size:11px">✦ O teu pombal</span>':'')+'</div>')
+              });
+              if(dados.length>1){const bounds=L.latLngBounds(dados.map(d=>[d.lat,d.lon]));map.fitBounds(bounds,{padding:[30,30]});}
+              </script></body></html>`
+            return (
+              <div>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
+                  <div style={{ fontSize:12, color:'#94a3b8' }}>
+                    <span style={{ display:'inline-block', width:10, height:10, borderRadius:'50%', background:'#D4AF37', marginRight:4 }} />Teu pombal
+                    <span style={{ display:'inline-block', width:10, height:10, borderRadius:'50%', background:'#4C8DFF', marginLeft:12, marginRight:4 }} />Comunidade
+                    · {todos.length} pombais no mapa
+                  </div>
+                </div>
+                {todos.length === 0
+                  ? <EmptyState icon="🗺️" title="Sem pombais no mapa" desc="Activa o perfil público e define as coordenadas GPS do pombal em Perfil" />
+                  : <iframe srcDoc={mapHtml} style={{ width:'100%', height:380, border:'none', borderRadius:12 }} title="Mapa comunidade" />
+                }
+                {!perfil?.pombal_lat && (
+                  <div style={{ marginTop:10, padding:'10px 14px', background:'rgba(212,175,55,.08)', border:'1px solid rgba(212,175,55,.2)', borderRadius:8, fontSize:12, color:'#D4AF37' }}>
+                    ⚠️ O teu pombal não aparece no mapa — define as coordenadas GPS em Perfil
+                    <button className="btn btn-secondary btn-sm" style={{ marginLeft:10 }} onClick={() => nav?.('perfil')}>Ir ao Perfil</button>
+                  </div>
+                )}
+                {/* Lista de columbófilos com pombal */}
+                {comGPS.length > 0 && (
+                  <div style={{ marginTop:14 }}>
+                    <div style={{ fontSize:12, fontWeight:600, color:'#fff', marginBottom:8 }}>Columbófilos com pombal registado</div>
+                    <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                      {comGPS.filter(p=>p.user_id!==user?.id).map(p => (
+                        <div key={p.id} className="card card-p" style={{ display:'flex', gap:10, alignItems:'center' }}>
+                          <div style={{ width:36, height:36, borderRadius:'50%', background:'linear-gradient(135deg,#1E5FD9,#4C8DFF)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:700, color:'#fff', overflow:'hidden', flexShrink:0 }}>
+                            {p.foto_perfil_url ? <img src={p.foto_perfil_url} style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : p.nome?.[0]?.toUpperCase()||'?'}
+                          </div>
+                          <div style={{ flex:1 }}>
+                            <div style={{ fontSize:13, fontWeight:600, color:'#fff' }}>{p.nome}</div>
+                            <div style={{ fontSize:11, color:'#7A8699' }}>🏠 {p.pombal_nome||'Pombal'}{p.pombal_morada?` · ${p.pombal_morada}`:''}</div>
+                          </div>
+                          {p.user_id !== user?.id && (
+                            <button className={`btn btn-sm ${following.has(p.user_id)?'btn-secondary':'btn-primary'}`} onClick={() => seguir(p.user_id)}>
+                              {following.has(p.user_id)?'✓':'+ Seguir'}
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })()}
 
           {tab==='grupos' && (
             <div>
