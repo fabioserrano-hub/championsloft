@@ -478,13 +478,14 @@ export default function Comunidade({ nav }) {
       </div>
 
       {/* TABS premium */}
-      <div style={{ display:'flex', gap:3, background:'#0A1628', borderRadius:10, padding:3, marginBottom:14, overflowX:'auto' }}>
-        {[['feed','📰','Feed'],['explorar','🔍','Explorar'],['mapa','🗺️','Mapa'],['grupos','👥','Grupos'],['desafios','🎯','Desafios'],['notifs','🔔',nNaoLidas?`(${nNaoLidas})`:'Notif.'],['ranking','🏆','Ranking']].map(([t,icon,l]) => (
-          <button key={t} onClick={() => setTab(t)} style={{ flex:'none', padding:'7px 10px', borderRadius:8, fontSize:10, fontWeight:600, cursor:'pointer', border:'none', fontFamily:'inherit', whiteSpace:'nowrap', background:tab===t?'linear-gradient(135deg,#1E5FD9,#1456C0)':'none', color:tab===t?'#fff':'#475569', boxShadow:tab===t?'0 2px 8px rgba(30,95,217,.4)':'none', transition:'all .15s' }}>
-            <div>{icon}</div><div style={{ fontSize:9 }}>{l}</div>
-          </button>
-        ))}
-      </div>
+<div style={{ display:'flex', gap:4, background:'#0A1628', borderRadius:12, padding:4, marginBottom:14, overflowX:'auto' }}>
+  {[['feed','📰','Feed'],['explorar','🔍','Explorar'],['mapa','🗺️','Mapa'],['grupos','👥','Grupos'],['desafios','🎯','Desafios'],['notifs','🔔',nNaoLidas?`(${nNaoLidas})`:'Notif.'],['ranking','🏆','Ranking']].map(([t,icon,l]) => (
+    <button key={t} onClick={() => setTab(t)} style={{ flex:'none', padding:'9px 16px', borderRadius:10, fontSize:12, fontWeight:600, cursor:'pointer', border:'none', fontFamily:'inherit', whiteSpace:'nowrap', background:tab===t?'linear-gradient(135deg,#1E5FD9,#1456C0)':'none', color:tab===t?'#fff':'#7A8699', boxShadow:tab===t?'0 2px 8px rgba(30,95,217,.4)':'none', transition:'all .15s', display:'flex', alignItems:'center', gap:5 }}>
+      <span style={{ fontSize:16 }}>{icon}</span>
+      <span>{l}</span>
+    </button>
+  ))}
+</div>
 
       {loading ? <div style={{ display:'flex', justifyContent:'center', padding:60 }}><Spinner lg /></div> : (
         <>
