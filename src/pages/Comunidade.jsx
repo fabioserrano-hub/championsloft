@@ -447,22 +447,41 @@ export default function Comunidade({ nav }) {
 
   return (
     <div>
-      <div className="section-header">
-        <div><div className="section-title">Comunidade</div><div className="section-sub">{posts.length} publicações</div></div>
-        <button className="btn btn-primary" onClick={() => setModalPost(true)}>✏️ Publicar</button>
+      {/* HEADER PREMIUM */}
+      <div style={{ background:'linear-gradient(135deg,#050D1A,#0B1830)', border:'1px solid rgba(212,175,55,.2)', borderRadius:14, padding:'14px 16px', marginBottom:14, position:'relative', overflow:'hidden' }}>
+        <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background:'linear-gradient(90deg,#B8960C,#D4AF37,#B8960C)' }} />
+        <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+          <div style={{ flex:1 }}>
+            <div style={{ fontSize:18, fontWeight:900, color:'#fff', fontFamily:"'Fraunces',serif", letterSpacing:.5 }}>Comunidade</div>
+            <div style={{ fontSize:11, color:'#7A8699', marginTop:1 }}>{posts.length} publicações · {explorar.length} columbófilos</div>
+          </div>
+          <button onClick={() => setShowCartao(true)} style={{ background:'rgba(212,175,55,.12)', border:'1px solid rgba(212,175,55,.3)', borderRadius:10, padding:'7px 10px', cursor:'pointer', fontSize:11, color:'#D4AF37', fontWeight:600 }}>💳 Visita</button>
+          <button className="btn btn-primary" onClick={() => setModalPost(true)} style={{ fontSize:12, fontWeight:700 }}>✏️ Publicar</button>
+        </div>
+        {/* Stats rápidas */}
+        <div style={{ display:'flex', gap:10, marginTop:12 }}>
+          {[['👥',explorar.filter(p=>following.has(p.user_id)).length,'A seguir'],['❤️',posts.reduce((s,p)=>s+(p.likes_count||0),0),'Likes totais'],['🔔',nNaoLidas,'Novas notif.']].map(([icon,val,label])=>(
+            <div key={label} style={{ flex:1, textAlign:'center', padding:'6px 4px', background:'rgba(255,255,255,.04)', borderRadius:8 }}>
+              <div style={{ fontSize:11 }}>{icon} <strong style={{ color:'#fff' }}>{val}</strong></div>
+              <div style={{ fontSize:9, color:'#475569' }}>{label}</div>
+            </div>
+          ))}
+        </div>
       </div>
 
-      {/* Pesquisa global */}
-      <div style={{ display:'flex', gap:8, marginBottom:12 }}>
-        <input className="input" placeholder="🔍 Pesquisar posts, #hashtags..." value={pesquisa}
+      {/* Pesquisa */}
+      <div style={{ marginBottom:10 }}>
+        <input className="input" placeholder="🔍 Pesquisar posts, @utilizadores, #hashtags..." value={pesquisa}
           onChange={e => { setPesquisa(e.target.value); e.target.value.startsWith('#') ? setHashtagFiltro(e.target.value) : setHashtagFiltro(null) }}
-          style={{ flex:1, fontSize:13 }} />
-        <button className="btn btn-secondary btn-sm" onClick={() => setShowCartao(true)} title="Cartão de visita">💳</button>
+          style={{ fontSize:13, background:'#101F40', border:'1px solid #1B2D52' }} />
       </div>
 
-      <div style={{ display:'flex', gap:4, background:'#101F40', borderRadius:8, padding:4, marginBottom:16, overflowX:'auto' }}>
-        {[['feed','📰 Feed'],['explorar','🔍 Explorar'],['mapa','🗺️ Mapa'],['grupos','👥 Grupos'],['desafios','🎯 Desafios'],['notifs',`🔔${nNaoLidas?` (${nNaoLidas})`:''}`],['ranking','🏆 Ranking']].map(([t,l]) => (
-          <button key={t} onClick={() => setTab(t)} style={{ flex:'none', padding:'8px 10px', borderRadius:6, fontSize:11, fontWeight:500, cursor:'pointer', border:'none', fontFamily:'inherit', whiteSpace:'nowrap', background:tab===t?'#1E5FD9':'none', color:tab===t?'#fff':'#94a3b8' }}>{l}</button>
+      {/* TABS premium */}
+      <div style={{ display:'flex', gap:3, background:'#0A1628', borderRadius:10, padding:3, marginBottom:14, overflowX:'auto' }}>
+        {[['feed','📰','Feed'],['explorar','🔍','Explorar'],['mapa','🗺️','Mapa'],['grupos','👥','Grupos'],['desafios','🎯','Desafios'],['notifs','🔔',nNaoLidas?`(${nNaoLidas})`:'Notif.'],['ranking','🏆','Ranking']].map(([t,icon,l]) => (
+          <button key={t} onClick={() => setTab(t)} style={{ flex:'none', padding:'7px 10px', borderRadius:8, fontSize:10, fontWeight:600, cursor:'pointer', border:'none', fontFamily:'inherit', whiteSpace:'nowrap', background:tab===t?'linear-gradient(135deg,#1E5FD9,#1456C0)':'none', color:tab===t?'#fff':'#475569', boxShadow:tab===t?'0 2px 8px rgba(30,95,217,.4)':'none', transition:'all .15s' }}>
+            <div>{icon}</div><div style={{ fontSize:9 }}>{l}</div>
+          </button>
         ))}
       </div>
 
@@ -653,49 +672,63 @@ export default function Comunidade({ nav }) {
 
           {tab==='mapa' && (() => {
             const comGPS = explorar.filter(p => p.pombal_lat && p.pombal_lon)
-            const meuPerfil = { ...perfil, _eu: true }
-            const todos = perfil?.pombal_lat ? [meuPerfil, ...comGPS.filter(p=>p.user_id!==user?.id)] : comGPS
-            const mapHtml = `<!DOCTYPE html><html><head>
-              <meta name="viewport" content="width=device-width,initial-scale=1"/>
-              <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-              <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-              <style>html,body,#map{margin:0;padding:0;height:100%;width:100%}
-              .meu-marker{background:#D4AF37;border:2px solid #fff;border-radius:50%;width:14px;height:14px;}
-              .outro-marker{background:#4C8DFF;border:2px solid #fff;border-radius:50%;width:12px;height:12px;}
-              </style></head><body>
-              <div id="map"></div><script>
-              const map=L.map('map').setView([39.5,${perfil?.pombal_lon||-8},6);
-              L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OSM'}).addTo(map);
-              const dados=${JSON.stringify(todos.map(p=>({lat:p.pombal_lat,lon:p.pombal_lon,nome:p.nome||'Columbófilo',pombal:p.pombal_nome||'',org:p.org||'',eu:!!p._eu})))};
-              dados.forEach(d=>{
-                const icon=L.divIcon({className:'',html:'<div style="background:'+(d.eu?'#D4AF37':'#4C8DFF')+';border:2px solid #fff;border-radius:50%;width:'+(d.eu?16:12)+'px;height:'+(d.eu?16:12)+'px;box-shadow:0 2px 6px rgba(0,0,0,.4)"></div>',iconSize:[d.eu?16:12,d.eu?16:12],iconAnchor:[d.eu?8:6,d.eu?8:6]});
-                L.marker([d.lat,d.lon],{icon}).addTo(map).bindPopup('<div style="font-family:sans-serif;min-width:140px"><strong style="color:#0B1830">'+d.nome+'</strong>'+(d.pombal?'<br>🏠 '+d.pombal:'')+(d.org?'<br><small style="color:#666">'+d.org+'</small>':'')+(d.eu?'<br><span style="color:#B8960C;font-size:11px">✦ O teu pombal</span>':'')+'</div>')
-              });
-              if(dados.length>1){const bounds=L.latLngBounds(dados.map(d=>[d.lat,d.lon]));map.fitBounds(bounds,{padding:[30,30]});}
-              </script></body></html>`
+            const todos = perfil?.pombal_lat
+              ? [{ ...perfil, _eu:true }, ...comGPS.filter(p=>p.user_id!==user?.id)]
+              : comGPS
+            const MapaLeaflet = () => {
+              const { useEffect, useRef } = window.React || require('react')
+              const ref = useRef(null)
+              useEffect(() => {
+                if (!ref.current || !todos.length) return
+                const loadLeaflet = async () => {
+                  if (!window.L) {
+                    await Promise.all([
+                      new Promise(res => { const l=document.createElement('link'); l.rel='stylesheet'; l.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'; l.onload=res; document.head.appendChild(l) }),
+                      new Promise(res => { const s=document.createElement('script'); s.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'; s.onload=res; document.head.appendChild(s) })
+                    ])
+                  }
+                  const L = window.L
+                  if (ref.current._leaflet_id) return
+                  const centro = todos[0] ? [todos[0].pombal_lat, todos[0].pombal_lon] : [39.5,-8]
+                  const map = L.map(ref.current, { zoomControl:true }).setView(centro, 7)
+                  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution:'© OSM', maxZoom:18 }).addTo(map)
+                  todos.forEach(p => {
+                    const eu = !!p._eu
+                    const icon = L.divIcon({ className:'', html:`<div style="background:${eu?'#D4AF37':'#4C8DFF'};border:3px solid #fff;border-radius:50%;width:${eu?18:13}px;height:${eu?18:13}px;box-shadow:0 2px 8px rgba(0,0,0,.5)"></div>`, iconSize:[eu?18:13,eu?18:13], iconAnchor:[eu?9:6.5,eu?9:6.5] })
+                    L.marker([p.pombal_lat,p.pombal_lon],{icon}).addTo(map).bindPopup(`<div style="font-family:sans-serif;min-width:150px;padding:4px"><strong>${p.nome||'Columbófilo'}</strong>${p.pombal_nome?`<br>🏠 ${p.pombal_nome}`:''}${p.org?`<br><small>${p.org}</small>`:''}${eu?'<br><span style="color:#B8960C;font-size:11px">✦ O teu pombal</span>':''}</div>`)
+                  })
+                  if (todos.length > 1) {
+                    const bounds = L.latLngBounds(todos.map(p=>[p.pombal_lat,p.pombal_lon]))
+                    map.fitBounds(bounds, { padding:[40,40] })
+                  }
+                }
+                loadLeaflet()
+                return () => {}
+              }, [])
+              return <div ref={ref} style={{ width:'100%', height:360, borderRadius:12, overflow:'hidden' }} />
+            }
             return (
               <div>
-                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
+                <div style={{ display:'flex', gap:12, alignItems:'center', marginBottom:10 }}>
                   <div style={{ fontSize:12, color:'#94a3b8' }}>
                     <span style={{ display:'inline-block', width:10, height:10, borderRadius:'50%', background:'#D4AF37', marginRight:4 }} />Teu pombal
-                    <span style={{ display:'inline-block', width:10, height:10, borderRadius:'50%', background:'#4C8DFF', marginLeft:12, marginRight:4 }} />Comunidade
-                    · {todos.length} pombais no mapa
+                    <span style={{ display:'inline-block', width:10, height:10, borderRadius:'50%', background:'#4C8DFF', marginLeft:10, marginRight:4 }} />Comunidade
+                    <span style={{ color:'#fff', marginLeft:6 }}>· {todos.length} pombais</span>
                   </div>
                 </div>
                 {todos.length === 0
-                  ? <EmptyState icon="🗺️" title="Sem pombais no mapa" desc="Activa o perfil público e define as coordenadas GPS do pombal em Perfil" />
-                  : <iframe srcDoc={mapHtml} style={{ width:'100%', height:380, border:'none', borderRadius:12 }} title="Mapa comunidade" />
+                  ? <EmptyState icon="🗺️" title="Sem pombais no mapa" desc="Activa o perfil público e define coordenadas GPS do pombal em Perfil" />
+                  : <MapaLeaflet />
                 }
                 {!perfil?.pombal_lat && (
                   <div style={{ marginTop:10, padding:'10px 14px', background:'rgba(212,175,55,.08)', border:'1px solid rgba(212,175,55,.2)', borderRadius:8, fontSize:12, color:'#D4AF37' }}>
-                    ⚠️ O teu pombal não aparece no mapa — define as coordenadas GPS em Perfil
+                    ⚠️ O teu pombal não aparece — define as coordenadas GPS em Perfil
                     <button className="btn btn-secondary btn-sm" style={{ marginLeft:10 }} onClick={() => nav?.('perfil')}>Ir ao Perfil</button>
                   </div>
                 )}
-                {/* Lista de columbófilos com pombal */}
-                {comGPS.length > 0 && (
+                {comGPS.filter(p=>p.user_id!==user?.id).length > 0 && (
                   <div style={{ marginTop:14 }}>
-                    <div style={{ fontSize:12, fontWeight:600, color:'#fff', marginBottom:8 }}>Columbófilos com pombal registado</div>
+                    <div style={{ fontSize:12, fontWeight:600, color:'#fff', marginBottom:8 }}>Pombais registados</div>
                     <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
                       {comGPS.filter(p=>p.user_id!==user?.id).map(p => (
                         <div key={p.id} className="card card-p" style={{ display:'flex', gap:10, alignItems:'center' }}>
@@ -706,11 +739,9 @@ export default function Comunidade({ nav }) {
                             <div style={{ fontSize:13, fontWeight:600, color:'#fff' }}>{p.nome}</div>
                             <div style={{ fontSize:11, color:'#7A8699' }}>🏠 {p.pombal_nome||'Pombal'}{p.pombal_morada?` · ${p.pombal_morada}`:''}</div>
                           </div>
-                          {p.user_id !== user?.id && (
-                            <button className={`btn btn-sm ${following.has(p.user_id)?'btn-secondary':'btn-primary'}`} onClick={() => seguir(p.user_id)}>
-                              {following.has(p.user_id)?'✓':'+ Seguir'}
-                            </button>
-                          )}
+                          <button className={`btn btn-sm ${following.has(p.user_id)?'btn-secondary':'btn-primary'}`} onClick={() => seguir(p.user_id)}>
+                            {following.has(p.user_id)?'✓':'+ Seguir'}
+                          </button>
                         </div>
                       ))}
                     </div>
