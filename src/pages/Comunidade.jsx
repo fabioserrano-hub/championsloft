@@ -374,27 +374,43 @@ export default function Comunidade({ nav }) {
 
           {tab==='explorar' && (
             <div>
-              <div style={{ fontSize:12, color:'#94a3b8', marginBottom:12 }}>Columbófilos com perfil público. Segue para ver os seus posts no teu feed.</div>
-              {explorar.length===0 ? <EmptyState icon="🔍" title="Sem perfis públicos" desc="Ainda não há columbófilos com perfil público disponível" />
-                : <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-                    {explorar.map(p => (
-                      <div key={p.id} className="card card-p">
-                        <div style={{ display:'flex', alignItems:'center', gap:12 }}>
-                          <div style={{ width:44, height:44, borderRadius:'50%', background:'linear-gradient(135deg,#1E5FD9,#4C8DFF)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:18, fontWeight:700, color:'#fff', flexShrink:0, overflow:'hidden' }}>
-                            {p.foto_perfil_url ? <img src={p.foto_perfil_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : p.nome?.[0]?.toUpperCase() || '?'}
+              <div style={{ fontSize:12, color:'#94a3b8', marginBottom:12 }}>Columbófilos da comunidade ChampionsLoft · Segue para ver os seus posts no teu feed.</div>
+              {explorar.length===0
+                ? <EmptyState icon="🔍" title="Sem perfis públicos" desc="Activa o teu perfil público em Perfil para aparecer aqui" />
+                : <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+                    {explorar.map(p => {
+                      const isFollowing = following.has(p.user_id)
+                      const souEu = p.user_id === user?.id
+                      return (
+                        <div key={p.id} className="card card-p" style={{ position:'relative', overflow:'hidden' }}>
+                          {/* Faixa decorativa topo */}
+                          <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background:'linear-gradient(90deg,#1E5FD9,#D4AF37)' }} />
+                          <div style={{ display:'flex', gap:10, alignItems:'flex-start', marginTop:6 }}>
+                            <div style={{ width:48, height:48, borderRadius:'50%', background:'linear-gradient(135deg,#1E5FD9,#4C8DFF)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:20, fontWeight:700, color:'#fff', flexShrink:0, overflow:'hidden', border:'2px solid #1B2D52' }}>
+                              {p.foto_perfil_url ? <img src={p.foto_perfil_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : p.nome?.[0]?.toUpperCase() || '?'}
+                            </div>
+                            <div style={{ flex:1, minWidth:0 }}>
+                              <div style={{ fontSize:13, fontWeight:700, color:'#fff', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.nome}</div>
+                              <div style={{ fontSize:10, color:'#7A8699' }}>{p.org || 'Columbófilo'}</div>
+                              {p.pombal_morada && <div style={{ fontSize:10, color:'#4C8DFF' }}>📍 {p.pombal_morada}</div>}
+                              {p.bio && <div style={{ fontSize:10, color:'#94a3b8', marginTop:3, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.bio}</div>}
+                            </div>
                           </div>
-                          <div style={{ flex:1 }}>
-                            <div style={{ fontSize:13, fontWeight:600, color:'#fff' }}>{p.nome}</div>
-                            <div style={{ fontSize:11, color:'#7A8699' }}>{p.org || p.fed || 'Columbófilo'}</div>
+                          <div style={{ display:'flex', gap:6, marginTop:10 }}>
+                            {!souEu && (
+                              <button className={`btn btn-sm ${isFollowing?'btn-secondary':'btn-primary'}`} style={{ flex:1, fontSize:11 }} onClick={() => seguir(p.user_id)}>
+                                {isFollowing ? '✓ A seguir' : '+ Seguir'}
+                              </button>
+                            )}
+                            {p.slug && (
+                              <button className="btn btn-secondary btn-sm" style={{ flex:1, fontSize:11 }} onClick={() => nav?.('perfil-publico', { slug: p.slug })}>
+                                Ver perfil
+                              </button>
+                            )}
                           </div>
-                          {p.user_id !== user?.id && (
-                            <button className={`btn btn-sm ${following.has(p.user_id)?'btn-secondary':'btn-primary'}`} onClick={() => seguir(p.user_id)}>
-                              {following.has(p.user_id) ? 'A seguir' : '+ Seguir'}
-                            </button>
-                          )}
                         </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
               }
             </div>
@@ -425,22 +441,50 @@ export default function Comunidade({ nav }) {
 
           {tab==='ranking' && (
             <div>
-              <div style={{ fontSize:12, color:'#94a3b8', marginBottom:12 }}>Pontuação: 50pts por badge, 30pts por desafio completado. Actualizado automaticamente.</div>
-              {ranking.length===0 ? <EmptyState icon="🏆" title="Ranking vazio" desc="Publica resultados e conquista badges para entrar no ranking" />
-                : <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
-                    {ranking.map((r,i) => {
-                      const souEu = r.nome===nome
-                      return (
-                        <div key={r.id||i} className="card card-p" style={souEu?{borderColor:'rgba(76,141,255,.4)',background:'rgba(76,141,255,.06)'}:undefined}>
-                          <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-                            <span style={{ fontFamily:"'Fraunces',serif", fontSize:20, fontWeight:700, width:26, color:i===0?'#D4AF37':i===1?'#cbd5e1':i===2?'#b45309':'#475569' }}>{i+1}</span>
-                            <div style={{ flex:1, fontSize:13, color:'#fff' }}>{r.nome}{souEu?' (você)':''}</div>
-                            <div style={{ fontSize:14, fontWeight:700, color:'#2DD4A7' }}>{r.pontos} pts</div>
+              <div style={{ fontSize:12, color:'#94a3b8', marginBottom:12 }}>Pontuação: 50pts por badge · 30pts por desafio · 10pts por publicação · 2pts por like recebido</div>
+              {ranking.length===0
+                ? <EmptyState icon="🏆" title="Ranking vazio" desc="Publica resultados e conquista badges para entrar no ranking" />
+                : <>
+                    {/* Pódio top 3 */}
+                    {ranking.length >= 3 && (
+                      <div style={{ display:'flex', justifyContent:'center', alignItems:'flex-end', gap:8, marginBottom:16, padding:'16px 8px 0' }}>
+                        {[ranking[1], ranking[0], ranking[2]].map((r,i) => {
+                          const pos = i===1?1:i===0?2:3
+                          const altura = i===1?72:i===0?56:44
+                          const cor = pos===1?'#D4AF37':pos===2?'#cbd5e1':'#b45309'
+                          const medal = pos===1?'🥇':pos===2?'🥈':'🥉'
+                          return r ? (
+                            <div key={r.id||pos} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:4 }}>
+                              <div style={{ fontSize:11, color:'#fff', fontWeight:600, maxWidth:70, textAlign:'center', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.nome?.split(' ')[0]}</div>
+                              <div style={{ fontSize:22 }}>{medal}</div>
+                              <div style={{ width:60, height:altura, background:`${cor}22`, border:`2px solid ${cor}`, borderRadius:'8px 8px 0 0', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                                <div style={{ fontSize:13, fontWeight:700, color:cor }}>{r.pontos}</div>
+                              </div>
+                            </div>
+                          ) : null
+                        })}
+                      </div>
+                    )}
+                    {/* Lista completa */}
+                    <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                      {ranking.map((r,i) => {
+                        const souEu = r.nome===nome
+                        const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':null
+                        return (
+                          <div key={r.id||i} className="card card-p" style={souEu?{borderColor:'rgba(76,141,255,.4)',background:'rgba(76,141,255,.06)'}:undefined}>
+                            <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                              <div style={{ width:28, textAlign:'center' }}>
+                                {medal ? <span style={{ fontSize:18 }}>{medal}</span>
+                                  : <span style={{ fontFamily:"'Fraunces',serif", fontSize:16, fontWeight:700, color:'#475569' }}>{i+1}</span>}
+                              </div>
+                              <div style={{ flex:1, fontSize:13, color:'#fff', fontWeight: souEu?700:400 }}>{r.nome}{souEu?' (você)':''}</div>
+                              <div style={{ fontSize:15, fontWeight:700, color:'#D4AF37' }}>{r.pontos} <span style={{ fontSize:10, color:'#7A8699', fontWeight:400 }}>pts</span></div>
+                            </div>
                           </div>
-                        </div>
-                      )
-                    })}
-                  </div>
+                        )
+                      })}
+                    </div>
+                  </>
               }
             </div>
           )}
