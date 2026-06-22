@@ -13,6 +13,7 @@ import Provas       from './pages/Provas'
 import Treinos      from './pages/Treinos'
 import Saude        from './pages/Saude'
 import Financas     from './pages/Financas'
+import { useFeatureFlags } from './hooks/useFeatureFlags'
 import Reproducao   from './pages/Reproducao'
 import Pedigree     from './pages/Pedigree'
 import Alimentacao  from './pages/Alimentacao'
@@ -102,6 +103,7 @@ function useSidebarCollapse() {
 // ─── APP LAYOUT ───────────────────────────────────────
 function AppLayout() {
   const { user } = useAuth()
+  const { flags, isAdmin, betaTester } = useFeatureFlags()
   const [page, setPage] = useState('dashboard')
   const [navParams, setNavParams] = useState({})
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -191,10 +193,25 @@ function AppLayout() {
                 <span className="nav-group-chevron">⌄</span>
               </div>
               <div className="nav-group-items">
-                {items.map(item => (
+                {items.filter(item => {
+                  // Admin e beta vêem sempre tudo
+                  if (isAdmin || betaTester) return true
+                  // Se não há flags carregadas ainda, mostrar tudo (evitar flicker)
+                  if (Object.keys(flags).length === 0) return true
+                  // Verificar flag — se não existe flag para este módulo, mostrar
+                  return flags[item.id] !== false
+                }).map(item => (
                   <div key={item.id} className={`nav-item${page === item.id ? ' active' : ''}`} onClick={() => nav(item.id)}>
                     <span className="nav-icon">{item.icon}</span>
-                    <span>{item.label}</span>
+                    <span style={{ flex:1 }}>{item.label}</span>
+                    {/* Badge WIP para admin em módulos desactivados ou só-admin */}
+                    {(isAdmin || betaTester) && flags[item.id] === false && (
+                      <span style={{ fontSize:8, background:'rgba(248,113,113,.2)', color:'#f87171', padding:'1px 5px', borderRadius:6, flexShrink:0 }}>OFF</span>
+                    )}
+                    {(isAdmin || betaTester) && flags[item.id] !== false && Object.keys(flags).length > 0 && (() => {
+                      // Verificar se é "apenas_admin" na lista de flags
+                      return null // badge gerido no Admin panel
+                    })()}
                   </div>
                 ))}
               </div>
