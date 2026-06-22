@@ -605,6 +605,31 @@ export const db = {
     if (error) throw error
   },
 
+  async getFeatureFlags() {
+    const { data, error } = await supabase.from('feature_flags').select('*').order('label')
+    if (error) throw error
+    return data || []
+  },
+  async updateFeatureFlag(id, updates) {
+    const { data, error } = await supabase.from('feature_flags').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id).select().single()
+    if (error) throw error
+    return data
+  },
+  async getBetaTesters() {
+    const { data, error } = await supabase.from('beta_testers').select('*').order('created_at', { ascending: false })
+    if (error) throw error
+    return data || []
+  },
+  async addBetaTester(email, nome) {
+    const { data, error } = await supabase.from('beta_testers').insert({ email, nome }).select().single()
+    if (error) throw error
+    return data
+  },
+  async removeBetaTester(id) {
+    const { error } = await supabase.from('beta_testers').delete().eq('id', id)
+    if (error) throw error
+  },
+
   async getPerfilPublico(slug) {
     const { data, error } = await supabase.from('perfis').select('*').eq('slug', slug).single()
     if (error) throw error
