@@ -38,6 +38,9 @@ import Marketplace from './pages/Marketplace'
 import Analiticas from './pages/Analiticas'
 import RastreioForma from './pages/RastreioForma'
 import Clubes from './pages/Clubes'
+import Leiloes from './pages/Leiloes'
+import Afiliados from './pages/Afiliados'
+import Exportacao from './pages/Exportacao'
 import PerfilPublico from './pages/PerfilPublico'
 import Onboarding, { useOnboarding } from './components/Onboarding'
 import { IdiomaContext, useIdiomaState } from './hooks/useIdioma'
@@ -78,6 +81,7 @@ const NAV = [
     { id: 'comunidade',  icon: '🌐', label: 'Comunidade' },
     { id: 'mensagens',   icon: '💬', label: 'Mensagens' },
     { id: 'clubes',      icon: '🏛️', label: 'Clubes' },
+    { id: 'leiloes',     icon: '🔨', label: 'Leilões' },
     { id: 'marketplace', icon: '🛒', label: 'Marketplace' },
     { id: 'ligas',       icon: '🏆', label: 'Ligas' },
     { id: 'patrocinadores', icon: '🛍️', label: 'Parceiros' },
@@ -88,7 +92,9 @@ const NAV = [
   { section: 'Sistema', items: [
     { id: 'precos',      icon: '💳', label: 'Planos' },
     { id: 'importacao',   icon: '📥', label: 'Importar' },
+    { id: 'exportacao',  icon: '📤', label: 'Exportar' },
     { id: 'admin',       icon: '👑', label: 'Admin' },
+    { id: 'afiliados',   icon: '🤝', label: 'Afiliados' },
     { id: 'perfil',      icon: '⚙️', label: 'Perfil' },
     { id: 'documentos',  icon: '📄', label: 'Documentos' },
   ]},
@@ -201,6 +207,9 @@ function AppLayout() {
       case 'analiticas':   return <Analiticas nav={nav} />
       case 'forma':        return <RastreioForma nav={nav} />
       case 'clubes':       return <Clubes nav={nav} />
+      case 'leiloes':      return <Leiloes nav={nav} />
+      case 'afiliados':    return <Afiliados nav={nav} />
+      case 'exportacao':   return <Exportacao nav={nav} />
       case 'perfil-publico': return <PerfilPublico nav={nav} params={navParams} />
       case 'comunidade':   return <Comunidade nav={nav} />
       case 'ligas':        return <Ligas nav={nav} />
