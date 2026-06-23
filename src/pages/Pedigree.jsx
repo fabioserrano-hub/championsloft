@@ -671,77 +671,106 @@ export default function Pedigree({ nav, params }) {
       )}
 
       {/* Modal editor de nó */}
-      <Modal open={!!modalNode} onClose={() => setModalNode(null)} title="✏️ Editar Ancestral" wide
-        footer={<><button className="btn btn-secondary" onClick={() => setModalNode(null)}>Cancelar</button><button className="btn btn-primary" onClick={guardarNode}>Guardar</button></>}>
-        <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-
-          {/* Carregar da BD */}
-          <div style={{ background:'rgba(76,141,255,.06)', border:'1px solid rgba(76,141,255,.15)', borderRadius:8, padding:'10px 12px' }}>
-            <div style={{ fontSize:11, color:'#7A8699', marginBottom:6, fontWeight:600 }}>📋 CARREGAR DO EFECTIVO</div>
-            <div style={{ display:'flex', gap:6, marginBottom:6 }}>
-              <select className="input" style={{ flex:1, fontSize:11 }} value={filtroPombal}
-                onChange={e => setFiltroPombal(e.target.value)}>
-                <option value="">Todos os pombais</option>
-                {pombalsList.map(p => <option key={p} value={p}>{p}</option>)}
-              </select>
-              <select className="input" style={{ width:100, fontSize:11 }} value={filtroSexo}
-                onChange={e => setFiltroSexo(e.target.value)}>
-                <option value="">♂♀ Todos</option>
-                <option value="M">♂ Machos</option>
-                <option value="F">♀ Fêmeas</option>
-              </select>
+      {modalNode && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.85)', zIndex:500, display:'flex', alignItems:'flex-end', justifyContent:'center', padding:0 }} onClick={e => e.target===e.currentTarget&&setModalNode(null)}>
+          <div style={{ background:'#0B1830', border:'1px solid #1B2D52', borderRadius:'16px 16px 0 0', width:'100%', maxWidth:560, maxHeight:'90vh', display:'flex', flexDirection:'column', overflow:'hidden' }}>
+            {/* Header */}
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'16px 20px', borderBottom:'1px solid #1B2D52', flexShrink:0 }}>
+              <div style={{ fontSize:16, fontWeight:700, color:'#fff', fontFamily:"'Fraunces',serif" }}>✏️ Editar Ancestral</div>
+              <button onClick={() => setModalNode(null)} style={{ background:'none', border:'none', color:'#475569', cursor:'pointer', fontSize:22, lineHeight:1 }}>×</button>
             </div>
-            <select className="input" value=""
-              onChange={e => {
-                const p = pombos.find(x => x.id === e.target.value)
-                if (p) setFormNode(f => ({ ...f, anilha: p.anilha||'', nome: p.nome||'', cor: p.cor||'', sexo: p.sexo||'', foto_url: f.foto_url || p.foto_url||'', conquistas: f.conquistas || `${p.provas||0} provas · percentil ${p.percentil||0}%`, externo: false }))
-              }}>
-              <option value="">— Seleccionar pombo —</option>
-              {pombosFiltrados.map(p => <option key={p.id} value={p.id}>{p.sexo==='M'?'♂':p.sexo==='F'?'♀':'○'} {p.nome} ({p.anilha}){p.pombal?` · ${p.pombal}`:''}</option>)}
-            </select>
-          </div>
+            {/* Body scrollável */}
+            <div style={{ flex:1, overflowY:'auto', padding:20, display:'flex', flexDirection:'column', gap:12 }}>
 
-          {/* Opcao externo */}
-          <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', padding:'8px 12px', background:formNode.externo?'rgba(212,175,55,.08)':'#101F40', border:`1px solid ${formNode.externo?'rgba(212,175,55,.3)':'#1B2D52'}`, borderRadius:8 }}>
-            <input type="checkbox" checked={!!formNode.externo} onChange={e => setFormNode(f=>({...f,externo:e.target.checked}))} style={{ accentColor:'#D4AF37', width:16, height:16 }} />
-            <div>
-              <div style={{ fontSize:12, fontWeight:600, color: formNode.externo?'#D4AF37':'#cbd5e1' }}>🌍 Ancestral externo ao pombal</div>
-              <div style={{ fontSize:10, color:'#7A8699' }}>Pombo de outro criador, sem perfil na app — preencha os dados manualmente</div>
+              {/* Botão Ver Pedigree do ancestral */}
+              {formNode.anilha && pombos.find(p => p.anilha === formNode.anilha) && (
+                <button onClick={() => {
+                  const p = pombos.find(x => x.anilha === formNode.anilha)
+                  if (p) { setModalNode(null); selecionarPombo(p.id) }
+                }} style={{ background:'linear-gradient(135deg,rgba(212,175,55,.12),rgba(212,175,55,.06))', border:'1px solid rgba(212,175,55,.3)', borderRadius:10, padding:'10px 14px', cursor:'pointer', display:'flex', alignItems:'center', gap:10, fontFamily:'inherit' }}>
+                  <span style={{ fontSize:18 }}>🌳</span>
+                  <div style={{ textAlign:'left' }}>
+                    <div style={{ fontSize:12, fontWeight:700, color:'#D4AF37' }}>Ver Pedigree de {formNode.nome||formNode.anilha}</div>
+                    <div style={{ fontSize:10, color:'#7A8699' }}>Navegar para a árvore genealógica deste ancestral</div>
+                  </div>
+                  <span style={{ marginLeft:'auto', color:'#D4AF37', fontSize:16 }}>→</span>
+                </button>
+              )}
+
+              {/* Carregar da BD */}
+              <div style={{ background:'rgba(76,141,255,.08)', border:'1px solid rgba(76,141,255,.15)', borderRadius:8, padding:'10px 12px' }}>
+                <div style={{ fontSize:11, color:'#7A8699', marginBottom:6, fontWeight:600 }}>📋 CARREGAR DO EFECTIVO</div>
+                <div style={{ display:'flex', gap:6, marginBottom:6 }}>
+                  <select className="input" style={{ flex:1, fontSize:11 }} value={filtroPombal}
+                    onChange={e => setFiltroPombal(e.target.value)}>
+                    <option value="">Todos os pombais</option>
+                    {pombalsList.map(p => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                  <select className="input" style={{ width:100, fontSize:11 }} value={filtroSexo}
+                    onChange={e => setFiltroSexo(e.target.value)}>
+                    <option value="">♂♀ Todos</option>
+                    <option value="M">♂ Machos</option>
+                    <option value="F">♀ Fêmeas</option>
+                  </select>
+                </div>
+                <select className="input" value=""
+                  onChange={e => {
+                    const p = pombos.find(x => x.id === e.target.value)
+                    if (p) setFormNode(f => ({ ...f, anilha: p.anilha||'', nome: p.nome||'', cor: p.cor||'', sexo: p.sexo||'', foto_url: f.foto_url || p.foto_url||'', conquistas: f.conquistas || `${p.provas||0} provas · percentil ${p.percentil||0}%`, externo: false }))
+                  }}>
+                  <option value="">— Seleccionar pombo —</option>
+                  {pombosFiltrados.map(p => <option key={p.id} value={p.id}>{p.sexo==='M'?'♂':p.sexo==='F'?'♀':'○'} {p.nome} ({p.anilha}){p.pombal?` · ${p.pombal}`:''}</option>)}
+                </select>
+              </div>
+
+              {/* Opção externo */}
+              <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', padding:'8px 12px', background:formNode.externo?'rgba(212,175,55,.08)':'rgba(16,31,64,.8)', border:`1px solid ${formNode.externo?'rgba(212,175,55,.3)':'#1B2D52'}`, borderRadius:8 }}>
+                <input type="checkbox" checked={!!formNode.externo} onChange={e => setFormNode(f=>({...f,externo:e.target.checked}))} style={{ accentColor:'#D4AF37', width:16, height:16 }} />
+                <div>
+                  <div style={{ fontSize:12, fontWeight:600, color: formNode.externo?'#D4AF37':'#cbd5e1' }}>🌍 Ancestral externo ao pombal</div>
+                  <div style={{ fontSize:10, color:'#7A8699' }}>Pombo de outro criador, sem perfil na app — preencha os dados manualmente</div>
+                </div>
+              </label>
+
+              <div style={{ fontSize:10, color:'#475569', textAlign:'center' }}>— ou preencha/edite manualmente —</div>
+
+              <div className="form-grid">
+                <Field label="Anilha"><input className="input" placeholder="PT-2020-00001" value={formNode.anilha} onChange={e => setFormNode(f=>({...f,anilha:e.target.value}))} /></Field>
+                <Field label="Nome / Alcunha"><input className="input" placeholder="Ex: Zeus, Micaela..." value={formNode.nome} onChange={e => setFormNode(f=>({...f,nome:e.target.value}))} /></Field>
+                <Field label="Cor"><input className="input" placeholder="Ex: Azul barrado" value={formNode.cor} onChange={e => setFormNode(f=>({...f,cor:e.target.value}))} /></Field>
+                <Field label="Sexo">
+                  <select className="input" value={formNode.sexo||''} onChange={e => setFormNode(f=>({...f,sexo:e.target.value}))}>
+                    <option value="">—</option>
+                    <option value="M">♂ Macho</option>
+                    <option value="F">♀ Fêmea</option>
+                  </select>
+                </Field>
+                <Field label="Linhagem Genética">
+                  <select className="input" value={formNode.linhagem} onChange={e => setFormNode(f=>({...f,linhagem:e.target.value}))}>
+                    <option value="">— Seleccionar —</option>
+                    {LINHAS_GENETICAS.map(l => <option key={l}>{l}</option>)}
+                  </select>
+                </Field>
+                {formNode.externo && <Field label="Criador / Origem"><input className="input" placeholder="Nome do criador ou país de origem" value={formNode.criador||''} onChange={e => setFormNode(f=>({...f,criador:e.target.value}))} /></Field>}
+              </div>
+              <Field label="🏆 Conquistas e Resultados">
+                <textarea className="input" rows={3} style={{ resize:'none' }} placeholder="Ex: 1.º Velocidade Distrital 2023..." value={formNode.conquistas} onChange={e => setFormNode(f=>({...f,conquistas:e.target.value}))} />
+              </Field>
+              <Field label="📝 Descrição / Observações">
+                <textarea className="input" rows={2} style={{ resize:'none' }} placeholder="Criador de origem, características especiais..." value={formNode.desc} onChange={e => setFormNode(f=>({...f,desc:e.target.value}))} />
+              </Field>
+              <Field label="🖼️ URL da Foto">
+                <input className="input" placeholder="https://..." value={formNode.foto_url} onChange={e => setFormNode(f=>({...f,foto_url:e.target.value}))} />
+              </Field>
             </div>
-          </label>
-
-          <div style={{ fontSize:10, color:'#475569', textAlign:'center' }}>— ou preencha/edite manualmente —</div>
-
-          <div className="form-grid">
-            <Field label="Anilha"><input className="input" placeholder="PT-2020-00001" value={formNode.anilha} onChange={e => setFormNode(f=>({...f,anilha:e.target.value}))} /></Field>
-            <Field label="Nome / Alcunha"><input className="input" placeholder="Ex: Zeus, Micaela..." value={formNode.nome} onChange={e => setFormNode(f=>({...f,nome:e.target.value}))} /></Field>
-            <Field label="Cor"><input className="input" placeholder="Ex: Azul barrado" value={formNode.cor} onChange={e => setFormNode(f=>({...f,cor:e.target.value}))} /></Field>
-            <Field label="Sexo">
-              <select className="input" value={formNode.sexo||''} onChange={e => setFormNode(f=>({...f,sexo:e.target.value}))}>
-                <option value="">—</option>
-                <option value="M">♂ Macho</option>
-                <option value="F">♀ Fêmea</option>
-              </select>
-            </Field>
-            <Field label="Linhagem Genética">
-              <select className="input" value={formNode.linhagem} onChange={e => setFormNode(f=>({...f,linhagem:e.target.value}))}>
-                <option value="">— Seleccionar —</option>
-                {LINHAS_GENETICAS.map(l => <option key={l}>{l}</option>)}
-              </select>
-            </Field>
-            {formNode.externo && <Field label="Criador / Origem"><input className="input" placeholder="Nome do criador ou país de origem" value={formNode.criador||''} onChange={e => setFormNode(f=>({...f,criador:e.target.value}))} /></Field>}
+            {/* Footer */}
+            <div style={{ padding:'14px 20px', borderTop:'1px solid #1B2D52', display:'flex', justifyContent:'flex-end', gap:10, flexShrink:0, background:'#0B1830' }}>
+              <button className="btn btn-secondary" onClick={() => setModalNode(null)}>Cancelar</button>
+              <button className="btn btn-primary" onClick={guardarNode}>Guardar</button>
+            </div>
           </div>
-          <Field label="🏆 Conquistas e Resultados">
-            <textarea className="input" rows={3} style={{ resize:'none' }} placeholder="Ex: 1.º Velocidade Distrital 2023..." value={formNode.conquistas} onChange={e => setFormNode(f=>({...f,conquistas:e.target.value}))} />
-          </Field>
-          <Field label="📝 Descrição / Observações">
-            <textarea className="input" rows={2} style={{ resize:'none' }} placeholder="Criador de origem, características especiais..." value={formNode.desc} onChange={e => setFormNode(f=>({...f,desc:e.target.value}))} />
-          </Field>
-          <Field label="🖼️ URL da Foto">
-            <input className="input" placeholder="https://..." value={formNode.foto_url} onChange={e => setFormNode(f=>({...f,foto_url:e.target.value}))} />
-          </Field>
         </div>
-      </Modal>
+      )}
     </div>
   )
 }
