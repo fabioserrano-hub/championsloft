@@ -35,6 +35,8 @@ import SeleccionadorCasais from './pages/SeleccionadorCasais'
 import ImportacaoCSV from './pages/ImportacaoCSV'
 import Mensagens from './pages/Mensagens'
 import Marketplace from './pages/Marketplace'
+import Analiticas from './pages/Analiticas'
+import RastreioForma from './pages/RastreioForma'
 import Onboarding, { useOnboarding } from './components/Onboarding'
 import { IdiomaContext, useIdiomaState } from './hooks/useIdioma'
 import Perfil       from './pages/Perfil'
@@ -65,6 +67,8 @@ const NAV = [
   ]},
   { section: 'Análise', items: [
     { id: 'relatorios',  icon: '📊', label: 'Relatórios' },
+    { id: 'analiticas',  icon: '📈', label: 'Analíticas' },
+    { id: 'forma',       icon: '💪', label: 'Rastreio Forma' },
     { id: 'epoca',       icon: '🏁', label: 'Época' },
     { id: 'meteorologia',icon: '🌦️', label: 'Meteorologia' },
   ]},
@@ -191,6 +195,8 @@ function AppLayout() {
       case 'importacao':   return <ImportacaoCSV nav={nav} />
       case 'mensagens':    return <Mensagens nav={nav} />
       case 'marketplace':  return <Marketplace nav={nav} />
+      case 'analiticas':   return <Analiticas nav={nav} />
+      case 'forma':        return <RastreioForma nav={nav} />
       case 'comunidade':   return <Comunidade nav={nav} />
       case 'ligas':        return <Ligas nav={nav} />
       case 'patrocinadores': return <Patrocinadores nav={nav} />
