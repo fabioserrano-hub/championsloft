@@ -27,6 +27,16 @@
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@700;900&family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
     <link rel="icon" type="image/png" href="/icons/icon-192.png" />
+    <script>
+      // Aplicar tema antes do React para evitar flash
+      try {
+        var t = localStorage.getItem('cl_tema') || 'dark'
+        document.documentElement.setAttribute('data-theme', t)
+        document.documentElement.style.background = t === 'light' ? '#F0F4F8' : '#050D1A'
+      } catch(e) {
+        document.documentElement.setAttribute('data-theme', 'dark')
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
@@ -40,6 +50,16 @@
             .catch(err => console.log('SW erro:', err))
         })
       }
+    </script>
+    <script>
+      // Botão de escape — aparece se a app não carregar em 8 segundos
+      setTimeout(function() {
+        if (!document.getElementById('root').hasChildNodes()) {
+          var btn = document.createElement('div')
+          btn.innerHTML = '<div style="position:fixed;inset:0;background:#050D1A;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:9999"><div style="font-size:40px">🕊️</div><div style="color:#fff;font-size:16px;font-family:sans-serif">A app não carregou correctamente.</div><button onclick="localStorage.clear();sessionStorage.clear();location.reload()" style="background:#1E5FD9;color:#fff;border:none;padding:12px 24px;border-radius:8px;font-size:14px;cursor:pointer;font-family:sans-serif">🔄 Limpar e recarregar</button><button onclick="fetch('https://tgqnbheetpgnpjsjphoj.supabase.co/auth/v1/logout',{method:'POST'}).catch(()=>{}).finally(()=>{localStorage.clear();location.reload()})" style="background:transparent;color:#7A8699;border:1px solid #1B2D52;padding:10px 20px;border-radius:8px;font-size:12px;cursor:pointer;font-family:sans-serif">Fazer logout e tentar</button></div>'
+          document.body.appendChild(btn)
+        }
+      }, 8000)
     </script>
   </body>
 </html>
