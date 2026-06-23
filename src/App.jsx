@@ -43,7 +43,8 @@ import Afiliados from './pages/Afiliados'
 import Exportacao from './pages/Exportacao'
 import PerfilPublico from './pages/PerfilPublico'
 import Onboarding, { useOnboarding } from './components/Onboarding'
-import { IdiomaContext, useIdiomaState } from './hooks/useIdioma'
+import { IdiomaContext, useIdiomaState, IDIOMAS } from './hooks/useIdioma'
+import { usePushNotificacoes } from './hooks/useNotificacoes'
 import Perfil       from './pages/Perfil'
 import Documentos   from './pages/Documentos'
 import PaginaSucesso from './pages/PaginaSucesso'
@@ -128,7 +129,8 @@ function AppLayout() {
   const { user } = useAuth()
   const { flags, isAdmin, betaTester } = useFeatureFlags()
   const { mostrar: mostrarOnboarding, concluir: concluirOnboarding } = useOnboarding()
-  const { idioma, trocar: trocarIdioma } = useIdiomaState()
+  const { idioma, setIdioma } = useIdiomaState()
+  const { pedir: pedirNotif, permissao } = usePushNotificacoes()
   const [page, setPage] = useState('dashboard')
   const [navParams, setNavParams] = useState({})
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -301,11 +303,18 @@ function AppLayout() {
             <span className="tb-search-kbd">⌘K</span>
           </div>
           <div className="tb-right">
-            {/* Toggle idioma PT/BR */}
-            <button onClick={trocarIdioma} title="Alternar PT/BR"
-              style={{ background:'rgba(255,255,255,.06)', border:'1px solid #1B2D52', borderRadius:8, padding:'5px 10px', cursor:'pointer', fontSize:11, fontWeight:700, color:'#94a3b8', fontFamily:'inherit' }}>
-              {idioma==='pt'?'🇵🇹 PT':'🇧🇷 BR'}
-            </button>
+            {/* Toggle idioma */}
+            <select value={idioma} onChange={e => setIdioma(e.target.value)}
+              style={{ background:'rgba(255,255,255,.06)', border:'1px solid var(--border)', borderRadius:8, padding:'5px 8px', cursor:'pointer', fontSize:11, fontWeight:700, color:'var(--text3)', fontFamily:'inherit', outline:'none' }}>
+              {IDIOMAS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
+            </select>
+            {/* Notificações */}
+            {permissao !== 'granted' && (
+              <button onClick={pedirNotif} title="Activar notificações"
+                style={{ background:'rgba(212,175,55,.1)', border:'1px solid rgba(212,175,55,.3)', borderRadius:8, padding:'5px 8px', cursor:'pointer', fontSize:14, color:'#D4AF37' }}>
+                🔔
+              </button>
+            )}
             {/* Botão instalar PWA */}
             {installPrompt && (
               <button onClick={instalarApp} title="Instalar app no dispositivo"
