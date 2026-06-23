@@ -44,6 +44,9 @@ export default function Provas({ nav, params }) {
   const toast = useToast()
   const { user } = useAuth()
   const [uploadingAnexo, setUploadingAnexo] = useState(false)
+  const [modalImportFPC, setModalImportFPC] = useState(false)
+  const [importandoFPC, setImportandoFPC] = useState(false)
+  const [fpcUrl, setFpcUrl] = useState('')
   const [provas, setProvas] = useState([])
   const [pombos, setPombos] = useState([])
   const [loading, setLoading] = useState(true)
@@ -78,6 +81,63 @@ export default function Provas({ nav, params }) {
       if (p) openDetail(p)
     }
   }, [params, provas])
+
+  const importarFPC = async () => {
+    if (!fpcUrl.trim()) { toast('Introduz o URL ou código da prova FPC','warn'); return }
+    setImportandoFPC(true)
+    try {
+      // Tentar extrair dados da URL FPC ou código manual
+      // Como o site FPC não tem API pública, usamos CSV colado ou dados manuais
+      const linhas = fpcUrl.trim().split('\n').filter(l => l.trim())
+      if (linhas.length < 2) {
+        toast('Formato inválido. Cola os resultados em CSV (anilha;posição;velocidade)','warn')
+        setImportandoFPC(false); return
+      }
+      // Detectar separador
+      const sep = linhas[0].includes(';') ? ';' : ','
+      const headers = linhas[0].split(sep).map(h => h.trim().toLowerCase())
+      const anilhaIdx = headers.findIndex(h => h.includes('anil') || h.includes('ring'))
+      const posIdx = headers.findIndex(h => h.includes('pos') || h.includes('lugar') || h.includes('clas'))
+      const velIdx = headers.findIndex(h => h.includes('vel') || h.includes('speed'))
+      const nomeIdx = headers.findIndex(h => h.includes('nome') || h.includes('pombo'))
+
+      // Criar a prova primeiro se não existe seleccionada
+      let provaId = selected?.id
+      if (!provaId) {
+        const { data: novaProva } = await supabase.from('races').insert({
+          user_id: (await supabase.auth.getUser()).data.user?.id,
+          nome: `Importação FPC ${new Date().toLocaleDateString('pt-PT')}`,
+          data_reg: new Date().toISOString().slice(0,10),
+          tipo: 'velocidade', dist: 0, origem: 'fpc_import'
+        }).select().single()
+        provaId = novaProva?.id
+      }
+
+      // Importar resultados linha a linha
+      let ok = 0
+      for (const linha of linhas.slice(1)) {
+        const cols = linha.split(sep).map(c => c.trim())
+        const anilha = anilhaIdx >= 0 ? cols[anilhaIdx] : cols[0]
+        const posicao = posIdx >= 0 ? parseInt(cols[posIdx]) : 0
+        const velocidade = velIdx >= 0 ? parseFloat(cols[velIdx]?.replace(',','.')) : 0
+        if (!anilha) continue
+
+        // Procurar pombo por anilha
+        const { data: pombo } = await supabase.from('pigeons').select('id').eq('anilha', anilha).maybeSingle()
+        if (pombo && provaId) {
+          await supabase.from('race_results').insert({
+            user_id: (await supabase.auth.getUser()).data.user?.id,
+            race_id: provaId, pigeon_id: pombo.id,
+            posicao, velocidade, dist: selected?.dist || 0
+          })
+          ok++
+        }
+      }
+      toast(`${ok} resultado(s) importado(s)!`, 'ok')
+      setModalImportFPC(false); setFpcUrl(''); load()
+    } catch(e) { toast('Erro: '+e.message,'err') }
+    finally { setImportandoFPC(false) }
+  }
 
   const openNew = () => { setForm(EMPTY_PROVA); setSelected(null); setModal('form') }
   const openEdit = (p) => {
@@ -283,7 +343,10 @@ export default function Provas({ nav, params }) {
     <div>
       <div className="section-header">
         <div><div className="section-title">Provas</div><div className="section-sub">{provas.length} provas registadas</div></div>
-        <button className="btn btn-primary" onClick={openNew}>＋ Nova Prova</button>
+        <div style={{ display:'flex', gap:6 }}>
+          <button className="btn btn-secondary btn-sm" onClick={() => setModalImportFPC(true)}>📥 FPC</button>
+          <button className="btn btn-primary" onClick={openNew}>＋ Nova Prova</button>
+        </div>
       </div>
 
       {loading ? <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}><Spinner lg /></div>
@@ -576,6 +639,23 @@ ${latP && lonP ? `L.circleMarker([${latP},${lonP}],{radius:8,color:'#2DD4A7',fil
       <Modal open={!!confirm} onClose={() => setConfirm(null)} title="Eliminar prova"
         footer={<><button className="btn btn-secondary" onClick={() => setConfirm(null)}>Cancelar</button><button className="btn btn-danger" onClick={del}>Eliminar</button></>}>
         <p style={{ fontSize: 14, color: '#cbd5e1' }}>Eliminar "{confirm?.nome}"? Os resultados associados também serão perdidos.</p>
+      </Modal>
+
+      {/* Modal Import FPC */}
+      <Modal open={modalImportFPC} onClose={() => { setModalImportFPC(false); setFpcUrl('') }} title="📥 Importar Resultados FPC"
+        footer={<><button className="btn btn-secondary" onClick={() => setModalImportFPC(false)}>Cancelar</button><button className="btn btn-primary" onClick={importarFPC} disabled={importandoFPC}>{importandoFPC ? <Spinner /> : null}Importar</button></>}>
+        <div style={{ marginBottom:12, padding:'10px 12px', background:'rgba(76,141,255,.06)', border:'1px solid rgba(76,141,255,.15)', borderRadius:8, fontSize:12, color:'#94a3b8', lineHeight:1.7 }}>
+          Cola os resultados exportados do site da FPC em formato CSV.<br/>
+          Formato: <span style={{ fontFamily:"'Space Mono',monospace", color:'#4C8DFF' }}>anilha;posição;velocidade</span><br/>
+          A 1ª linha deve ser o cabeçalho. As anilhas devem corresponder ao teu efectivo.
+        </div>
+        {selected && <div style={{ fontSize:12, color:'#2DD4A7', marginBottom:10 }}>✓ Prova seleccionada: <strong>{selected.nome}</strong></div>}
+        {!selected && <div style={{ fontSize:12, color:'#D4AF37', marginBottom:10 }}>⚠️ Nenhuma prova seleccionada — será criada automaticamente</div>}
+        <Field label="Resultados CSV">
+          <textarea className="input" rows={8} style={{ resize:'vertical', fontFamily:"'Space Mono',monospace", fontSize:11 }}
+            value={fpcUrl} onChange={e => setFpcUrl(e.target.value)}
+            placeholder={'anilha;posicao;velocidade\nPT-2022-00001;1;1420\nPT-2022-00002;3;1398\n...'} />
+        </Field>
       </Modal>
     </div>
   )
