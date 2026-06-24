@@ -247,8 +247,8 @@ export default function Pombos({ nav }) {
       </div>
 
       <div style={{ display: 'flex', gap: 4, background: '#101F40', borderRadius: 10, padding: 4, marginBottom: 16, overflowX: 'auto' }}>
-        {[['efectivo', `🐦 ${t('efectivo')} (${efectivo.length})`], ['externos', `🔄 Externos (${externos.length})`], ['vendidos', `💰 ${t('vendidos')||'Vendidos'} (${vendidos.length})`]].map(([tab, l]) => (
-          <button key={t} onClick={() => setTabPrincipal(t)} style={{ padding: '8px 14px', borderRadius: 6, fontSize: 13, fontWeight: 500, cursor: 'pointer', border: 'none', fontFamily: 'inherit', whiteSpace: 'nowrap', background: tabPrincipal === t ? '#1E5FD9' : 'none', color: tabPrincipal === t ? '#fff' : '#94a3b8' }}>{l}</button>
+        {[['efectivo', `🐦 Efectivo (${efectivo.length})`], ['externos', `🔄 Externos (${externos.length})`], ['vendidos', `💰 Vendidos (${vendidos.length})`]].map(([tab, label]) => (
+          <button key={tab} onClick={() => setTabPrincipal(tab)} style={{ padding: '8px 14px', borderRadius: 6, fontSize: 13, fontWeight: 500, cursor: 'pointer', border: 'none', fontFamily: 'inherit', whiteSpace: 'nowrap', background: tabPrincipal === tab ? '#1E5FD9' : 'none', color: tabPrincipal === tab ? '#fff' : '#94a3b8' }}>{label}</button>
         ))}
       </div>
 
