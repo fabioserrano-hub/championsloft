@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { supabase, db } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { useToast, Spinner } from '../components/ui'
+import { BotaoWhatsApp, textoCartaoVisita } from '../components/Partilha'
+import { ConquistaCard } from '../components/Conquistas'
 
 export default function Dashboard({ nav }) {
   const { user } = useAuth()
@@ -17,7 +19,7 @@ export default function Dashboard({ nav }) {
     async function load() {
       setLoading(true)
       try {
-        const [pombos, provas, fin, saude, treinos, tarefas, acas, stock, eventos, treatmentPlans, treatmentApps, treatmentProducts, perfil] = await Promise.all([
+        const [pombos, provas, fin, saude, treinos, tarefas, acas, stock, eventos, treatmentPlans, treatmentApps, treatmentProducts, perfil, conquistasRecentes] = await Promise.all([
           db.getPombos(),
           db.getProvas(),
           db.getFinancas(),
@@ -31,6 +33,7 @@ export default function Dashboard({ nav }) {
           db.getTreatmentApplications().catch(() => []),
           db.getTreatmentProducts().catch(() => []),
           db.getPerfil().catch(() => null),
+          supabase.from('conquistas').select('*').eq('user_id', (await supabase.auth.getUser()).data.user?.id).order('created_at', { ascending:false }).limit(3).then(r => r.data || []),
         ])
 
         // Clima do pombal via Open-Meteo
@@ -101,6 +104,7 @@ export default function Dashboard({ nav }) {
           provasProximas, provasHoje, tarefasHojeOuAtraso, tarefasProximas,
           eventosHoje, alertas, eclosoesProximas,
           itemTratamentoHoje, aplicacaoHoje, hojeKey, produtoTratamentoHoje,
+          conquistasRecentes,
         })
       } catch (e) { toast('Erro: ' + e.message, 'err') }
       finally { setLoading(false) }
@@ -336,6 +340,38 @@ export default function Dashboard({ nav }) {
               </div>
             ))
           }
+        </div>
+      </div>
+
+      {/* Conquistas recentes + Cartão de visita */}
+      <div className="grid-2" style={{ marginBottom:14 }}>
+        {data.conquistasRecentes?.length > 0 && (
+          <div className="card card-p">
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
+              <div style={{ fontFamily:"'Fraunces',serif", fontWeight:700, color:'#fff', fontSize:14 }}>🏅 Conquistas recentes</div>
+              <button className="btn btn-secondary btn-sm" onClick={() => nav('conquistas')}>Ver todas →</button>
+            </div>
+            <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+              {data.conquistasRecentes.map(c => <ConquistaCard key={c.tipo} c={c} obtida/>)}
+            </div>
+          </div>
+        )}
+        <div className="card card-p">
+          <div style={{ fontFamily:"'Fraunces',serif", fontWeight:700, color:'#fff', fontSize:14, marginBottom:12 }}>📤 Cartão de Visita</div>
+          <div style={{ background:'linear-gradient(135deg,#050D1A,#0B1830)', border:'1px solid rgba(212,175,55,.2)', borderRadius:10, padding:'14px', marginBottom:12, position:'relative', overflow:'hidden' }}>
+            <div style={{ position:'absolute', top:0, left:0, right:0, height:2, background:'linear-gradient(90deg,#D4AF37,#4C8DFF)' }}/>
+            <div style={{ fontSize:14, fontWeight:700, color:'#fff', marginBottom:4 }}>{data.perfil?.nome || nome}</div>
+            <div style={{ fontSize:11, color:'#7A8699', marginBottom:6 }}>🏠 {data.perfil?.pombal_nome || 'Pombal'}</div>
+            <div style={{ display:'flex', gap:12, fontSize:11 }}>
+              <span style={{ color:'#4C8DFF' }}>🐦 {data.ativos}</span>
+              <span style={{ color:'#D4AF37' }}>📊 {mediaScore}%</span>
+              <span style={{ color:'#2DD4A7' }}>🏆 {data.vitorias}</span>
+            </div>
+          </div>
+          <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+            <BotaoWhatsApp texto={textoCartaoVisita(data.perfil, { total:data.ativos, provas:data.provas.length, mediaPercentil:mediaScore })} label="Partilhar"/>
+            {data.perfil?.slug && <button className="btn btn-secondary btn-sm" onClick={()=>{navigator.clipboard?.writeText(`${window.location.origin}/p/${data.perfil.slug}`)}}>🔗 Link</button>}
+          </div>
         </div>
       </div>
 
