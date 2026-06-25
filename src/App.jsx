@@ -40,6 +40,9 @@ import RastreioForma from './pages/RastreioForma'
 import Clubes from './pages/Clubes'
 import Leiloes from './pages/Leiloes'
 import Afiliados from './pages/Afiliados'
+import ClubesPersonalizados from './pages/ClubesPersonalizados'
+import LigaClubes from './pages/LigaClubes'
+import { useNotificacoes, PainelNotificacoes, verificarAlertasAutomaticos } from './components/Notificacoes'
 import ConquistasPage from './components/Conquistas'
 import Fundadores from './pages/Fundadores'
 import Carteira from './pages/Carteira'
@@ -87,6 +90,8 @@ function getNav(t) {
     { id: 'comunidade',  icon: '🌐', label: t('comunidade') || 'Comunidade' },
     { id: 'mensagens',   icon: '💬', label: t('mensagens') || 'Mensagens' },
     { id: 'clubes',      icon: '🏛️', label: t('clubes') || 'Clubes' },
+    { id: 'clubes_pers',  icon: '🎽', label: 'Clubes & Equipes' },
+    { id: 'liga_clubes',  icon: '⚔️', label: 'Liga de Clubes' },
     { id: 'leiloes',     icon: '🔨', label: t('leiloes') || 'Leilões' },
     { id: 'marketplace', icon: '🛒', label: t('marketplace') || 'Marketplace' },
     { id: 'ligas',       icon: '🏆', label: t('ligas') || 'Ligas' },
@@ -138,6 +143,8 @@ function AppLayout({ setIdioma }) {
   const { user } = useAuth()
   const { flags, isAdmin, betaTester } = useFeatureFlags()
   const { mostrar: mostrarOnboarding, concluir: concluirOnboarding } = useOnboarding()
+  const { notifs, naoLidas, marcarLida, marcarTodasLidas } = useNotificacoes()
+  const [painelNotif, setPainelNotif] = useState(false)
   const { idioma, t } = useIdioma()
   const NAV = getNav(t)
   const { pedir: pedirNotif, permissao } = usePushNotificacoes()
@@ -221,6 +228,8 @@ function AppLayout({ setIdioma }) {
       case 'clubes':       return <Clubes nav={nav} />
       case 'leiloes':      return <Leiloes nav={nav} />
       case 'afiliados':    return <Afiliados nav={nav} />
+      case 'clubes_pers':  return <ClubesPersonalizados nav={nav} />
+      case 'liga_clubes':  return <LigaClubes nav={nav} />
       case 'conquistas':   return <ConquistasPage />
       case 'fundadores':   return <Fundadores nav={nav} />
       case 'carteira':     return <Carteira nav={nav} />
@@ -324,10 +333,23 @@ function AppLayout({ setIdioma }) {
               </select>
             )}
             {/* Notificações */}
-            {permissao !== 'granted' && (
-              <button onClick={pedirNotif} title="Activar notificações"
-                style={{ background:'rgba(212,175,55,.1)', border:'1px solid rgba(212,175,55,.3)', borderRadius:8, padding:'5px 8px', cursor:'pointer', fontSize:14, color:'#D4AF37' }}>
+            {/* Notificações */}
+            <div style={{ position:'relative' }}>
+              <button onClick={() => setPainelNotif(p=>!p)}
+                style={{ background:'none', border:'1px solid var(--border)', borderRadius:8, padding:'5px 8px', cursor:'pointer', fontSize:16, color: naoLidas>0?'#D4AF37':'var(--text4)', position:'relative' }}>
                 🔔
+                {naoLidas > 0 && (
+                  <span style={{ position:'absolute', top:-4, right:-4, width:16, height:16, borderRadius:'50%', background:'#f87171', fontSize:9, fontWeight:700, color:'#fff', display:'flex', alignItems:'center', justifyContent:'center', border:'2px solid var(--bg)' }}>
+                    {naoLidas > 9 ? '9+' : naoLidas}
+                  </span>
+                )}
+              </button>
+              {painelNotif && <PainelNotificacoes onFechar={()=>setPainelNotif(false)} notifs={notifs} naoLidas={naoLidas} marcarLida={marcarLida} marcarTodasLidas={marcarTodasLidas}/>}
+            </div>
+            {permissao !== 'granted' && (
+              <button onClick={pedirNotif} title="Activar notificações push"
+                style={{ background:'rgba(212,175,55,.1)', border:'1px solid rgba(212,175,55,.3)', borderRadius:8, padding:'5px 8px', cursor:'pointer', fontSize:12, color:'#D4AF37' }}>
+                🔕
               </button>
             )}
             {/* Botão instalar PWA */}
