@@ -20,6 +20,7 @@ const EMPTY = { titulo: '', cat: 'Manutenção', data_prevista: new Date().toISO
 
 export default function Checklist({ nav }) {
   const toast = useToast()
+  const { t } = useIdioma()
   const [tarefas, setTarefas] = useState([])
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(false)
@@ -115,7 +116,7 @@ export default function Checklist({ nav }) {
       </div>
 
       <div style={{ display: 'flex', gap: 4, background: '#101F40', borderRadius: 8, padding: 4, marginBottom: 16, overflowX: 'auto' }}>
-        {[['pendentes', 'Pendentes'], ['atrasadas', 'Atrasadas'], ['concluidas', 'Concluídas'], ['todas', 'Todas']].map(([f, l]) => (
+        {[['pendentes', t('tarefasPendentes')], ['atrasadas', 'Atrasadas'], ['concluidas', t('tarefasConcluidas')], ['todas', 'Todas']].map(([f, l]) => (
           <button key={f} onClick={() => setFiltro(f)} style={{ flex: 1, padding: '8px 12px', borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: 'pointer', border: 'none', fontFamily: 'inherit', whiteSpace: 'nowrap', background: filtro === f ? '#1E5FD9' : 'none', color: filtro === f ? '#fff' : '#94a3b8' }}>{l}</button>
         ))}
       </div>
@@ -146,7 +147,7 @@ export default function Checklist({ nav }) {
       }
 
       <Modal open={modal} onClose={close} title={selected ? '✏️ Editar Tarefa' : '✅ Nova Tarefa'}
-        footer={<><button className="btn btn-secondary" onClick={close}>Cancelar</button><button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? <Spinner /> : null}{selected ? 'Guardar' : 'Adicionar'}</button></>}>
+        footer={<><button className="btn btn-secondary" onClick={close}>Cancelar</button><button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? <Spinner /> : null}{selected ? t('guardar') : 'Adicionar'}</button></>}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <Field label="Título *"><input className="input" placeholder="Ex: Limpeza geral do pombal" value={form.titulo} onChange={e => sf('titulo', e.target.value)} /></Field>
           <div className="form-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
