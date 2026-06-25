@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { db } from '../lib/supabase'
 import { useToast, Spinner, EmptyState } from '../components/ui'
+import { useIdioma } from '../hooks/useIdioma'
 
 const ICONES_WMO = {
   0:'☀️',1:'🌤️',2:'⛅',3:'☁️',45:'🌫️',48:'🌫️',
@@ -61,6 +62,7 @@ function horaEstimada(horaSoltaStr, kmAcumulado, velMediaKmH = 72) {
 
 export default function Meteorologia({ nav, params }) {
   const toast = useToast()
+  const { t } = useIdioma()
   const [tab, setTab] = useState('local')
   const [perfil, setPerfil] = useState(null)
   const [provas, setProvas] = useState([])
