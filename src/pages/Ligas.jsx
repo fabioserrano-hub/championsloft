@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase, db } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { useLicenca, BloqueioPlano } from '../hooks/useLicenca'
-import { useToast, Spinner, EmptyState } from '../pages/ui'
+import { useToast, Spinner, EmptyState } from '../components/ui'
 import { useIdioma } from '../hooks/useIdioma'
 import { verificarConquistas } from '../components/Conquistas'
 
