@@ -7,10 +7,10 @@ import { useIdioma } from '../hooks/useIdioma'
 import { BotaoWhatsApp } from '../components/Partilha'
 
 const FASES = {
-  inscricoes: { label: t('inscricoes2'), cor:'#2DD4A7', icon:'📋' },
-  grupos:     { label: t('faseGrupos'),     cor:'#4C8DFF', icon:'⚔️' },
-  quartos:    { label: t('quartos'),   cor:'#D4AF37', icon:'🏆' },
-  meias:      { label: t('meias'),       cor:'#f97316', icon:'🔥' },
+  inscricoes: { label: 'Inscrições abertas', cor:'#2DD4A7', icon:'📋' },
+  grupos:     { label: 'Fase de Grupos',     cor:'#4C8DFF', icon:'⚔️' },
+  quartos:    { label: 'Quartos-de-Final',   cor:'#D4AF37', icon:'🏆' },
+  meias:      { label: 'Meias-Finais',       cor:'#f97316', icon:'🔥' },
   final:      { label:'FINAL',              cor:'#D4AF37', icon:'👑' },
   encerrada:  { label:'Encerrada',          cor:'#475569', icon:'🏁' },
 }
