@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { db } from '../lib/supabase'
 import { useToast, Spinner, Modal, EmptyState, Field, Badge } from '../components/ui'
+import { useIdioma } from '../hooks/useIdioma'
 import { classificarPombo } from './Pombos'
 
 const TIPOS = ['Treino em Linha', 'Treino à Volta do Pombal', 'Voo Livre', 'Solta Local', 'Adestramento']
@@ -20,6 +21,7 @@ function calcVel(distKm, horaSolta, horaRetorno) {
 
 export default function Treinos({ nav }) {
   const toast = useToast()
+  const { t } = useIdioma()
   const [treinos, setTreinos] = useState([])
   const [pombos, setPombos] = useState([])
   const [perfil, setPerfil] = useState(null)
@@ -146,7 +148,7 @@ export default function Treinos({ nav }) {
       }
 
       <Modal open={modal} onClose={close} title={selected ? '✏️ Editar Treino' : '🎯 Novo Treino'} wide
-        footer={<><button className="btn btn-secondary" onClick={close}>Cancelar</button><button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? <Spinner /> : null}{selected ? 'Guardar' : 'Registar'}</button></>}>
+        footer={<><button className="btn btn-secondary" onClick={close}>Cancelar</button><button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? <Spinner /> : null}{selected ? t('guardar') : 'Registar'}</button></>}>
         <div className="form-grid">
           <Field label="Tipo"><select className="input" value={form.tipo} onChange={e => { sf('tipo', e.target.value); if (e.target.value === 'Treino à Volta do Pombal') { sf('local', perfil?.pombal_nome || 'Pombal'); sf('dist', ''); } }}>{TIPOS.map(t => <option key={t}>{TIPO_ICONS[t]} {t}</option>)}</select></Field>
           <div className="col-2">
