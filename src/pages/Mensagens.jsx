@@ -1,11 +1,15 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase, db } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
+import { useIdioma } from '../hooks/useIdioma'
+import { useLicenca, BloqueioPlano } from '../hooks/useLicenca'
 import { useToast, Spinner, EmptyState } from '../components/ui'
 
 export default function Mensagens({ nav }) {
   const { user } = useAuth()
   const toast = useToast()
+  const { t } = useIdioma()
+  const { temBase, temPro, temElite } = useLicenca()
   const [conversas, setConversas] = useState([])
   const [conversa, setConversa] = useState(null)
   const [msgs, setMsgs] = useState([])
@@ -115,6 +119,10 @@ export default function Mensagens({ nav }) {
     return () => supabase.removeChannel(sub)
   }, [conversa?.id])
 
+  // Verificar plano
+  const temAcesso = temPro
+  if (!temAcesso) return <BloqueioPlano plano="pro" nav={nav} />
+
   return (
     <div>
       {/* Header */}
@@ -169,7 +177,7 @@ export default function Mensagens({ nav }) {
                       </div>
                       <div style={{ flex:1, minWidth:0 }}>
                         <div style={{ fontSize:13, fontWeight:600, color:'#fff' }}>{outroNome}</div>
-                        <div style={{ fontSize:11, color:'#7A8699', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{cv.ultima_msg || 'Sem mensagens'}</div>
+                        <div style={{ fontSize:11, color:'#7A8699', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{cv.ultima_msg || t('semMensagens')}</div>
                       </div>
                     </div>
                   )
