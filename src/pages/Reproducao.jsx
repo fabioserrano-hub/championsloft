@@ -3,7 +3,7 @@ import { db } from '../lib/supabase'
 import { useToast, Spinner, Modal, EmptyState, Field, Badge } from '../components/ui'
 
 const ESTADOS = ['em_progresso', 'concluido', 'cancelado']
-const ESTADO_LABEL = { em_progresso: 'Activo', concluido: t('concluido2'), cancelado: 'Cancelado' }
+const ESTADO_LABEL = { em_progresso: 'Activo', concluido: 'Concluído', cancelado: 'Cancelado' }
 const ESTADO_COR = { em_progresso: '#2DD4A7', concluido: '#4C8DFF', cancelado: '#7A8699' }
 const EMPTY = { pai_id: '', mae_id: '', cacifo: '', data_acasalamento: new Date().toISOString().slice(0,10), data_postura: '', data_eclosao_prev: '', estado: 'em_progresso', ninhadas: '0', obs: '' }
 const EMPTY_NASC = { nome: '', sexo: 'M', cor: '', anilha: '', data_nascimento: new Date().toISOString().slice(0,10), data_eclosao_real: '', n_ovos: '2', obs_borrachinho: '' }
