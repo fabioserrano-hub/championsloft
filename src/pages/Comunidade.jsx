@@ -1,6 +1,8 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { db } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
+import { useIdioma } from '../hooks/useIdioma'
+import { useLicenca, BloqueioPlano } from '../hooks/useLicenca'
 import { useToast, Spinner, Modal, EmptyState, Badge } from '../components/ui'
 
 const TIPOS_POST = ['Geral', 'Resultado', 'Treino', 'Conquista', 'Reprodução', 'Pedigree']
@@ -41,6 +43,8 @@ const FORUM_CATS = ['Todos','Geral','Alimentação','Saúde','Reprodução','Pro
 
 function ForumTab({ nome }) {
   const toast = useToast()
+  const { t } = useIdioma()
+  const { temBase, temPro, temElite } = useLicenca()
   const { user } = useAuth()
   const [topicos, setTopicos] = useState([])
   const [cat, setCat] = useState('Todos')
@@ -117,6 +121,10 @@ function ForumTab({ nome }) {
     </div>
   )
 
+  // Verificar plano
+  const temAcesso = temPro
+  if (!temAcesso) return <BloqueioPlano plano="pro" nav={nav} />
+
   return (
     <div>
       {!tabelaOk && (
@@ -173,17 +181,10 @@ function ForumTab({ nome }) {
   )
 }
 
-function Field({ label, children }) {
-  return (
-    <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
-      <label style={{ fontSize:12, fontWeight:600, color:'#94a3b8' }}>{label}</label>
-      {children}
-    </div>
-  )
-}
-
 export default function Comunidade({ nav }) {
   const toast = useToast()
+  const { t } = useIdioma()
+  const { temBase, temPro, temElite } = useLicenca()
   const { user } = useAuth()
   const [tab, setTab] = useState('feed')
   const [posts, setPosts] = useState([])
@@ -204,7 +205,7 @@ export default function Comunidade({ nav }) {
   const [modalPost, setModalPost] = useState(false)
   const [formPost, setFormPost] = useState({ tipo: 'Geral', conteudo: '', hashtags: '' })
   const [savingPost, setSavingPost] = useState(false)
-  const [reacaoAberta, setReacaoAberta] = useState(null)
+  const [reacaoAberta, setReacaoAberta] = useState(null)  // post id com picker aberto
 
   const [modalComments, setModalComments] = useState(null)
   const [comments, setComments] = useState([])
@@ -238,6 +239,7 @@ export default function Comunidade({ nav }) {
 
   useEffect(() => { load() }, [load])
 
+  // Sincronizar ranking com badges/pontos actuais
   useEffect(() => {
     if (loading || !pombos.length) return
     const efectivo = pombos.filter(p => !p.estado_ext || p.estado_ext === 'proprio')
@@ -340,6 +342,7 @@ export default function Comunidade({ nav }) {
   const [tabRanking, setTabRanking] = useState('geral')
   const [showCartao, setShowCartao] = useState(false)
 
+  // Formatar conteúdo com hashtags clicáveis
   const [modalRepost, setModalRepost] = useState(null)
   const [modalGrupo, setModalGrupo] = useState(false)
   const [grupos, setGrupos] = useState([
@@ -390,8 +393,10 @@ export default function Comunidade({ nav }) {
     const cor = tipoCor[post.tipo] || '#4C8DFF'
     return (
       <div className="card" style={{ overflow:'hidden', marginBottom:0 }}>
+        {/* Faixa colorida topo */}
         <div style={{ height:3, background:`linear-gradient(90deg,${cor},${cor}88)` }} />
         <div style={{ padding:'12px 14px' }}>
+          {/* Header */}
           <div style={{ display:'flex', gap:10, marginBottom:10, alignItems:'flex-start' }}>
             <div style={{ width:42, height:42, borderRadius:'50%', background:`linear-gradient(135deg,#1E5FD9,${cor})`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, fontWeight:700, color:'#fff', flexShrink:0, overflow:'hidden', border:`2px solid ${cor}44` }}>
               {post.autor_avatar ? <img src={post.autor_avatar} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : post.autor_nome?.[0]?.toUpperCase() || '?'}
@@ -406,10 +411,13 @@ export default function Comunidade({ nav }) {
               </div>
             </div>
           </div>
+          {/* Conteúdo */}
           <div style={{ fontSize:13, color:'#cbd5e1', lineHeight:1.7, marginBottom:12 }}>
             {formatConteudo(post.conteudo)}
           </div>
+          {/* Acções */}
           <div style={{ display:'flex', gap:4, alignItems:'center', borderTop:'1px solid rgba(255,255,255,.05)', paddingTop:10, position:'relative' }}>
+            {/* Reacções */}
             <div style={{ position:'relative' }}>
               <button onClick={() => setReacaoAberta(reacaoAberta===post.id?null:post.id)}
                 style={{ display:'flex', alignItems:'center', gap:4, background:'none', border:'none', cursor:'pointer', fontSize:13, color:liked?'#f87171':'#7A8699', padding:'4px 8px', borderRadius:6 }}>
@@ -460,8 +468,9 @@ export default function Comunidade({ nav }) {
           <button onClick={() => setShowCartao(true)} style={{ background:'rgba(212,175,55,.12)', border:'1px solid rgba(212,175,55,.3)', borderRadius:10, padding:'7px 10px', cursor:'pointer', fontSize:11, color:'#D4AF37', fontWeight:600 }}>💳 Visita</button>
           <button className="btn btn-primary" onClick={() => setModalPost(true)} style={{ fontSize:12, fontWeight:700 }}>✏️ Publicar</button>
         </div>
+        {/* Stats rápidas */}
         <div style={{ display:'flex', gap:10, marginTop:12 }}>
-          {[['👥',explorar.filter(p=>following.has(p.user_id)).length,'A seguir'],['❤️',posts.reduce((s,p)=>s+(p.likes_count||0),0),'Likes totais'],['🔔',nNaoLidas,'Novas notif.']].map(([icon,val,label])=>(
+          {[['👥',explorar.filter(p=>following.has(p.user_id)).length, t('seguindo')],['❤️',posts.reduce((s,p)=>s+(p.likes_count||0),0),'Likes totais'],['🔔',nNaoLidas,'Novas notif.']].map(([icon,val,label])=>(
             <div key={label} style={{ flex:1, textAlign:'center', padding:'6px 4px', background:'rgba(255,255,255,.04)', borderRadius:8 }}>
               <div style={{ fontSize:11 }}>{icon} <strong style={{ color:'#fff' }}>{val}</strong></div>
               <div style={{ fontSize:9, color:'#475569' }}>{label}</div>
@@ -478,14 +487,13 @@ export default function Comunidade({ nav }) {
       </div>
 
       {/* TABS premium */}
-<div style={{ display:'flex', gap:4, background:'#0A1628', borderRadius:12, padding:4, marginBottom:14, overflowX:'auto' }}>
-  {[['feed','📰','Feed'],['explorar','🔍','Explorar'],['mapa','🗺️','Mapa'],['grupos','👥','Grupos'],['desafios','🎯','Desafios'],['notifs','🔔',nNaoLidas?`(${nNaoLidas})`:'Notif.'],['ranking','🏆','Ranking']].map(([t,icon,l]) => (
-    <button key={t} onClick={() => setTab(t)} style={{ flex:'none', padding:'9px 16px', borderRadius:10, fontSize:12, fontWeight:600, cursor:'pointer', border:'none', fontFamily:'inherit', whiteSpace:'nowrap', background:tab===t?'linear-gradient(135deg,#1E5FD9,#1456C0)':'none', color:tab===t?'#fff':'#7A8699', boxShadow:tab===t?'0 2px 8px rgba(30,95,217,.4)':'none', transition:'all .15s', display:'flex', alignItems:'center', gap:5 }}>
-      <span style={{ fontSize:16 }}>{icon}</span>
-      <span>{l}</span>
-    </button>
-  ))}
-</div>
+      <div style={{ display:'flex', gap:3, background:'#0A1628', borderRadius:10, padding:3, marginBottom:14, overflowX:'auto' }}>
+        {[['feed','📰', t('feed')],['explorar','🔍','Explorar'],['mapa','🗺️','Mapa'],['grupos','👥', t('grupos')],['desafios','🎯', t('desafios')],['notifs','🔔',nNaoLidas?`(${nNaoLidas})`:'Notif.'],['ranking','🏆', t('ranking2')]].map(([t,icon,l]) => (
+          <button key={t} onClick={() => setTab(t)} style={{ flex:'none', padding:'7px 10px', borderRadius:8, fontSize:10, fontWeight:600, cursor:'pointer', border:'none', fontFamily:'inherit', whiteSpace:'nowrap', background:tab===t?'linear-gradient(135deg,#1E5FD9,#1456C0)':'none', color:tab===t?'#fff':'#475569', boxShadow:tab===t?'0 2px 8px rgba(30,95,217,.4)':'none', transition:'all .15s' }}>
+            <div>{icon}</div><div style={{ fontSize:9 }}>{l}</div>
+          </button>
+        ))}
+      </div>
 
       {loading ? <div style={{ display:'flex', justifyContent:'center', padding:60 }}><Spinner lg /></div> : (
         <>
@@ -494,12 +502,14 @@ export default function Comunidade({ nav }) {
               {/* Stories */}
               {(provas.length > 0 || pombos.length > 0) && (
                 <div style={{ display:'flex', gap:10, overflowX:'auto', paddingBottom:8, marginBottom:14 }}>
+                  {/* Criar story */}
                   <div onClick={() => setModalPost(true)} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:4, cursor:'pointer', flexShrink:0 }}>
                     <div style={{ width:52, height:52, borderRadius:'50%', background:'linear-gradient(135deg,#1E5FD9,#D4AF37)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:22, border:'2px solid #D4AF37' }}>
                       {perfil?.foto_perfil_url ? <img src={perfil.foto_perfil_url} style={{ width:'100%', height:'100%', objectFit:'cover', borderRadius:'50%' }} /> : '✏️'}
                     </div>
                     <span style={{ fontSize:9, color:'#7A8699', whiteSpace:'nowrap' }}>Publicar</span>
                   </div>
+                  {/* Top pombos como stories */}
                   {pombos.filter(p=>p.foto_url&&p.estado==='ativo').slice(0,6).map(p => (
                     <div key={p.id} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:4, cursor:'pointer', flexShrink:0 }} onClick={() => nav?.('pombos')}>
                       <div style={{ width:52, height:52, borderRadius:'50%', overflow:'hidden', border:'2px solid #2DD4A7' }}>
@@ -508,6 +518,7 @@ export default function Comunidade({ nav }) {
                       <span style={{ fontSize:9, color:'#94a3b8', maxWidth:54, textAlign:'center', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.nome}</span>
                     </div>
                   ))}
+                  {/* Últimas provas como stories */}
                   {provas.slice(0,3).map(p => (
                     <div key={p.id} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:4, cursor:'pointer', flexShrink:0 }} onClick={() => nav?.('provas')}>
                       <div style={{ width:52, height:52, borderRadius:'50%', background:'linear-gradient(135deg,#D4AF37,#B8960C)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:18, border:'2px solid #D4AF37' }}>🏆</div>
@@ -517,6 +528,7 @@ export default function Comunidade({ nav }) {
                 </div>
               )}
 
+              {/* Filtro de hashtag activo */}
               {hashtagFiltro && (
                 <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10, padding:'6px 12px', background:'rgba(76,141,255,.1)', borderRadius:8, border:'1px solid rgba(76,141,255,.2)' }}>
                   <span style={{ fontSize:13, color:'#4C8DFF', fontWeight:600 }}>{hashtagFiltro}</span>
@@ -550,6 +562,7 @@ export default function Comunidade({ nav }) {
                       const souEu = p.user_id === user?.id
                       return (
                         <div key={p.id} className="card card-p" style={{ position:'relative', overflow:'hidden' }}>
+                          {/* Faixa decorativa topo */}
                           <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background:'linear-gradient(90deg,#1E5FD9,#D4AF37)' }} />
                           <div style={{ display:'flex', gap:10, alignItems:'flex-start', marginTop:6 }}>
                             <div style={{ width:48, height:48, borderRadius:'50%', background:'linear-gradient(135deg,#1E5FD9,#4C8DFF)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:20, fontWeight:700, color:'#fff', flexShrink:0, overflow:'hidden', border:'2px solid #1B2D52' }}>
@@ -607,6 +620,7 @@ export default function Comunidade({ nav }) {
 
           {tab==='ranking' && (
             <div>
+              {/* Sub-tabs especialidade */}
               <div style={{ display:'flex', gap:4, marginBottom:12, overflowX:'auto' }}>
                 {[['geral','🏆 Geral'],...ESPECIALIDADES_RANKING.map(e=>[e,e])].map(([k,l])=>(
                   <button key={k} onClick={()=>setTabRanking(k)} style={{ flexShrink:0, padding:'5px 12px', borderRadius:20, fontSize:11, fontWeight:500, cursor:'pointer', border:'none', fontFamily:'inherit', background:tabRanking===k?'#1E5FD9':'#101F40', color:tabRanking===k?'#fff':'#94a3b8' }}>{l}</button>
@@ -671,16 +685,16 @@ export default function Comunidade({ nav }) {
             const todos = perfil?.pombal_lat
               ? [{ ...perfil, _eu:true }, ...comGPS.filter(p=>p.user_id!==user?.id)]
               : comGPS
-            
             const MapaLeaflet = () => {
+              const { useEffect, useRef } = window.React || require('react')
               const ref = useRef(null)
               useEffect(() => {
                 if (!ref.current || !todos.length) return
                 const loadLeaflet = async () => {
                   if (!window.L) {
                     await Promise.all([
-                      new Promise(res => { const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'; l.onload = res; document.head.appendChild(l) }),
-                      new Promise(res => { const s = document.createElement('script'); s.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'; s.onload = res; document.head.appendChild(s) })
+                      new Promise(res => { const l=document.createElement('link'); l.rel='stylesheet'; l.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'; l.onload=res; document.head.appendChild(l) }),
+                      new Promise(res => { const s=document.createElement('script'); s.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'; s.onload=res; document.head.appendChild(s) })
                     ])
                   }
                   const L = window.L
@@ -703,7 +717,6 @@ export default function Comunidade({ nav }) {
               }, [])
               return <div ref={ref} style={{ width:'100%', height:360, borderRadius:12, overflow:'hidden' }} />
             }
-            
             return (
               <div>
                 <div style={{ display:'flex', gap:12, alignItems:'center', marginBottom:10 }}>
@@ -783,6 +796,7 @@ export default function Comunidade({ nav }) {
 
           {tab==='desafios' && (
             <div>
+              {/* Streak */}
               <div className="card card-p" style={{ marginBottom:12, background:'linear-gradient(135deg,rgba(212,175,55,.1),rgba(212,175,55,.03))', border:'1px solid rgba(212,175,55,.25)' }}>
                 <div style={{ display:'flex', alignItems:'center', gap:12 }}>
                   <div style={{ fontSize:36 }}>🔥</div>
@@ -794,6 +808,7 @@ export default function Comunidade({ nav }) {
                   </div>
                 </div>
               </div>
+              {/* Desafios */}
               <div style={{ fontWeight:600, color:'#fff', marginBottom:10, fontSize:13 }}>🎯 Desafios desta semana</div>
               <div style={{ display:'flex', flexDirection:'column', gap:8, marginBottom:16 }}>
                 {DESAFIOS_SEMANAIS.map(d => {
@@ -819,6 +834,7 @@ export default function Comunidade({ nav }) {
                   )
                 })}
               </div>
+              {/* Badges */}
               <div style={{ fontWeight:600, color:'#fff', marginBottom:10, fontSize:13 }}>🏅 Badges conquistados</div>
               {(() => {
                 const efect = pombos.filter(p=>!p.estado_ext||p.estado_ext==='proprio')
@@ -888,10 +904,12 @@ export default function Comunidade({ nav }) {
       {/* Modal publicar */}
       <Modal open={modalPost} onClose={() => { setModalPost(false); setFormPost({tipo:'Geral',conteudo:'',hashtags:''}) }} title="✏️ Nova Publicação"
         footer={<><button className="btn btn-secondary" onClick={() => setModalPost(false)}>Cancelar</button><button className="btn btn-primary" onClick={publicar} disabled={savingPost}>{savingPost?<Spinner />:null}Publicar</button></>}>
+        {/* Tipo */}
         <div style={{ display:'flex', gap:6, marginBottom:12, flexWrap:'wrap' }}>
           {TIPOS_POST.map(t => (
             <button key={t} onClick={() => {
               setFormPost(f=>({...f, tipo:t}))
+              // Auto-preencher para resultados
               if (t==='Resultado' && provas.length) {
                 const ul = provas[0]
                 setFormPost(f=>({...f, tipo:t, conteudo:`🏆 ${ul.nome} — ${ul.dist}km\n📍 ${ul.local_solta||''}\n📅 ${new Date(ul.data_reg).toLocaleDateString('pt-PT')}\n\n`, hashtags:'#prova #columbofilia'}))
@@ -903,6 +921,7 @@ export default function Comunidade({ nav }) {
             </button>
           ))}
         </div>
+        {/* Conteúdo */}
         <div style={{ display:'flex', gap:8, marginBottom:10 }}>
           <div style={{ width:36, height:36, borderRadius:'50%', background:'linear-gradient(135deg,#1E5FD9,#4C8DFF)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:700, color:'#fff', flexShrink:0, overflow:'hidden' }}>
             {perfil?.foto_perfil_url ? <img src={perfil.foto_perfil_url} style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : nome?.[0]?.toUpperCase()||'?'}
@@ -911,10 +930,12 @@ export default function Comunidade({ nav }) {
             placeholder={formPost.tipo==='Resultado'?'Partilha o resultado da prova...' : formPost.tipo==='Conquista'?'Que conquista queres partilhar?' : `O que tens para partilhar? (${500-formPost.conteudo.length} restantes)`}
             value={formPost.conteudo} onChange={e => setFormPost(f=>({...f,conteudo:e.target.value.slice(0,500)}))} />
         </div>
+        {/* Hashtags */}
         <div style={{ display:'flex', gap:8, alignItems:'center' }}>
           <span style={{ fontSize:12, color:'#7A8699', flexShrink:0 }}>🏷️ Tags:</span>
           <input className="input" placeholder="#columbofilia #velocidade #fundo" value={formPost.hashtags} onChange={e => setFormPost(f=>({...f,hashtags:e.target.value}))} style={{ fontSize:12 }} />
         </div>
+        {/* Atalho partilhar resultado rápido */}
         {provas.length > 0 && formPost.tipo === 'Resultado' && (
           <div style={{ marginTop:10 }}>
             <div style={{ fontSize:11, color:'#7A8699', marginBottom:6 }}>Seleccionar prova:</div>
@@ -928,6 +949,7 @@ export default function Comunidade({ nav }) {
             </div>
           </div>
         )}
+        {/* Menções rápidas */}
         {explorar.length > 0 && (
           <div style={{ marginTop:10 }}>
             <div style={{ fontSize:11, color:'#7A8699', marginBottom:6 }}>@ Mencionar:</div>
@@ -942,7 +964,6 @@ export default function Comunidade({ nav }) {
           </div>
         )}
       </Modal>
-
       {/* Modal repost */}
       <Modal open={!!modalRepost} onClose={() => setModalRepost(null)} title="🔁 Repost"
         footer={<><button className="btn btn-secondary" onClick={() => setModalRepost(null)}>Cancelar</button><button className="btn btn-primary" onClick={() => repostar(modalRepost)} disabled={savingPost}>{savingPost?<Spinner/>:null}Repostar</button></>}>
@@ -956,8 +977,6 @@ export default function Comunidade({ nav }) {
           </div>
         )}
       </Modal>
-
-      {/* Modal comentários */}
       <Modal open={!!modalComments} onClose={() => { setModalComments(null); setComments([]) }} title="💬 Comentários"
         footer={<><input className="input" placeholder="Escreve um comentário..." value={novoComment} onChange={e => setNovoComment(e.target.value)} onKeyDown={e => e.key==='Enter' && enviarComment()} style={{ flex:1 }} /><button className="btn btn-primary btn-sm" onClick={enviarComment} disabled={savingComment}>{savingComment?<Spinner />:'Enviar'}</button></>}>
         {comments.length===0 ? <div style={{ textAlign:'center', color:'#7A8699', padding:'20px 0' }}>Sem comentários ainda. Sê o primeiro!</div>
