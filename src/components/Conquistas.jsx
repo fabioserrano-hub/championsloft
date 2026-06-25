@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useIdioma } from '../hooks/useIdioma'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
-import { Spinner, EmptyState } from '../pages/ui'
+import { Spinner, EmptyState } from '../components/ui'
 
 const RARIDADE_COR = {
   comum:    { bg:'rgba(148,163,184,.1)', border:'rgba(148,163,184,.25)', text:'#94a3b8', label:'Comum' },
