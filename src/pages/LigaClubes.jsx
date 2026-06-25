@@ -1,14 +1,16 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
+import { useLicenca, BloqueioPlano } from '../hooks/useLicenca'
 import { useToast, Spinner, EmptyState } from '../components/ui'
+import { useIdioma } from '../hooks/useIdioma'
 import { BotaoWhatsApp } from '../components/Partilha'
 
 const FASES = {
-  inscricoes: { label:'Inscrições abertas', cor:'#2DD4A7', icon:'📋' },
-  grupos:     { label:'Fase de Grupos',     cor:'#4C8DFF', icon:'⚔️' },
-  quartos:    { label:'Quartos-de-Final',   cor:'#D4AF37', icon:'🏆' },
-  meias:      { label:'Meias-Finais',       cor:'#f97316', icon:'🔥' },
+  inscricoes: { label: t('inscricoes2'), cor:'#2DD4A7', icon:'📋' },
+  grupos:     { label: t('faseGrupos'),     cor:'#4C8DFF', icon:'⚔️' },
+  quartos:    { label: t('quartos'),   cor:'#D4AF37', icon:'🏆' },
+  meias:      { label: t('meias'),       cor:'#f97316', icon:'🔥' },
   final:      { label:'FINAL',              cor:'#D4AF37', icon:'👑' },
   encerrada:  { label:'Encerrada',          cor:'#475569', icon:'🏁' },
 }
@@ -68,6 +70,10 @@ function DetalheLigaClubes({ liga, user, meusClubes, onVoltar, toast }) {
     if (!confrontosPorJornada[c.jornada_id]) confrontosPorJornada[c.jornada_id] = []
     confrontosPorJornada[c.jornada_id].push(c)
   })
+
+  // Verificar plano
+  const temAcesso = temElite
+  if (!temAcesso) return <BloqueioPlano plano="elite" nav={nav} />
 
   return (
     <div>
@@ -220,6 +226,8 @@ function DetalheLigaClubes({ liga, user, meusClubes, onVoltar, toast }) {
 export default function LigaClubes({ nav }) {
   const { user } = useAuth()
   const toast = useToast()
+  const { t } = useIdioma()
+  const { temBase, temPro, temElite } = useLicenca()
   const [ligas, setLigas] = useState([])
   const [meusClubes, setMeusClubes] = useState([])
   const [loading, setLoading] = useState(true)
@@ -269,7 +277,7 @@ export default function LigaClubes({ nav }) {
             <div style={{ fontSize:18, fontWeight:900, color:'#fff', fontFamily:"'Fraunces',serif" }}>⚔️ Liga de Clubes</div>
             <div style={{ fontSize:11, color:'#7A8699', marginTop:2 }}>Modo Liga dos Campeões · {ligas.length} competição(ões)</div>
           </div>
-          <button className="btn btn-primary btn-sm" onClick={()=>setModal(true)}>+ Criar</button>
+          <button className="btn btn-primary btn-sm" onClick={()=>temElite?setModal(true):nav('precos')}>{temElite?'+ Criar':'🔒 Elite'}</button>
         </div>
       </div>
 
@@ -326,7 +334,7 @@ export default function LigaClubes({ nav }) {
                 <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
                   {[
                     { id:'liga',     icon:'📅', label:'Liga (época completa)', desc:'Todos os clubes jogam entre si ao longo da época. Campeão por pontos acumulados.' },
-                    { id:'campeoes', icon:'🏆', label:'Modo Campeões', desc:'Fase de grupos + eliminatórias. O formato mais emocionante — cada jornada pode eliminar.' },
+                    { id:'campeoes', icon:'🏆', label: t('modoCampeoes'), desc:'Fase de grupos + eliminatórias. O formato mais emocionante — cada jornada pode eliminar.' },
                     { id:'challenge',icon:'🎯', label:'Challenge', desc:'Confronto directo entre clubes. Simples e rápido — ideal para rivalidades locais.' },
                   ].map(t=>(
                     <div key={t.id} onClick={()=>sf('tipo',t.id)} style={{ padding:'10px 12px', borderRadius:8, cursor:'pointer', background:form.tipo===t.id?'rgba(212,175,55,.1)':'rgba(16,31,64,.6)', border:`1px solid ${form.tipo===t.id?'rgba(212,175,55,.4)':'#1B2D52'}` }}>
