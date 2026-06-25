@@ -40,6 +40,7 @@ import RastreioForma from './pages/RastreioForma'
 import Clubes from './pages/Clubes'
 import Leiloes from './pages/Leiloes'
 import Afiliados from './pages/Afiliados'
+import ConquistasPage from './components/Conquistas'
 import Exportacao from './pages/Exportacao'
 import PerfilPublico from './pages/PerfilPublico'
 import Onboarding, { useOnboarding } from './components/Onboarding'
@@ -98,6 +99,7 @@ function getNav(t) {
     { id: 'exportacao',  icon: '📤', label: t('exportar') || 'Exportar' },
     { id: 'admin',       icon: '👑', label: 'Admin' },
     { id: 'afiliados',   icon: '🤝', label: t('afiliados') || 'Afiliados' },
+    { id: 'conquistas',  icon: '🏅', label: 'Conquistas' },
     { id: 'perfil',      icon: '⚙️', label: t('perfil') || 'Perfil' },
   ]},
 ]}
@@ -215,6 +217,7 @@ function AppLayout({ setIdioma }) {
       case 'clubes':       return <Clubes nav={nav} />
       case 'leiloes':      return <Leiloes nav={nav} />
       case 'afiliados':    return <Afiliados nav={nav} />
+      case 'conquistas':   return <ConquistasPage />
       case 'exportacao':   return <Exportacao nav={nav} />
       case 'perfil-publico': return <PerfilPublico nav={nav} params={navParams} />
       case 'comunidade':   return <Comunidade nav={nav} />
