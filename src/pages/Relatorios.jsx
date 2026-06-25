@@ -84,6 +84,7 @@ function LineG({ dados, cor = '#D4AF37', formato = v => v }) {
 
 export default function Relatorios({ nav }) {
   const toast = useToast()
+  const { t } = useIdioma()
   const [loading, setLoading] = useState(true)
   const [pombos, setPombos] = useState([])
   const [provas, setProvas] = useState([])
