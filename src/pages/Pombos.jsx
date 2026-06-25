@@ -9,7 +9,7 @@ const anoAtual = new Date().getFullYear()
 const anos = Array.from({ length: 10 }, (_, i) => anoAtual - i)
 const paises = ['PT', 'ES', 'FR', 'BE', 'NL', 'DE', 'IT', 'GB', 'PL', 'CZ']
 const CORES_POMBO = ['Azul barrado', 'Azul xadrezado', 'Azul sem barras', 'Vermelho barrado', 'Vermelho xadrezado', 'Vermelho sem barras', 'Amarelo', 'Branco', 'Branco com marcas', 'Preto', 'Cinzento', 'Castanho', 'Alazão', 'Meado', 'Tigrado', 'Pied azul', 'Pied vermelho', 'Pied branco', 'Recessivo vermelho', 'Recessivo amarelo']
-const FILTROS = [{ id: 'todos', label: 'Todos' }, { id: 'M', label: '♂ Machos' }, { id: 'F', label: '♀ Fêmeas' }, { id: 'ativo', label: 'Voadores' }, { id: 'reproducao', label: 'Reprodução' }, { id: 'lesionado', label: 'Lesionados' }, { id: 'velocidade', label: 'Velocidade' }, { id: 'meio_fundo', label: 'Meio-Fundo' }, { id: 'fundo', label: 'Fundo' }, { id: 'grande_fundo', label: 'G.Fundo' }]
+const FILTROS = [{ id: 'todos', label: t('todos') }, { id: 'M', label: `♂ ${t('macho')}s` }, { id: 'F', label: `♀ ${t('femea')}s` }, { id: 'ativo', label: 'Voadores' }, { id: 'reproducao', label: 'Reprodução' }, { id: 'lesionado', label: 'Lesionados' }, { id: 'velocidade', label: 'Velocidade' }, { id: 'meio_fundo', label: 'Meio-Fundo' }, { id: 'fundo', label: 'Fundo' }, { id: 'grande_fundo', label: 'G.Fundo' }]
 const ESTADOS_EXT = ['proprio', 'emprestado', 'cedido', 'vendido', 'oferecido', 'falecido']
 const CORES_COLUMBOFILIA = ['Azul barrado', 'Azul xadrezado', 'Azul sem barras', 'Vermelho barrado', 'Vermelho xadrezado', 'Amarelo', 'Branco', 'Preto', 'Cinzento', 'Castanho', 'Beige', 'Pied azul', 'Pied vermelho', 'Pied branco', 'Recessivo vermelho', 'Recessivo amarelo']
 const ESPS = [['velocidade', 'Velocidade'], ['meio_fundo', 'Meio-Fundo'], ['fundo', 'Fundo'], ['grande_fundo', 'G.Fundo']]
@@ -298,7 +298,7 @@ export default function Pombos({ nav }) {
       }
 
       <Modal open={modal === 'form'} onClose={close} title={selected ? `✏️ ${selected.nome}` : '🐦 Novo Pombo'} wide
-        footer={<><button className="btn btn-secondary" onClick={close}>Cancelar</button><button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? <Spinner /> : null}{selected ? 'Guardar' : 'Adicionar'}</button></>}>
+        footer={<><button className="btn btn-secondary" onClick={close}>Cancelar</button><button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? <Spinner /> : null}{selected ? t('guardar') : 'Adicionar'}</button></>}>
         <div className="form-grid">
           <div className="col-2" style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <div style={{ width: 72, height: 72, borderRadius: 14, border: '2px dashed #243860', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', cursor: 'pointer', flexShrink: 0 }} onClick={() => document.getElementById('photo-up').click()}>
@@ -395,7 +395,7 @@ export default function Pombos({ nav }) {
               <div style={{ fontSize: 13, color: '#94a3b8' }}>🏠 {selected.pombal || '—'}</div>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, textAlign: 'center' }}>
-              {[['provas', 'Provas', '#D4AF37'], ['percentil', 'Percentil %', '#2DD4A7'], ['forma', 'Forma %', '#4C8DFF']].map(([k, l, cor]) => (
+              {[['provas', t('provas'), '#D4AF37'], ['percentil', 'Percentil %', '#2DD4A7'], ['forma', 'Forma %', '#4C8DFF']].map(([k, l, cor]) => (
                 <div key={k}><div style={{ fontFamily: "'Fraunces',serif", fontSize: 24, fontWeight: 700, color: cor }}>{selected[k] ?? 0}</div><div style={{ fontSize: 10, color: '#7A8699' }}>{l}</div></div>
               ))}
             </div>
