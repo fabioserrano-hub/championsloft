@@ -8,6 +8,7 @@ const EMPTY = { tipo: 'despesa', cat: 'Alimentação', val: '', data_reg: new Da
 
 export default function Financas({ nav }) {
   const toast = useToast()
+  const { t } = useIdioma()
   const [lista, setLista] = useState([])
   const [pombos, setPombos] = useState([])
   const [loading, setLoading] = useState(true)
@@ -158,7 +159,7 @@ export default function Financas({ nav }) {
       }
 
       <Modal open={modal} onClose={close} title={selected ? '✏️ Editar Movimento' : '💰 Novo Movimento'}
-        footer={<><button className="btn btn-secondary" onClick={close}>Cancelar</button><button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? <Spinner /> : null}{selected ? 'Guardar' : 'Registar'}</button></>}>
+        footer={<><button className="btn btn-secondary" onClick={close}>Cancelar</button><button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? <Spinner /> : null}{selected ? t('guardar') : 'Registar'}</button></>}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div style={{ display: 'flex', gap: 8 }}>
             {['despesa', 'receita'].map(t => (
