@@ -3,7 +3,7 @@ import { db } from '../lib/supabase'
 import { useToast, Spinner, Modal, EmptyState, Field, Badge } from '../components/ui'
 
 const ESTADOS = ['em_progresso', 'concluido', 'cancelado']
-const ESTADO_LABEL = { em_progresso: 'Activo', concluido: 'Concluído', cancelado: 'Cancelado' }
+const ESTADO_LABEL = { em_progresso: 'Activo', concluido: t('concluido2'), cancelado: 'Cancelado' }
 const ESTADO_COR = { em_progresso: '#2DD4A7', concluido: '#4C8DFF', cancelado: '#7A8699' }
 const EMPTY = { pai_id: '', mae_id: '', cacifo: '', data_acasalamento: new Date().toISOString().slice(0,10), data_postura: '', data_eclosao_prev: '', estado: 'em_progresso', ninhadas: '0', obs: '' }
 const EMPTY_NASC = { nome: '', sexo: 'M', cor: '', anilha: '', data_nascimento: new Date().toISOString().slice(0,10), data_eclosao_real: '', n_ovos: '2', obs_borrachinho: '' }
@@ -14,6 +14,7 @@ const diasAte = (d) => d ? Math.round((new Date(d)-new Date())/86400000) : null
 
 export default function Reproducao({ nav, params }) {
   const toast = useToast()
+  const { t } = useIdioma()
   const [acasalamentos, setAcasalamentos] = useState([])
   const [pombos, setPombos] = useState([])
   const [loading, setLoading] = useState(true)
@@ -141,7 +142,7 @@ export default function Reproducao({ nav, params }) {
 
       {/* KPIs */}
       <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8,marginBottom:16}}>
-        {[['❤️','Casais Activos',ativos.length,'#f87171'],['🥚','Em Incubação',ativos.filter(a=>a.data_postura&&!a.data_eclosao_real).length,'#4C8DFF'],['🐣','Eclosões Previstas',eclosoesProximas.length,'#D4AF37'],['🐦','Nascidos',totalNascidos,'#2DD4A7']].map(([icon,label,val,cor])=>(
+        {[['❤️', t('casaisActivos'),ativos.length,'#f87171'],['🥚','Em Incubação',ativos.filter(a=>a.data_postura&&!a.data_eclosao_real).length,'#4C8DFF'],['🐣','Eclosões Previstas',eclosoesProximas.length,'#D4AF37'],['🐦','Nascidos',totalNascidos,'#2DD4A7']].map(([icon,label,val,cor])=>(
           <div key={label} className="card card-p" style={{textAlign:'center',borderTop:`2px solid ${cor}`}}>
             <div style={{fontSize:18,marginBottom:2}}>{icon}</div>
             <div style={{fontFamily:"'Fraunces',serif",fontSize:22,fontWeight:700,color:cor}}>{val}</div>
@@ -398,7 +399,7 @@ export default function Reproducao({ nav, params }) {
 
       {/* Modal novo acasalamento */}
       <Modal open={modal} onClose={close} title={selected?'✏️ Editar Casal':'🥚 Novo Casal'} wide
-        footer={<><button className="btn btn-secondary" onClick={close}>Cancelar</button><button className="btn btn-primary" onClick={save} disabled={saving}>{saving?<Spinner/>:null}{selected?'Guardar':'Registar'}</button></>}>
+        footer={<><button className="btn btn-secondary" onClick={close}>Cancelar</button><button className="btn btn-primary" onClick={save} disabled={saving}>{saving?<Spinner/>:null}{selected? t('guardar') :'Registar'}</button></>}>
         <div className="form-grid">
           <Field label="♂ Pai (Macho) *">
             <select className="input" value={form.pai_id} onChange={e=>sf('pai_id',e.target.value)}>
