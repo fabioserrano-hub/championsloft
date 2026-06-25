@@ -67,6 +67,7 @@ const CHAVE_STORAGE = 'cl_pedigree_'
 
 export default function Pedigree({ nav, params }) {
   const toast = useToast()
+  const { t } = useIdioma()
   const printRef = useRef(null)
   const [pombos, setPombos] = useState([])
   const [perfil, setPerfil] = useState(null)
