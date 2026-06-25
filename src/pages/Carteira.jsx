@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
-import { useToast, Spinner, EmptyState } from '../components/ui'
+import { useToast, Spinner, EmptyState } from '../pages/ui'
 import { useIdioma } from '../hooks/useIdioma'
 
 // ─── SISTEMA DE CRÉDITOS ──────────────────────────────
