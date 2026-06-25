@@ -2,12 +2,14 @@ import { useState, useEffect, useCallback } from 'react'
 import { db, supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { useToast, Spinner, Modal, EmptyState, Badge, Field } from '../components/ui'
+import { useIdioma } from '../hooks/useIdioma'
 
 const planoBadge = { gratuito:'gray', base:'blue', profissional:'yellow', elite:'green' }
 const ADMIN_EMAILS = ['fabioacs23@gmail.com']
 
 export default function Admin({ nav }) {
   const toast = useToast()
+  const { t } = useIdioma()
   const { user } = useAuth()
   const [isAdmin, setIsAdmin] = useState(null)
   const [tab, setTab] = useState('licencas')
