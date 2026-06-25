@@ -120,11 +120,14 @@ export default function Admin({ nav }) {
       </div>
 
       {/* Tabs */}
-      <div style={{ display:'flex', gap:3, background:'#0A1628', borderRadius:10, padding:3, marginBottom:14 }}>
-        {[['licencas','👥 Licenças'],['flags','🚩 Módulos'],['beta','🧪 Beta'],['badges','✅ Badges']].map(([t,l])=>(
-          <button key={t} onClick={()=>setTab(t)} style={{ flex:1, padding:'8px', borderRadius:8, fontSize:11, fontWeight:600, cursor:'pointer', border:'none', fontFamily:'inherit', background:tab===t?'linear-gradient(135deg,#1E5FD9,#1456C0)':'none', color:tab===t?'#fff':'#475569', transition:'all .15s' }}>{l}</button>
+      <div style={{ display:'flex', gap:3, background:'#0A1628', borderRadius:10, padding:3, marginBottom:14, flexWrap:'wrap' }}>
+        {[['licencas','👥 Licenças'],['fundadores','🏅 Fundadores'],['parcerias','🤝 Parcerias'],['flags','🚩 Módulos'],['beta','🧪 Beta'],['badges','✅ Badges']].map(([t,l])=>(
+          <button key={t} onClick={()=>setTab(t)} style={{ flex:1, minWidth:80, padding:'8px', borderRadius:8, fontSize:11, fontWeight:600, cursor:'pointer', border:'none', fontFamily:'inherit', background:tab===t?'linear-gradient(135deg,#1E5FD9,#1456C0)':'none', color:tab===t?'#fff':'#475569', transition:'all .15s' }}>{l}</button>
         ))}
       </div>
+
+      {tab==='fundadores' && <TabFundadores toast={toast} />}
+      {tab==='parcerias' && <TabParcerias toast={toast} />}
 
       {/* TAB: LICENÇAS */}
       {tab==='licencas' && <>
@@ -279,6 +282,219 @@ export default function Admin({ nav }) {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── TAB FUNDADORES ────────────────────────────────────
+function TabFundadores({ toast }) {
+  const [vagas] = useState(100)
+  const [ocupadas, setOcupadas] = useState(0)
+  const [fundadores, setFundadores] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    supabase.from('licencas').select('*').eq('fundador', true).order('created_at').then(({ data }) => {
+      setFundadores(data || [])
+      setOcupadas((data || []).length)
+      setLoading(false)
+    })
+  }, [])
+
+  const pct = Math.round((ocupadas / vagas) * 100)
+
+  return (
+    <div>
+      {/* Card campanha */}
+      <div style={{ background:'linear-gradient(135deg,rgba(212,175,55,.12),rgba(212,175,55,.04))', border:'1px solid rgba(212,175,55,.3)', borderRadius:12, padding:20, marginBottom:16 }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:12 }}>
+          <div>
+            <div style={{ fontSize:16, fontWeight:900, color:'#D4AF37', fontFamily:"'Fraunces',serif" }}>🏅 Utilizadores Fundadores</div>
+            <div style={{ fontSize:12, color:'#94a3b8', marginTop:4 }}>Elite AI vitalícia · Preço fixo para sempre · +5%/ano máximo</div>
+          </div>
+          <div style={{ textAlign:'right' }}>
+            <div style={{ fontFamily:"'Fraunces',serif", fontSize:28, fontWeight:900, color:'#D4AF37' }}>{ocupadas}<span style={{ fontSize:14, color:'#475569' }}>/{vagas}</span></div>
+            <div style={{ fontSize:10, color:'#7A8699' }}>vagas ocupadas</div>
+          </div>
+        </div>
+        {/* Barra de progresso */}
+        <div style={{ height:8, background:'#0A1628', borderRadius:99, overflow:'hidden', marginBottom:8 }}>
+          <div style={{ height:'100%', width:`${pct}%`, background:'linear-gradient(90deg,#D4AF37,#B8960C)', borderRadius:99, transition:'width .5s' }}/>
+        </div>
+        <div style={{ display:'flex', justifyContent:'space-between', fontSize:11, color:'#475569' }}>
+          <span>{vagas - ocupadas} vagas restantes</span>
+          <span>{pct}% preenchido</span>
+        </div>
+      </div>
+
+      {/* Condições da campanha */}
+      <div style={{ background:'#0B1830', border:'1px solid #1B2D52', borderRadius:10, padding:16, marginBottom:16 }}>
+        <div style={{ fontSize:12, fontWeight:700, color:'#fff', marginBottom:10 }}>📋 Condições da Campanha</div>
+        {[
+          ['Preço', '13,99€/mês (Elite AI actual)'],
+          ['Reajuste máximo', '+5% ao ano (garante preço baixo para sempre)'],
+          ['Vagas', '100 — quando esgotarem, campanha fecha automaticamente'],
+          ['Plano', 'Elite AI completo — todas as funcionalidades actuais e futuras'],
+          ['Transferível', 'Não — pessoal e intransmissível'],
+          ['Cancelamento', 'Pode cancelar a qualquer momento — mas perde o estatuto de Fundador'],
+        ].map(([k,v]) => (
+          <div key={k} style={{ display:'flex', gap:12, marginBottom:8, fontSize:12 }}>
+            <span style={{ color:'#475569', minWidth:130, flexShrink:0 }}>{k}</span>
+            <span style={{ color:'#cbd5e1' }}>{v}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Lista de fundadores */}
+      <div style={{ fontSize:12, fontWeight:600, color:'#94a3b8', marginBottom:8 }}>Lista de Fundadores ({ocupadas})</div>
+      {loading ? <div style={{ textAlign:'center', padding:20, color:'#475569' }}>A carregar...</div>
+        : fundadores.length === 0
+          ? <div style={{ textAlign:'center', padding:20, color:'#475569' }}>Nenhum fundador ainda</div>
+          : <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+              {fundadores.map((f, i) => (
+                <div key={f.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', background:'#0B1830', border:'1px solid #1B2D52', borderRadius:8 }}>
+                  <div style={{ fontFamily:"'Space Mono',monospace", fontSize:11, color:'#D4AF37', minWidth:28 }}>#{i+1}</div>
+                  <div style={{ flex:1, fontSize:12, color:'#fff' }}>{f.email}</div>
+                  <div style={{ fontSize:10, color:'#7A8699' }}>{f.created_at ? new Date(f.created_at).toLocaleDateString('pt-PT') : '—'}</div>
+                  <div style={{ fontSize:10, fontWeight:700, color:'#2DD4A7' }}>🏅 Fundador</div>
+                </div>
+              ))}
+            </div>
+      }
+    </div>
+  )
+}
+
+// ─── TAB PARCERIAS ─────────────────────────────────────
+const PARCEIROS_INICIAIS = [
+  { id:'dac',      nome:'DAC', categoria:'suplementos', pais:'NL', contacto:'', email:'', estado:'potencial', notas:'Líder europeu em suplementos columbófilos. Distribuidor PT a identificar.', tipo_acordo:'', valor:'', website:'https://dac.eu' },
+  { id:'bdw',      nome:'Belgica De Weerd', categoria:'veterinario', pais:'BE', contacto:'', email:'', estado:'potencial', notas:'Produtos veterinários e suplementos. Muito usados em Portugal.', tipo_acordo:'', valor:'', website:'https://belgicadeweerd.com' },
+  { id:'bricon',   nome:'Bricon', categoria:'tecnologia', pais:'BE', contacto:'', email:'', estado:'potencial', notas:'Chips electrónicos de cronometragem. Integração API seria diferenciador enorme.', tipo_acordo:'', valor:'', website:'https://bricon.be' },
+  { id:'benzing',  nome:'Benzing', categoria:'tecnologia', pais:'DE', contacto:'', email:'', estado:'potencial', notas:'Sistemas de controlo de chegada. Alternativa ao Bricon.', tipo_acordo:'', valor:'', website:'https://benzing.com' },
+  { id:'rohnfried',nome:'Röhnfried', categoria:'suplementos', pais:'DE', contacto:'', email:'', estado:'potencial', notas:'Suplementos premium. Presença crescente em PT.', tipo_acordo:'', valor:'', website:'https://rohnfried.de' },
+]
+
+const ESTADOS_PARCERIA = { potencial:'🔵 Potencial', contactado:'🟡 Contactado', negociacao:'🟠 Em negociação', ativo:'🟢 Activo', pausado:'⚫ Pausado' }
+const TIPOS_ACORDO = ['Comissão de afiliado', 'Banner/destaque na app', 'Desconto exclusivo utilizadores', 'Integração de dados', 'Patrocínio mensal', 'Kit boas-vindas', 'Misto']
+
+function TabParcerias({ toast }) {
+  const [parceiros, setParceiros] = useState(() => {
+    try { const s = localStorage.getItem('cl_parcerias'); return s ? JSON.parse(s) : PARCEIROS_INICIAIS } catch { return PARCEIROS_INICIAIS }
+  })
+  const [modal, setModal] = useState(false)
+  const [form, setForm] = useState(null)
+  const sf = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  const guardar = () => {
+    const lista = form.id && parceiros.find(p => p.id === form.id)
+      ? parceiros.map(p => p.id === form.id ? form : p)
+      : [...parceiros, { ...form, id: Date.now().toString() }]
+    setParceiros(lista)
+    localStorage.setItem('cl_parcerias', JSON.stringify(lista))
+    setModal(false)
+    toast('Parceiro guardado!', 'ok')
+  }
+
+  const abrirNovo = () => { setForm({ id:'', nome:'', categoria:'suplementos', pais:'PT', contacto:'', email:'', estado:'potencial', notas:'', tipo_acordo:'', valor:'', website:'' }); setModal(true) }
+  const abrirEditar = (p) => { setForm({ ...p }); setModal(true) }
+
+  const COR_ESTADO = { potencial:'#4C8DFF', contactado:'#D4AF37', negociacao:'#f97316', ativo:'#2DD4A7', pausado:'#475569' }
+
+  return (
+    <div>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
+        <div>
+          <div style={{ fontSize:14, fontWeight:700, color:'#fff' }}>🤝 Gestão de Parcerias</div>
+          <div style={{ fontSize:11, color:'#7A8699' }}>{parceiros.filter(p=>p.estado==='ativo').length} activas · {parceiros.filter(p=>p.estado==='negociacao').length} em negociação</div>
+        </div>
+        <button className="btn btn-primary btn-sm" onClick={abrirNovo}>+ Parceiro</button>
+      </div>
+
+      {/* KPIs rápidos */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:8, marginBottom:16 }}>
+        {[
+          ['🟢 Activas', parceiros.filter(p=>p.estado==='ativo').length, '#2DD4A7'],
+          ['🟠 Negociação', parceiros.filter(p=>p.estado==='negociacao').length, '#f97316'],
+          ['🔵 Potenciais', parceiros.filter(p=>p.estado==='potencial').length, '#4C8DFF'],
+        ].map(([l,v,c]) => (
+          <div key={l} style={{ textAlign:'center', padding:'12px 8px', background:'#0B1830', border:`1px solid ${c}30`, borderRadius:8 }}>
+            <div style={{ fontFamily:"'Fraunces',serif", fontSize:22, fontWeight:900, color:c }}>{v}</div>
+            <div style={{ fontSize:10, color:'#7A8699' }}>{l}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Lista */}
+      <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+        {parceiros.map(p => (
+          <div key={p.id} style={{ background:'#0B1830', border:'1px solid #1B2D52', borderRadius:10, padding:14 }}>
+            <div style={{ display:'flex', gap:10, alignItems:'flex-start' }}>
+              <div style={{ flex:1 }}>
+                <div style={{ display:'flex', gap:8, alignItems:'center', marginBottom:4 }}>
+                  <div style={{ fontSize:13, fontWeight:700, color:'#fff' }}>{p.nome}</div>
+                  <span style={{ fontSize:10, color:'#475569' }}>{p.pais}</span>
+                  <span style={{ fontSize:10, fontWeight:600, color:COR_ESTADO[p.estado] }}>{ESTADOS_PARCERIA[p.estado]}</span>
+                </div>
+                {p.tipo_acordo && <div style={{ fontSize:11, color:'#4C8DFF', marginBottom:4 }}>📋 {p.tipo_acordo}{p.valor ? ` · ${p.valor}` : ''}</div>}
+                {p.email && <div style={{ fontSize:11, color:'#7A8699', marginBottom:2 }}>✉️ {p.email}{p.contacto ? ` · ${p.contacto}` : ''}</div>}
+                {p.notas && <div style={{ fontSize:11, color:'#7A8699', lineHeight:1.5, marginTop:4 }}>{p.notas}</div>}
+              </div>
+              <div style={{ display:'flex', gap:6, flexShrink:0 }}>
+                {p.website && <a href={p.website} target="_blank" rel="noreferrer" style={{ fontSize:11, color:'#4C8DFF', textDecoration:'none' }}>🌐</a>}
+                <button className="btn btn-secondary btn-sm" onClick={() => abrirEditar(p)}>Editar</button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Modal editar/criar */}
+      {modal && form && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.8)', zIndex:500, display:'flex', alignItems:'flex-end', justifyContent:'center' }}
+          onClick={e => e.target===e.currentTarget&&setModal(false)}>
+          <div style={{ background:'#0B1830', border:'1px solid #1B2D52', borderRadius:'16px 16px 0 0', width:'100%', maxWidth:560, maxHeight:'90vh', display:'flex', flexDirection:'column', overflow:'hidden' }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'16px 20px', borderBottom:'1px solid #1B2D52' }}>
+              <div style={{ fontSize:15, fontWeight:700, color:'#fff' }}>{form.id ? 'Editar Parceiro' : 'Novo Parceiro'}</div>
+              <button onClick={() => setModal(false)} style={{ background:'none', border:'none', color:'#475569', cursor:'pointer', fontSize:20 }}>✕</button>
+            </div>
+            <div style={{ flex:1, overflowY:'auto', padding:20, display:'flex', flexDirection:'column', gap:12 }}>
+              <div className="form-grid">
+                <div className="col-2"><div className="field"><label className="label">Nome / Empresa</label><input className="input" value={form.nome} onChange={e=>sf('nome',e.target.value)} /></div></div>
+                <div className="field"><label className="label">País</label><input className="input" value={form.pais} onChange={e=>sf('pais',e.target.value)} placeholder="PT, BE, NL..." /></div>
+                <div className="field"><label className="label">Categoria</label>
+                  <select className="input" value={form.categoria} onChange={e=>sf('categoria',e.target.value)}>
+                    <option value="suplementos">Suplementos</option>
+                    <option value="veterinario">Veterinário</option>
+                    <option value="tecnologia">Tecnologia</option>
+                    <option value="equipamento">Equipamento</option>
+                    <option value="outro">Outro</option>
+                  </select>
+                </div>
+                <div className="field"><label className="label">Estado</label>
+                  <select className="input" value={form.estado} onChange={e=>sf('estado',e.target.value)}>
+                    {Object.entries(ESTADOS_PARCERIA).map(([k,v])=><option key={k} value={k}>{v}</option>)}
+                  </select>
+                </div>
+                <div className="field"><label className="label">Tipo de Acordo</label>
+                  <select className="input" value={form.tipo_acordo} onChange={e=>sf('tipo_acordo',e.target.value)}>
+                    <option value="">— Seleccionar —</option>
+                    {TIPOS_ACORDO.map(t=><option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div className="field"><label className="label">Valor / Condições</label><input className="input" value={form.valor} onChange={e=>sf('valor',e.target.value)} placeholder="Ex: 10% comissão, 100€/mês..." /></div>
+                <div className="field"><label className="label">Contacto</label><input className="input" value={form.contacto} onChange={e=>sf('contacto',e.target.value)} placeholder="Nome do responsável" /></div>
+                <div className="field"><label className="label">Email</label><input className="input" type="email" value={form.email} onChange={e=>sf('email',e.target.value)} /></div>
+                <div className="col-2"><div className="field"><label className="label">Website</label><input className="input" value={form.website} onChange={e=>sf('website',e.target.value)} placeholder="https://..." /></div></div>
+                <div className="col-2"><div className="field"><label className="label">Notas / Histórico de negociação</label><textarea className="input" rows={4} style={{ resize:'none' }} value={form.notas} onChange={e=>sf('notas',e.target.value)} /></div></div>
+              </div>
+            </div>
+            <div style={{ padding:'14px 20px', borderTop:'1px solid #1B2D52', display:'flex', justifyContent:'flex-end', gap:10 }}>
+              <button className="btn btn-secondary" onClick={()=>setModal(false)}>Cancelar</button>
+              <button className="btn btn-primary" onClick={guardar}>Guardar</button>
+            </div>
           </div>
         </div>
       )}
