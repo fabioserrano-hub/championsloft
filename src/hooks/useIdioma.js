@@ -269,7 +269,7 @@ export const TRADUCOES = {
   // ── Comunidade ──
   feed:             { pt:'Feed',               br:'Feed',              en:'Feed',              es:'Feed' },
   publicar:         { pt:'Publicar',           br:'Publicar',          en:'Post',              es:'Publicar' },
-  novoPost:         { pt:'O que pensas?',      br:'O que pensa?',      en:'What's on your mind?', es:'¿Qué piensas?' },
+  novoPost:         { pt:'O que pensas?',      br:'O que pensa?',      en:"What's on your mind?", es:"¿Qué piensas?" },
   gostos:           { pt:'Gostos',             br:'Curtidas',          en:'Likes',             es:'Me gusta' },
   comentarios:      { pt:'Comentários',        br:'Comentários',       en:'Comments',          es:'Comentarios' },
   partilhar2:       { pt:'Partilhar',          br:'Compartilhar',      en:'Share',             es:'Compartir' },
@@ -409,7 +409,7 @@ export const TRADUCOES = {
   editEvento:       { pt:'Editar Evento',       br:'Editar Evento',     en:'Edit Event',        es:'Editar Evento' },
   evento:           { pt:'Evento',              br:'Evento',            en:'Event',             es:'Evento' },
   eventos:          { pt:'Eventos',             br:'Eventos',           en:'Events',            es:'Eventos' },
-  eventosHoje2:     { pt:'Eventos hoje',        br:'Eventos hoje',      en:'Today's events',   es:'Eventos hoy' },
+  eventosHoje2:     { pt:'Eventos hoje',        br:'Eventos hoje',      en:"Today's events",   es:'Eventos hoy' },
   provaOficial:     { pt:'Prova Oficial',       br:'Corrida Oficial',   en:'Official Race',     es:'Carrera Oficial' },
   treino2:          { pt:'Treino',              br:'Treino',            en:'Training',          es:'Entrenamiento' },
   veterinario3:     { pt:'Veterinário',         br:'Veterinário',       en:'Veterinary',        es:'Veterinario' },
@@ -548,7 +548,7 @@ export const TRADUCOES = {
   vagasRestantes:   { pt:'vagas restantes',     br:'vagas restantes',   en:'spots remaining',   es:'plazas restantes' },
   garantirVaga:     { pt:'Garantir vaga',       br:'Garantir vaga',     en:'Secure your spot',  es:'Asegurar plaza' },
   precoGarantido:   { pt:'Preço garantido para sempre', br:'Preço garantido para sempre', en:'Price locked forever', es:'Precio garantizado para siempre' },
-  jaFundador:       { pt:'Já és Fundador!',     br:'Já é Fundador!',    en:'You're already a Founder!', es:'¡Ya eres Fundador!' },
+  jaFundador:       { pt:'Já és Fundador!',     br:'Já é Fundador!',    en:"You're already a Founder!", es:"¡Ya eres Fundador!" },
   vagasEsgotadas:   { pt:'Vagas esgotadas',     br:'Vagas esgotadas',   en:'All spots taken',   es:'Plazas agotadas' },
 
   // ── Clubes Personalizados ──
