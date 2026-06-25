@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase, db } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
-import { useToast, Spinner, Modal, EmptyState, Field, Badge } from '../components/ui'
+import { useToast, Spinner, Modal, EmptyState, Field, Badge } from '../pages/ui'
 import { useIdioma } from '../hooks/useIdioma'
 import { verificarConquistas } from '../components/Conquistas'
 
