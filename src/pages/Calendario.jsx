@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { db } from '../lib/supabase'
 import { useToast, Spinner, Modal, EmptyState, Field, Badge } from '../components/ui'
+import { useIdioma } from '../hooks/useIdioma'
 
 const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
 const DIAS_SEMANA = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S']
@@ -65,6 +66,7 @@ function mapearEspecialidade(str) {
 
 export default function Calendario({ nav }) {
   const toast = useToast()
+  const { t } = useIdioma()
   const [mesAtual, setMesAtual] = useState(new Date())
   const [provas, setProvas] = useState([])
   const [treinos, setTreinos] = useState([])
@@ -304,7 +306,7 @@ export default function Calendario({ nav }) {
           <Field label="Título *"><input className="input" value={form.titulo} onChange={e => sf('titulo', e.target.value)} /></Field>
           <div className="form-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
             <Field label="Data"><input className="input" type="date" value={form.data_ev} onChange={e => sf('data_ev', e.target.value)} /></Field>
-            <Field label="Tipo"><select className="input" value={form.tipo} onChange={e => sf('tipo', e.target.value)}>{['Outro', 'Reprodução'].map(t => <option key={t}>{t}</option>)}</select></Field>
+            <Field label="Tipo"><select className="input" value={form.tipo} onChange={e => sf('tipo', e.target.value)}>{['Outro', 'Reprodução'].map(op => <option key={op}>{op}</option>)}</select></Field>
           </div>
           <Field label="Observações"><input className="input" value={form.obs} onChange={e => sf('obs', e.target.value)} /></Field>
         </div>
