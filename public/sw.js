@@ -1,4 +1,4 @@
-const CACHE = 'championsloft-v1'
+const CACHE = 'championsloft-v2'
 const STATIC = ['/','/?pwa=1','/manifest.json']
 
 // Instalar — cache dos estáticos
