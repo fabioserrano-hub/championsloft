@@ -5,7 +5,7 @@ import { useIdioma } from '../hooks/useIdioma'
 import { useToast, Spinner } from '../components/ui'
 const BotaoWhatsApp = () => null
 const textoCartaoVisita = () => ''
-const ConquistaCard = () => null
+const ConquistaCard = ({c}) => <div style={{padding:'8px',background:'rgba(212,175,55,.1)',borderRadius:8,fontSize:12,color:'#fff'}}>{c?.icon} {c?.titulo}</div>
 
 export default function Dashboard({ nav }) {
   const { user } = useAuth()
@@ -116,6 +116,7 @@ export default function Dashboard({ nav }) {
   }, [])
 
   if (loading) return <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 80 }}><Spinner lg /></div>
+  if (!data) return <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 80 }}><Spinner lg /></div>
 
   const mediaScore = data.top.length ? Math.round(data.top.reduce((s, p) => s + (p.percentil || 0), 0) / data.top.length) : 0
   const champion = data.top[0]
