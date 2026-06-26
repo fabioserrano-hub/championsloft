@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { db } from '../lib/supabase'
+import { useIdioma } from '../hooks/useIdioma'
 import { useToast, Spinner, Badge } from '../components/ui'
 import { classificarPombo } from './Pombos'
 
