@@ -134,17 +134,29 @@ function gerarGuia(prod, item, nPombos, mlPorPombo) {
 }
 
 // -- calculo para abate de stock
-function calcAbate(prod, item, nPombos, mlPorPombo) {
+// racaoGHerdada: gramas de outro item do mesmo periodo, para produtos sem racao_g proprio
+function calcAbate(prod, item, nPombos, mlPorPombo, racaoGHerdada) {
   if (!prod || !prod.dosagem_valor) return null
   const litros = arredondarLitros(mlPorPombo * nPombos)
-  const racaoGTotal = item.racao_g ? parseFloat(item.racao_g) * nPombos : null
+  const gUsados = item.racao_g ? parseFloat(item.racao_g) : (racaoGHerdada || null)
+  const racaoGTotal = gUsados ? gUsados * nPombos : null
   const racaoKg = racaoGTotal ? racaoGTotal / 1000 : null
   let qty = 0
   if (prod.dosagem_base === 'pombo') qty = prod.dosagem_valor * nPombos
   else if (prod.dosagem_base === 'litro') qty = prod.dosagem_valor * litros
   else if (prod.dosagem_base === 'kg' && racaoKg) qty = prod.dosagem_valor * racaoKg
   else return null
-  return { qty: parseFloat(qty.toFixed(2)), unidade: prod.dosagem_unidade }
+  return { qty: parseFloat(qty.toFixed(2)), unidade: prod.dosagem_unidade, gUsados }
+}
+
+// encontra as gramas de racao herdadas de outro item do mesmo periodo
+function racaoGDoPeriodo(itens, diaKey, per) {
+  const itensPer = itens.filter(i =>
+    i.dia_semana === diaKey &&
+    (per === 'manha' ? i.periodo !== 'tarde' : i.periodo === 'tarde') &&
+    i.racao_g && parseFloat(i.racao_g) > 0
+  )
+  return itensPer.length > 0 ? parseFloat(itensPer[0].racao_g) : null
 }
 
 function imprimirPlano(plano, produtos, nPombos) {
@@ -648,7 +660,8 @@ export default function Alimentacao({ nav }) {
           const prod=getProd(item.product_id)
           const dose=calcDose(prod,nPombos)
           const stkBaixo=prod&&alertasStock.some(a=>a.nome?.toLowerCase()===prod.nome?.toLowerCase())
-          const abate=calcAbate(prod,item,nPombos,mlPorPombo)
+          const racaoHerdada=racaoGDoPeriodo(planoAtivo?.itens||[],item.dia_semana,per)
+          const abate=calcAbate(prod,item,nPombos,mlPorPombo,racaoHerdada)
           const guia=gerarGuia(prod,item,nPombos,mlPorPombo)
           const expandido=!!expandidos[exKey]
           const itemAbate={ item, prod, qty:abate?.qty }
@@ -1251,14 +1264,15 @@ export default function Alimentacao({ nav }) {
               setModalAbate(null); load(); toast('Marcado sem abate de stock','ok')
             }}>Marcar sem abater</button>
             <button className="btn btn-primary" onClick={()=>{
-              const its=(modalAbate.itens||[]).map(item=>({ prod:getProd(item.product_id), qty:calcAbate(getProd(item.product_id),item,nPombos,mlPorPombo)?.qty, item })).filter(x=>x.qty&&x.prod)
+              const its=(modalAbate.itens||[]).map(item=>{ const p=getProd(item.product_id); const rH=racaoGDoPeriodo(planoAtivo?.itens||[],item.dia_semana,modalAbate.per); return { prod:p, qty:calcAbate(p,item,nPombos,mlPorPombo,rH)?.qty, item } }).filter(x=>x.qty&&x.prod)
               confirmarAbate(modalAbate.chave, its)
             }}>Confirmar e abater stock</button>
           </>}>
           <div style={{ fontSize:13,color:'#94a3b8',marginBottom:12 }}>Os seguintes produtos serão deduzidos do Armazém:</div>
           {(modalAbate.itens||[]).map((item,i)=>{
             const prod=getProd(item.product_id)
-            const abate=calcAbate(prod,item,nPombos,mlPorPombo)
+            const rH=racaoGDoPeriodo(planoAtivo?.itens||[],item.product_id,modalAbate.per)
+            const abate=calcAbate(prod,item,nPombos,mlPorPombo,rH)
             if(!abate||!prod) return null
             return (
               <div key={i} style={{ display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderBottom:'1px solid #162040',fontSize:12 }}>
