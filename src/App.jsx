@@ -17,7 +17,6 @@ import { useFeatureFlags } from './hooks/useFeatureFlags'
 import Reproducao   from './pages/Reproducao'
 import Pedigree     from './pages/Pedigree'
 import Alimentacao  from './pages/Alimentacao'
-import Tratamentos  from './pages/Tratamentos'
 import Calendario   from './pages/Calendario'
 import Checklist    from './pages/Checklist'
 import Relatorios   from './pages/Relatorios'
@@ -76,7 +75,6 @@ function getNav(t) {
     { id: 'pedigree',    icon: '🌳', label: 'Pedigree' },
     { id: 'casais',      icon: '🧬', label: t('casais') || 'Casais IA' },
     { id: 'alimentacao', icon: '🌾', label: t('alimentacao') || 'Alimentação' },
-    { id: 'tratamentos', icon: '🧪', label: t('tratamentos') || 'Tratamentos' },
     { id: 'financas',    icon: '💰', label: t('financas') || 'Finanças' },
   ]},
   { section: t('analise') || 'Análise', items: [
@@ -221,7 +219,6 @@ function AppLayout({ setIdioma }) {
       case 'reproducao':   return <Reproducao nav={nav} params={navParams} />
       case 'pedigree':     return <Pedigree nav={nav} params={navParams} />
       case 'alimentacao':  return <Alimentacao nav={nav} />
-      case 'tratamentos':  return <Tratamentos nav={nav} />
       case 'calendario':   return <Calendario nav={nav} />
       case 'checklist':    return <Checklist nav={nav} />
       case 'relatorios':   return <Relatorios nav={nav} />
