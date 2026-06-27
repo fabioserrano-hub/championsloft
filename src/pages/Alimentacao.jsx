@@ -133,6 +133,44 @@ function gerarGuia(prod, item, nPombos, mlPorPombo) {
   return linhas
 }
 
+// -- parse de tipo_racao: "50% Sport Excellent + 50% Gerry Plus" -> [{nome, pct}]
+function parseTipoRacao(tipoRacao, produtos) {
+  if (!tipoRacao) return []
+  const partes = tipoRacao.split('+').map(p => p.trim())
+  const resultado = []
+  for (const parte of partes) {
+    const matchPct = parte.match(/(\d+)%\s*(.+)/)
+    if (matchPct) {
+      const pct = parseInt(matchPct[1]) / 100
+      const nome = matchPct[2].trim()
+      const prod = produtos.find(p => p.nome.toLowerCase() === nome.toLowerCase())
+      resultado.push({ nome, pct, prod })
+    } else {
+      // sem percentagem — assume 100%
+      const nome = parte.trim()
+      const prod = produtos.find(p => p.nome.toLowerCase() === nome.toLowerCase())
+      if (nome) resultado.push({ nome, pct: 1, prod })
+    }
+  }
+  return resultado
+}
+
+// -- abates de racao (array de {prod, qty, nome})
+function calcAbateRacao(item, nPombos, produtos) {
+  if (!item.racao_g || !item.tipo_racao) return []
+  const totalG = parseFloat(item.racao_g) * nPombos
+  const partes = parseTipoRacao(item.tipo_racao, produtos)
+  return partes
+    .filter(p => p.prod && p.prod._stock_id)
+    .map(p => ({
+      prod: p.prod,
+      qty: parseFloat((totalG * p.pct).toFixed(1)),
+      unidade: 'g',
+      nome: p.nome,
+      pct: p.pct,
+    }))
+}
+
 // -- calculo para abate de stock
 // racaoGHerdada: gramas de outro item do mesmo periodo, para produtos sem racao_g proprio
 function calcAbate(prod, item, nPombos, mlPorPombo, racaoGHerdada) {
@@ -662,13 +700,18 @@ export default function Alimentacao({ nav }) {
           const stkBaixo=prod&&alertasStock.some(a=>a.nome?.toLowerCase()===prod.nome?.toLowerCase())
           const racaoHerdada=racaoGDoPeriodo(planoAtivo?.itens||[],item.dia_semana,per)
           const abate=calcAbate(prod,item,nPombos,mlPorPombo,racaoHerdada)
+          const abatesRacao=calcAbateRacao(item,nPombos,produtos)
           const guia=gerarGuia(prod,item,nPombos,mlPorPombo)
           const expandido=!!expandidos[exKey]
-          const itemAbate={ item, prod, qty:abate?.qty }
+          // juntar abate do produto + abates de racao (sem duplicados por prod._stock_id)
+          const todosAbates = [
+            ...(abate ? [{ item, prod, qty:abate.qty }] : []),
+            ...abatesRacao.map(ar=>({ item, prod:ar.prod, qty:ar.qty, unidade:'g', isRacao:true, nome:ar.nome, pct:ar.pct }))
+          ]
           return (
             <div key={i} style={{ ...S.card, marginBottom:6, borderColor:feito?'rgba(45,212,167,.3)':expandido?'rgba(76,141,255,.3)':undefined, padding:0, overflow:'hidden' }}>
               <div style={{ display:'flex', alignItems:'flex-start', gap:10, padding:'10px 14px' }}>
-                <button onClick={()=>toggleDia(item.dia_semana, per, abate?[itemAbate]:[])}
+                <button onClick={()=>toggleDia(item.dia_semana, per, todosAbates)}
                   style={{ width:22,height:22,borderRadius:6,border:feito?'none':'2px solid #1B2D52',background:feito?'#2DD4A7':'transparent',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',flexShrink:0,fontSize:13,marginTop:2 }}>
                   {feito&&'✓'}
                 </button>
@@ -699,11 +742,24 @@ export default function Alimentacao({ nav }) {
                       <span style={{ color:'#cbd5e1',lineHeight:1.4 }}>{l.texto}</span>
                     </div>
                   ))}
-                  <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:10,background:'rgba(45,212,167,.06)',border:'1px solid rgba(45,212,167,.15)',borderRadius:8,padding:'7px 10px' }}>
-                    <div style={{ fontSize:11,color:'#7A8699' }}>
-                      Stock actual: <span style={{ color:stkBaixo?'#f87171':'#2DD4A7',fontWeight:600 }}>{prod?.qtd??'—'}{prod?.unidade}</span>
+                  <div style={{ background:'rgba(45,212,167,.06)',border:'1px solid rgba(45,212,167,.15)',borderRadius:8,padding:'7px 10px',marginTop:10 }}>
+                    <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:abatesRacao.length>0?6:0 }}>
+                      <div style={{ fontSize:11,color:'#7A8699' }}>
+                        Stock actual: <span style={{ color:stkBaixo?'#f87171':'#2DD4A7',fontWeight:600 }}>{prod?.qtd??'—'}{prod?.unidade}</span>
+                      </div>
+                      {abate&&<div style={{ fontSize:11,color:'#94a3b8' }}>Abate: <span style={{ color:'#f87171',fontWeight:600 }}>-{abate.qty}{abate.unidade}</span></div>}
                     </div>
-                    {abate&&<div style={{ fontSize:11,color:'#94a3b8' }}>Abate ao ✓: <span style={{ color:'#f87171',fontWeight:600 }}>-{abate.qty}{abate.unidade}</span></div>}
+                    {abatesRacao.length>0&&(
+                      <div style={{ borderTop:'1px solid rgba(45,212,167,.1)',paddingTop:6 }}>
+                        <div style={{ fontSize:10,color:'#7A8699',marginBottom:4 }}>🌾 Ração a abater:</div>
+                        {abatesRacao.map((ar,ai)=>(
+                          <div key={ai} style={{ display:'flex',justifyContent:'space-between',fontSize:11 }}>
+                            <span style={{ color:'#cbd5e1' }}>{ar.nome}{ar.pct<1?` (${Math.round(ar.pct*100)}%)`:''}</span>
+                            <span style={{ color:'#f87171',fontWeight:600 }}>-{ar.qty}g</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   {prod&&prod.modo==='agua'&&(
                     <div style={{ display:'flex',alignItems:'center',gap:8,marginTop:8,fontSize:11,color:'#7A8699' }}>
@@ -1264,29 +1320,58 @@ export default function Alimentacao({ nav }) {
               setModalAbate(null); load(); toast('Marcado sem abate de stock','ok')
             }}>Marcar sem abater</button>
             <button className="btn btn-primary" onClick={()=>{
-              const its=(modalAbate.itens||[]).map(item=>{ const p=getProd(item.product_id); const rH=racaoGDoPeriodo(planoAtivo?.itens||[],item.dia_semana,modalAbate.per); return { prod:p, qty:calcAbate(p,item,nPombos,mlPorPombo,rH)?.qty, item } }).filter(x=>x.qty&&x.prod)
-              confirmarAbate(modalAbate.chave, its)
+              const its=(modalAbate.itens||[]).flatMap(item=>{
+                const p=getProd(item.product_id)
+                const rH=racaoGDoPeriodo(planoAtivo?.itens||[],item.dia_semana,modalAbate.per)
+                const ab=calcAbate(p,item,nPombos,mlPorPombo,rH)
+                const arList=calcAbateRacao(item,nPombos,produtos)
+                return [
+                  ...(ab&&p?[{ prod:p, qty:ab.qty, item }]:[]),
+                  ...arList.map(ar=>({ prod:ar.prod, qty:ar.qty, unidade:'g', isRacao:true, nome:ar.nome, item }))
+                ]
+              }).filter(x=>x.qty&&x.prod)
+              // consolidar por _stock_id (somar se mesmo produto aparece em varios itens)
+              const itsConsolidados=Object.values(its.reduce((acc,x)=>{
+                const k=x.prod._stock_id
+                if(!acc[k]) acc[k]={...x}
+                else acc[k].qty=parseFloat((acc[k].qty+x.qty).toFixed(2))
+                return acc
+              },{}))
+              confirmarAbate(modalAbate.chave, itsConsolidados)
             }}>Confirmar e abater stock</button>
           </>}>
           <div style={{ fontSize:13,color:'#94a3b8',marginBottom:12 }}>Os seguintes produtos serão deduzidos do Armazém:</div>
-          {(modalAbate.itens||[]).map((item,i)=>{
-            const prod=getProd(item.product_id)
-            const rH=racaoGDoPeriodo(planoAtivo?.itens||[],item.product_id,modalAbate.per)
-            const abate=calcAbate(prod,item,nPombos,mlPorPombo,rH)
-            if(!abate||!prod) return null
-            return (
+          {(()=>{
+            // calcular todos os abates consolidados para mostrar
+            const todosItens=(modalAbate.itens||[]).flatMap(item=>{
+              const p=getProd(item.product_id)
+              const rH=racaoGDoPeriodo(planoAtivo?.itens||[],item.dia_semana,modalAbate.per)
+              const ab=calcAbate(p,item,nPombos,mlPorPombo,rH)
+              const arList=calcAbateRacao(item,nPombos,produtos)
+              return [
+                ...(ab&&p?[{ prod:p, qty:ab.qty, unidade:ab.unidade, label:MODO_ICON[p.modo]+' '+p.nome, sub:MODO_LABEL[p.modo] }]:[]),
+                ...arList.map(ar=>({ prod:ar.prod, qty:ar.qty, unidade:'g', label:'🌾 '+ar.nome+(ar.pct<1?' ('+Math.round(ar.pct*100)+'%)':''), sub:'Ração' }))
+              ]
+            }).filter(x=>x.qty&&x.prod)
+            const consolidados=Object.values(todosItens.reduce((acc,x)=>{
+              const k=x.prod._stock_id
+              if(!acc[k]) acc[k]={...x}
+              else acc[k].qty=parseFloat((acc[k].qty+x.qty).toFixed(2))
+              return acc
+            },{}))
+            return consolidados.map((x,i)=>(
               <div key={i} style={{ display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderBottom:'1px solid #162040',fontSize:12 }}>
                 <div>
-                  <div style={{ color:'#fff',fontWeight:600 }}>{MODO_ICON[prod.modo]} {prod.nome}</div>
-                  <div style={{ color:'#7A8699',fontSize:11 }}>{MODO_LABEL[prod.modo]}</div>
+                  <div style={{ color:'#fff',fontWeight:600 }}>{x.label}</div>
+                  <div style={{ color:'#7A8699',fontSize:11 }}>{x.sub}</div>
                 </div>
                 <div style={{ textAlign:'right' }}>
-                  <div style={{ color:'#f87171',fontWeight:700 }}>-{abate.qty}{abate.unidade}</div>
-                  <div style={{ color:'#475569',fontSize:11 }}>📦 {prod.qtd}{prod.unidade} → {Math.max(0,(prod.qtd||0)-abate.qty).toFixed(1)}{prod.unidade}</div>
+                  <div style={{ color:'#f87171',fontWeight:700 }}>-{x.qty}{x.unidade}</div>
+                  <div style={{ color:'#475569',fontSize:11 }}>📦 {x.prod.qtd}{x.prod.unidade} → {Math.max(0,(x.prod.qtd||0)-x.qty).toFixed(1)}{x.prod.unidade}</div>
                 </div>
               </div>
-            )
-          })}
+            ))
+          })()}
           <div style={{ fontSize:11,color:'#475569',marginTop:10 }}>
             Estimativa agua: {arredondarLitros(mlPorPombo*nPombos)}L ({mlPorPombo}ml/pombo x {nPombos} pombos)
           </div>
