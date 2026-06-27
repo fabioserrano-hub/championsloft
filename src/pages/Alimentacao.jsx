@@ -1,19 +1,30 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { db } from '../lib/supabase'
 import { useIdioma } from '../hooks/useIdioma'
 import { useToast, Spinner, Modal, EmptyState, Field, Badge } from '../components/ui'
 
 // ── constantes ────────────────────────────────────────────────────────────────
-const CEREAIS = ['Milho','Cevada','Trigo','Aveia','Ervilha','Girassol','Cártamo','Colza','Painço','Arroz']
 const RACOES_COMERCIAIS = ['Versele-Laga Gerry Plus','Versele-Laga Coloured','Beyers Sport','Beyers Energy Plus','Roehnfried Champion','Roehnfried Original','DAC Mistura Competição','DAC Mistura Muda']
-const MEDICAMENTOS_LISTA = ['Amprolium','Ronidazol','Enrofloxacina','Doxiciclina','Spartrix','Tylan','Baycox','Eskazole','Vitaminas A+D3+E','Eletrólitos','Hepatox','Probiotic Total B','Vitapombo','Vita Amino Plus','Ampola X','Hexa Plus','Formix','Haemo Plus','Columbovet','Tetrakilon Forte','Respiral Vet','Oxigen Plus','Total Bath MG++']
-const TIPOS_STOCK = ['Cereal','Ração Comercial','Medicamento','Suplemento','Outro']
-const UNIDADES = ['kg','g','L','ml','comprimidos','unidades']
+const SUGESTOES_PRODUTOS = [
+  // Cereais
+  'Milho','Cevada','Trigo','Aveia','Ervilha','Girassol','Cártamo','Colza','Painço','Arroz',
+  // Rações
+  ...RACOES_COMERCIAIS,
+  // Medicamentos / Suplementos
+  'Amprolium','Ronidazol','Enrofloxacina','Doxiciclina','Spartrix','Tylan','Baycox','Eskazole',
+  'Vitaminas A+D3+E','Eletrólitos','Hepatox','Probiotic Total B','Vitapombo','Vita Amino Plus',
+  'Ampola X','Hexa Plus','Formix','Haemo Plus','Columbovet','Tetrakilon Forte','Respiral Vet',
+  'Oxigen Plus','Total Bath MG++','Hyperform','Sedosin','Catosal','Blitz','Usnea Barbata',
+]
+const CATEGORIAS = ['Cereal','Ração Comercial','Medicamento','Suplemento','Vitamina','Probiótico','Energético','Outro']
+const CAT_ICON = { Cereal:'🌾', 'Ração Comercial':'🥫', Medicamento:'💊', Suplemento:'🧪', Vitamina:'💉', Probiótico:'🦠', Energético:'⚡', Outro:'📦' }
+const UNIDADES = ['ml','L','g','kg','comprimidos','unidades','medidas']
 const ESPECIALIDADES = ['velocidade','meio_fundo','fundo','geral']
 const ESP_LABEL = { velocidade:'Velocidade', meio_fundo:'Meio-Fundo', fundo:'Fundo', geral:'Geral' }
 const ESP_COLOR = { velocidade:'#F59E0B', meio_fundo:'#3B82F6', fundo:'#10B981', geral:'#8B5CF6' }
 const MODO_ICON  = { agua:'💧', racao:'🌾', direto:'💊', outros:'🛁' }
 const MODO_LABEL = { agua:'Na água', racao:'Na ração', direto:'Direto', outros:'Outros' }
+const MODO_LABEL_FULL = { agua:'💧 Na água', racao:'🌾 Na ração', direto:'💊 Direto ao pombo', outros:'🛁 Outros (banho, narinas…)' }
 const BASE_LABEL = { pombo:'por pombo', litro:'por litro', kg:'por kg ração' }
 const DIAS_SEMANA = [
   { key:'domingo', label:'Dom', full:'Domingo', idx:0 },
@@ -26,81 +37,56 @@ const DIAS_SEMANA = [
 ]
 
 // ── helpers ───────────────────────────────────────────────────────────────────
-const diaIdx = k => DIAS_SEMANA.find(d => d.key === k)?.idx ?? 0
+const diaIdx = k => DIAS_SEMANA.find(d=>d.key===k)?.idx??0
 function calcDN(diaItem, diaProva) {
-  let d = diaIdx(diaProva) - diaIdx(diaItem)
-  if (d < 0) d += 7
-  return d === 0 ? 'Prova' : `D-${d}`
+  let d = diaIdx(diaProva)-diaIdx(diaItem); if(d<0) d+=7
+  return d===0?'Prova':`D-${d}`
 }
-function segundaFeira(data = new Date()) {
-  const d = new Date(data); d.setDate(d.getDate() - (d.getDay()+6)%7)
+function segundaFeira(data=new Date()) {
+  const d=new Date(data); d.setDate(d.getDate()-(d.getDay()+6)%7)
   return d.toISOString().slice(0,10)
 }
 const diaHojeKey = () => DIAS_SEMANA[new Date().getDay()].key
 
 function calcDose(prod, n) {
-  if (!prod?.dosagem_valor) return null
-  if (prod.dosagem_base === 'pombo') {
-    const total = (prod.dosagem_valor * n).toFixed(1)
-    return { linha1: `${prod.dosagem_valor}${prod.dosagem_unidade}/pombo`, linha2: `→ ${total}${prod.dosagem_unidade} total` }
+  if(!prod?.dosagem_valor) return null
+  if(prod.dosagem_base==='pombo') {
+    const total=(prod.dosagem_valor*n).toFixed(1)
+    return { linha1:`${prod.dosagem_valor}${prod.dosagem_unidade}/pombo`, linha2:`→ ${total}${prod.dosagem_unidade} total` }
   }
-  return { linha1: `${prod.dosagem_valor}${prod.dosagem_unidade}`, linha2: BASE_LABEL[prod.dosagem_base] }
+  return { linha1:`${prod.dosagem_valor}${prod.dosagem_unidade}`, linha2:BASE_LABEL[prod.dosagem_base] }
 }
 
 // ── impressão ─────────────────────────────────────────────────────────────────
 function imprimirPlano(plano, produtos, nPombos) {
-  const diasComItens = DIAS_SEMANA.filter(d => (plano.itens||[]).some(i=>i.dia_semana===d.key))
+  const diasComItens = DIAS_SEMANA.filter(d=>(plano.itens||[]).some(i=>i.dia_semana===d.key))
   const getProd = id => produtos.find(p=>p.id===id)
-  const campos = [
-    { key:'agua', label:'Na Água' },
-    { key:'racao', label:'Na Ração' },
-    { key:'gramas', label:'Ração (g)' },
-    { key:'tipo', label:'Tipo Ração' },
-    { key:'voo', label:'Voo (min)' },
-    { key:'outros', label:'Outros' },
-  ]
-  const linhas = ['manha','tarde'].flatMap(per => {
-    const bg = per==='manha'?'#e8f4fd':'#fdf4e8'
-    const lbl = per==='manha'?'MANHÃ':'TARDE'
-    return campos.map((campo,ci) => {
-      const cells = diasComItens.map(d => {
-        const item = (plano.itens||[]).find(i=>i.dia_semana===d.key&&(per==='manha'?i.periodo!=='tarde':i.periodo==='tarde'))
-        if (!item) return `<td style="border:1px solid #e2e8f0;padding:6px 8px;color:#ccc;text-align:center;font-size:10px">—</td>`
-        const prod = getProd(item.product_id)
-        const dose = calcDose(prod, nPombos)
-        let val = ''
-        if (campo.key==='agua' && prod?.modo==='agua') val = `<b>${prod.nome}</b>${dose?`<br><small style="color:#059669">${dose.linha1} ${dose.linha2}</small>`:''}`
-        else if (campo.key==='racao' && prod && prod.modo!=='agua') val = `<b>${prod.nome}</b>${dose?`<br><small style="color:#059669">${dose.linha1} ${dose.linha2}</small>`:''}`
-        else if (campo.key==='gramas' && item.racao_g) val = `<b>${item.racao_g}g</b>`
-        else if (campo.key==='tipo' && item.tipo_racao) val = item.tipo_racao
-        else if (campo.key==='voo' && item.voo_min) val = `<b>${item.voo_min} min</b>`
-        else if (campo.key==='outros' && item.outros) val = item.outros
+  const campos = [{key:'agua',label:'Na Água'},{key:'racao',label:'Na Ração'},{key:'gramas',label:'Ração (g)'},{key:'tipo',label:'Tipo Ração'},{key:'voo',label:'Voo (min)'},{key:'outros',label:'Outros'}]
+  const linhas = ['manha','tarde'].flatMap(per=>{
+    const bg=per==='manha'?'#e8f4fd':'#fdf4e8'; const lbl=per==='manha'?'MANHÃ':'TARDE'
+    return campos.map((campo,ci)=>{
+      const cells=diasComItens.map(d=>{
+        const item=(plano.itens||[]).find(i=>i.dia_semana===d.key&&(per==='manha'?i.periodo!=='tarde':i.periodo==='tarde'))
+        if(!item) return `<td style="border:1px solid #e2e8f0;padding:6px 8px;color:#ccc;text-align:center;font-size:10px">—</td>`
+        const prod=getProd(item.product_id); const dose=calcDose(prod,nPombos)
+        let val=''
+        if(campo.key==='agua'&&prod?.modo==='agua') val=`<b>${prod.nome}</b>${dose?`<br><small style="color:#059669">${dose.linha1} ${dose.linha2}</small>`:''}`
+        else if(campo.key==='racao'&&prod&&prod.modo!=='agua') val=`<b>${prod.nome}</b>${dose?`<br><small style="color:#059669">${dose.linha1} ${dose.linha2}</small>`:''}`
+        else if(campo.key==='gramas'&&item.racao_g) val=`<b>${item.racao_g}g</b>`
+        else if(campo.key==='tipo'&&item.tipo_racao) val=item.tipo_racao
+        else if(campo.key==='voo'&&item.voo_min) val=`<b>${item.voo_min} min</b>`
+        else if(campo.key==='outros'&&item.outros) val=item.outros
         return `<td style="border:1px solid #e2e8f0;padding:6px 8px;text-align:center;font-size:10px">${val||'<span style=color:#ddd>—</span>'}</td>`
       }).join('')
-      return `<tr>${ci===0?`<td rowspan="6" style="border:1px solid #e2e8f0;padding:4px 8px;background:${bg};font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:1px;writing-mode:vertical-rl;text-align:center;width:28px">${lbl}</td>`:''}<td style="border:1px solid #e2e8f0;padding:6px 8px;font-size:10px;font-weight:600;background:#f8fafc;white-space:nowrap">${campo.label}</td>${cells}</tr>`
+      return `<tr>${ci===0?`<td rowspan="6" style="border:1px solid #e2e8f0;padding:4px 8px;background:${bg};font-size:9px;font-weight:800;text-transform:uppercase;writing-mode:vertical-rl;text-align:center;width:28px">${lbl}</td>`:''}<td style="border:1px solid #e2e8f0;padding:6px 8px;font-size:10px;font-weight:600;background:#f8fafc">${campo.label}</td>${cells}</tr>`
     })
   })
-  const hDias = diasComItens.map(d=>{
-    const dn = calcDN(d.key,plano.dia_prova)
-    return `<th style="border:1px solid #e2e8f0;padding:8px;font-size:10px;background:#1e3a5f;color:#fff;text-align:center;min-width:100px">${d.full}<br><span style="font-size:9px;opacity:.75;font-weight:400">${dn}</span></th>`
-  }).join('')
-  const espColor = ESP_COLOR[plano.especialidade]||'#1e3a5f'
-  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${plano.nome}</title>
-  <style>*{box-sizing:border-box}body{font-family:'Segoe UI',sans-serif;padding:24px;color:#1e293b;margin:0}h1{font-size:18px;margin:0 0 2px;color:#0f172a}h2{font-size:12px;color:#64748b;margin:0 0 18px;font-weight:400}table{border-collapse:collapse;width:100%}.badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;color:#fff;background:${espColor}}@media print{.noprint{display:none}}</style>
-  </head><body>
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px">
-    <div>
-      <h1>🕊️ ${plano.nome}</h1>
-      <h2><span class="badge">${ESP_LABEL[plano.especialidade]||plano.especialidade}</span> &nbsp; Prova ao ${DIAS_SEMANA.find(d=>d.key===plano.dia_prova)?.full} &nbsp;·&nbsp; ${nPombos} pombo(s)</h2>
-    </div>
-    <button class="noprint" onclick="window.print()" style="padding:8px 18px;background:#1e3a5f;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px">🖨️ Imprimir</button>
-  </div>
-  <table><thead><tr>
-    <th style="border:1px solid #e2e8f0;padding:8px;background:#0f172a;color:#fff;font-size:10px;width:28px"></th>
-    <th style="border:1px solid #e2e8f0;padding:8px;background:#0f172a;color:#fff;font-size:10px;min-width:90px">Campo</th>
-    ${hDias}
-  </tr></thead><tbody>${linhas.join('')}</tbody></table>
-  ${plano.obs?`<p style="margin-top:14px;font-size:11px;color:#64748b;border-top:1px solid #e2e8f0;padding-top:10px">📝 ${plano.obs}</p>`:''}
+  const hDias=diasComItens.map(d=>{const dn=calcDN(d.key,plano.dia_prova);return`<th style="border:1px solid #e2e8f0;padding:8px;font-size:10px;background:#1e3a5f;color:#fff;text-align:center;min-width:100px">${d.full}<br><span style="font-size:9px;opacity:.75">${dn}</span></th>`}).join('')
+  const espC=ESP_COLOR[plano.especialidade]||'#1e3a5f'
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${plano.nome}</title><style>*{box-sizing:border-box}body{font-family:'Segoe UI',sans-serif;padding:24px;color:#1e293b}table{border-collapse:collapse;width:100%}.badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;color:#fff;background:${espC}}@media print{.noprint{display:none}}</style></head><body>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px"><div><h1 style="font-size:18px;margin:0 0 4px">🕊️ ${plano.nome}</h1><p style="margin:0;font-size:12px;color:#64748b"><span class="badge">${ESP_LABEL[plano.especialidade]||plano.especialidade}</span> &nbsp;Prova ao ${DIAS_SEMANA.find(d=>d.key===plano.dia_prova)?.full} &nbsp;·&nbsp; ${nPombos} pombo(s)</p></div><button class="noprint" onclick="window.print()" style="padding:8px 18px;background:#1e3a5f;color:#fff;border:none;border-radius:8px;cursor:pointer">🖨️ Imprimir</button></div>
+  <table><thead><tr><th style="border:1px solid #e2e8f0;padding:8px;background:#0f172a;color:#fff;font-size:10px;width:28px"></th><th style="border:1px solid #e2e8f0;padding:8px;background:#0f172a;color:#fff;font-size:10px">Campo</th>${hDias}</tr></thead><tbody>${linhas.join('')}</tbody></table>
+  ${plano.obs?`<p style="margin-top:12px;font-size:11px;color:#64748b">📝 ${plano.obs}</p>`:''}
   <p style="margin-top:14px;font-size:9px;color:#94a3b8">Gerado por ChampionsLoft · ${new Date().toLocaleDateString('pt-PT')}</p>
   <script>window.onload=()=>setTimeout(()=>window.print(),400)</script></body></html>`
   const w=window.open('','_blank'); w.document.write(html); w.document.close()
@@ -109,50 +95,52 @@ function imprimirPlano(plano, produtos, nPombos) {
 // ── valores iniciais ──────────────────────────────────────────────────────────
 const ITEM_VAZIO = (per='manha') => ({ periodo:per, dia_semana:'quarta', product_id:'', racao_g:'', tipo_racao:'', voo_min:'', outros:'', notas:'' })
 const PLANO_VAZIO = { nome:'', especialidade:'velocidade', dia_prova:'domingo', itens:[], obs:'' }
-const PROD_VAZIO  = { nome:'', modo:'agua', dosagem_valor:'', dosagem_unidade:'ml', dosagem_base:'litro', categoria:'Suplemento', obs:'' }
-const STOCK_VAZIO = { tipo:'Medicamento', nome:'', qtd:'', unidade:'ml', qtd_minima:'', margem_dias:'7', validade:'', preco:'', obs:'' }
 
-// ── estilos partilhados ───────────────────────────────────────────────────────
+// produto unificado (armazém)
+const PROD_VAZIO = {
+  nome:'', categoria:'Suplemento',
+  // campos de uso (ex-biblioteca)
+  modo:'agua', dosagem_valor:'', dosagem_unidade:'ml', dosagem_base:'litro', obs_uso:'',
+  // campos de stock (ex-stock)
+  qtd:'', unidade:'ml', qtd_minima:'', margem_dias:'7', validade:'', preco:'', obs_stock:'',
+}
+
+// ── estilos ───────────────────────────────────────────────────────────────────
 const S = {
   card: { background:'#0B1830', border:'1px solid #1B2D52', borderRadius:12, padding:'14px 16px' },
-  th:   { border:'1px solid #162040', padding:'10px 10px', fontSize:11, fontWeight:700, textAlign:'center', whiteSpace:'nowrap' },
+  th:   { border:'1px solid #162040', padding:'10px', fontSize:11, fontWeight:700, textAlign:'center', whiteSpace:'nowrap' },
   td:   { border:'1px solid #162040', padding:'6px 8px', fontSize:11, textAlign:'center', verticalAlign:'top', position:'relative' },
   pill: (color) => ({ display:'inline-block', padding:'2px 8px', borderRadius:12, fontSize:10, fontWeight:700, background:`${color}22`, color, border:`1px solid ${color}44` }),
 }
 
-// ── componente célula editável inline ─────────────────────────────────────────
-function CelulaEditavel({ valor, placeholder, tipo='text', opcoesSelect, onChange, cor }) {
-  const [editando, setEditando] = useState(false)
+// ── célula editável inline ────────────────────────────────────────────────────
+function CelulaEditavel({ valor, placeholder, tipo='text', opcoesSelect, onChange }) {
+  const [ed, setEd] = useState(false)
   const [val, setVal] = useState(valor||'')
-  const ref = useRef()
-  useEffect(()=>{ setVal(valor||'') },[valor])
-  useEffect(()=>{ if(editando && ref.current) ref.current.focus() },[editando])
-
-  const confirmar = () => { setEditando(false); if(val!==valor) onChange(val) }
+  useEffect(()=>setVal(valor||''),[valor])
+  const ok = () => { setEd(false); if(val!==valor) onChange(val) }
   const s = { background:'transparent', border:'none', borderBottom:'1px solid #4C8DFF', color:'#fff', fontSize:11, width:'100%', padding:'2px 0', outline:'none', fontFamily:'inherit' }
-
-  if (!editando) return (
-    <div onClick={()=>setEditando(true)} style={{ cursor:'pointer', minHeight:20, color:val?cor||'#e2e8f0':'#334155', fontSize:11, padding:'1px 2px', borderRadius:4, transition:'background .15s' }}
+  if(!ed) return (
+    <div onClick={()=>setEd(true)} style={{ cursor:'pointer', minHeight:18, color:val?'#e2e8f0':'#334155', fontSize:11, padding:'1px 2px', borderRadius:4 }}
       onMouseEnter={e=>e.currentTarget.style.background='rgba(76,141,255,.08)'}
       onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
-      {val || <span style={{ fontSize:10, color:'#334155', fontStyle:'italic' }}>{placeholder||'—'}</span>}
+      {val||<span style={{ fontSize:10, color:'#334155', fontStyle:'italic' }}>{placeholder||'—'}</span>}
     </div>
   )
-
-  if (opcoesSelect) return (
-    <select ref={ref} value={val} onChange={e=>setVal(e.target.value)} onBlur={confirmar} style={{ ...s }}>
+  if(opcoesSelect) return (
+    <select value={val} onChange={e=>setVal(e.target.value)} onBlur={ok} autoFocus style={s}>
       <option value="">—</option>
-      {opcoesSelect.map(o => <option key={o.value||o} value={o.value||o}>{o.label||o}</option>)}
+      {opcoesSelect.map(o=><option key={o.value??o} value={o.value??o}>{o.label??o}</option>)}
     </select>
   )
-  return <input ref={ref} type={tipo} value={val} onChange={e=>setVal(e.target.value)} onBlur={confirmar} onKeyDown={e=>{if(e.key==='Enter')confirmar();if(e.key==='Escape'){setVal(valor||'');setEditando(false)}}} style={s} placeholder={placeholder} />
+  return <input type={tipo} value={val} onChange={e=>setVal(e.target.value)} onBlur={ok} onKeyDown={e=>{if(e.key==='Enter')ok();if(e.key==='Escape'){setVal(valor||'');setEd(false)}}} style={s} placeholder={placeholder} autoFocus />
 }
 
-// ── tabela de plano (construção e visualização) ────────────────────────────────
-function TabelaPlano({ plano, produtos, stock, nPombos, alertasStock, estado, overrides, onToggleDia, onOverride, hojeKey, modoEdicao, onUpdItem, onDelItem }) {
+// ── tabela de plano ───────────────────────────────────────────────────────────
+function TabelaPlano({ plano, produtos, nPombos, alertasStock, estado, overrides, onToggleDia, onOverride, hojeKey, modoEdicao, onUpdItem }) {
   const getProd = id => produtos.find(p=>p.id===id)
   const diasComItens = DIAS_SEMANA.filter(d=>(plano.itens||[]).some(i=>i.dia_semana===d.key))
-  if (diasComItens.length===0) return <div style={{ textAlign:'center', padding:32, color:'#475569', fontSize:13 }}>Sem dias de tratamento. Adicione itens abaixo.</div>
+  if(diasComItens.length===0) return <div style={{ textAlign:'center', padding:32, color:'#475569', fontSize:13 }}>Sem dias de tratamento. Adicione itens abaixo.</div>
 
   const campos = [
     { key:'produto', label:'Produto / Dose' },
@@ -164,32 +152,28 @@ function TabelaPlano({ plano, produtos, stock, nPombos, alertasStock, estado, ov
 
   return (
     <div style={{ overflowX:'auto', borderRadius:12, border:'1px solid #162040' }}>
-      <table style={{ borderCollapse:'collapse', width:'100%', minWidth: diasComItens.length*130+160 }}>
+      <table style={{ borderCollapse:'collapse', width:'100%', minWidth:diasComItens.length*130+160 }}>
         <thead>
           <tr>
             <th style={{ ...S.th, background:'#050D1A', color:'#475569', width:36, borderRight:'2px solid #1E5FD9' }}></th>
             <th style={{ ...S.th, background:'#050D1A', color:'#7A8699', textAlign:'left', paddingLeft:12, minWidth:110, borderRight:'2px solid #1E5FD9' }}>Campo</th>
-            {diasComItens.map(d => {
-              const dn = calcDN(d.key, plano.dia_prova)
-              const isHoje = d.key===hojeKey
-              const isDiaProva = dn==='Prova'
+            {diasComItens.map(d=>{
+              const dn=calcDN(d.key,plano.dia_prova); const isHoje=d.key===hojeKey; const isProva=dn==='Prova'
               return (
-                <th key={d.key} style={{ ...S.th, background: isHoje?'rgba(212,175,55,.12)':isDiaProva?'rgba(45,212,167,.08)':'#070F20', color:isHoje?'#D4AF37':isDiaProva?'#2DD4A7':'#94a3b8', minWidth:130, borderLeft:'1px solid #162040' }}>
-                  <div>{d.full}{isHoje&&<span style={{ fontSize:9, marginLeft:4, color:'#D4AF37' }}>● HOJE</span>}</div>
-                  <div style={{ fontSize:10, marginTop:2, fontWeight:800, letterSpacing:.5, color:isDiaProva?'#2DD4A7':isHoje?'#D4AF37':'#D4AF37', opacity:isDiaProva||isHoje?1:.7 }}>{dn}</div>
+                <th key={d.key} style={{ ...S.th, background:isHoje?'rgba(212,175,55,.12)':isProva?'rgba(45,212,167,.08)':'#070F20', color:isHoje?'#D4AF37':isProva?'#2DD4A7':'#94a3b8', minWidth:130 }}>
+                  {d.full}{isHoje&&<span style={{ fontSize:9, marginLeft:4 }}>● HOJE</span>}
+                  <div style={{ fontSize:10, marginTop:2, fontWeight:800, color:isProva?'#2DD4A7':'#D4AF37', opacity:isProva||isHoje?1:.7 }}>{dn}</div>
                 </th>
               )
             })}
           </tr>
         </thead>
         <tbody>
-          {['manha','tarde'].map(per => {
-            const isM = per==='manha'
-            const perColor = isM?'#F59E0B':'#60A5FA'
-            return campos.map((campo, ci) => (
-              <tr key={`${per}_${campo.key}`} style={{ background: ci%2===0?'rgba(11,24,48,.6)':'rgba(7,15,32,.4)' }}>
-                {/* célula período */}
-                {ci===0 && (
+          {['manha','tarde'].map(per=>{
+            const isM=per==='manha'; const perColor=isM?'#F59E0B':'#60A5FA'
+            return campos.map((campo,ci)=>(
+              <tr key={`${per}_${campo.key}`} style={{ background:ci%2===0?'rgba(11,24,48,.6)':'rgba(7,15,32,.4)' }}>
+                {ci===0&&(
                   <td rowSpan={campos.length} style={{ ...S.td, background:isM?'rgba(245,158,11,.06)':'rgba(96,165,250,.06)', borderRight:'2px solid #1E5FD9', padding:0, width:36 }}>
                     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100%', minHeight:130 }}>
                       <div style={{ writingMode:'vertical-rl', transform:'rotate(180deg)', fontSize:10, fontWeight:800, color:perColor, letterSpacing:2, textTransform:'uppercase' }}>
@@ -198,136 +182,76 @@ function TabelaPlano({ plano, produtos, stock, nPombos, alertasStock, estado, ov
                     </div>
                   </td>
                 )}
-                {/* label campo */}
-                <td style={{ ...S.td, background:'#070F20', textAlign:'left', paddingLeft:12, color:'#7A8699', fontWeight:600, borderRight:'2px solid #1E5FD9', whiteSpace:'nowrap' }}>
-                  {campo.label}
-                </td>
-                {/* células por dia */}
-                {diasComItens.map(d => {
-                  const item = (plano.itens||[]).find(i=>i.dia_semana===d.key&&(per==='manha'?i.periodo!=='tarde':i.periodo==='tarde'))
-                  const realIdx = item ? (plano.itens||[]).indexOf(item) : -1
-                  const chave = `${d.key}_${per}`
-                  const feito = !!estado?.[chave]
-                  const isHoje = d.key===hojeKey
-                  // override semanal
-                  const ovKey = `${chave}_${campo.key}`
-                  const ovVal = overrides?.[ovKey]
-                  const temOverride = ovVal !== undefined
+                <td style={{ ...S.td, background:'#070F20', textAlign:'left', paddingLeft:12, color:'#7A8699', fontWeight:600, borderRight:'2px solid #1E5FD9', whiteSpace:'nowrap' }}>{campo.label}</td>
+                {diasComItens.map(d=>{
+                  const item=(plano.itens||[]).find(i=>i.dia_semana===d.key&&(per==='manha'?i.periodo!=='tarde':i.periodo==='tarde'))
+                  const realIdx=item?(plano.itens||[]).indexOf(item):-1
+                  const chave=`${d.key}_${per}`
+                  const feito=!!estado?.[chave]
+                  const isHoje=d.key===hojeKey
+                  const ovKey=`${chave}_${campo.key}`
+                  const ovVal=overrides?.[ovKey]
+                  const temOv=ovVal!==undefined
+                  const prod=item?getProd(item.product_id):null
+                  const dose=calcDose(prod,nPombos)
+                  const stkBaixo=prod&&alertasStock?.some(a=>a.nome?.toLowerCase()===prod.nome?.toLowerCase())
 
-                  const prod = item ? getProd(item.product_id) : null
-                  const dose = calcDose(prod, nPombos)
-                  const stk  = prod ? stock.find(s=>s.nome.toLowerCase()===prod.nome.toLowerCase()) : null
-                  const stkBaixo = stk && alertasStock?.some(a=>a.id===stk.id)
+                  const tdStyle={ ...S.td, background:feito?'rgba(45,212,167,.05)':isHoje?'rgba(212,175,55,.04)':'transparent', outline:temOv?'1px solid rgba(167,139,250,.4)':undefined }
+                  if(!item) return <td key={d.key} style={{ ...tdStyle, color:'#1B2D52' }}>—</td>
 
-                  const tdStyle = {
-                    ...S.td,
-                    background: feito?'rgba(45,212,167,.05)':isHoje?'rgba(212,175,55,.04)':'transparent',
-                    borderLeft:'1px solid #162040',
-                    outline: temOverride?'1px solid rgba(167,139,250,.5)':undefined,
-                  }
-
-                  if (!item) return <td key={d.key} style={{ ...tdStyle, color:'#1B2D52' }}>—</td>
-
-                  // checkbox no canto (só quando plano aplicado / não modo edição)
-                  const checkBox = !modoEdicao && onToggleDia && campo.key==='produto' && (
-                    <button onClick={()=>onToggleDia(d.key,per)} style={{ position:'absolute', top:4, right:4, width:18, height:18, borderRadius:4, border:feito?'none':'1px solid #1B2D52', background:feito?'#2DD4A7':'transparent', cursor:'pointer', fontSize:9, display:'flex', alignItems:'center', justifyContent:'center', padding:0, zIndex:1 }}>
+                  const checkbox=!modoEdicao&&onToggleDia&&campo.key==='produto'&&(
+                    <button onClick={()=>onToggleDia(d.key,per)} style={{ position:'absolute', top:4, right:4, width:18, height:18, borderRadius:4, border:feito?'none':'1px solid #1B2D52', background:feito?'#2DD4A7':'transparent', cursor:'pointer', fontSize:9, display:'flex', alignItems:'center', justifyContent:'center', padding:0 }}>
                       {feito&&'✓'}
                     </button>
                   )
 
-                  // conteúdo da célula
-                  let conteudo = null
-
-                  if (modoEdicao) {
-                    // MODO EDIÇÃO — célula editável
-                    if (campo.key==='produto') {
-                      const opProd = produtos.map(p=>({ value:p.id, label:`${MODO_ICON[p.modo]} ${p.nome}` }))
-                      conteudo = (
-                        <div>
-                          <CelulaEditavel
-                            valor={item.product_id}
-                            opcoesSelect={opProd}
-                            onChange={v=>onUpdItem(realIdx,'product_id',v)}
-                            cor='#fff'
-                            placeholder='— produto —'
-                          />
-                          {prod && dose && <div style={{ fontSize:10, color:'#2DD4A7', marginTop:3 }}>{dose.linha1}<br/>{dose.linha2}</div>}
-                        </div>
-                      )
-                    } else if (campo.key==='gramas') {
-                      conteudo = <CelulaEditavel valor={item.racao_g} tipo='number' placeholder='g' onChange={v=>onUpdItem(realIdx,'racao_g',v)} cor='#fff' />
-                    } else if (campo.key==='tipo') {
-                      const opRac = RACOES_COMERCIAIS.map(r=>({ value:r, label:r }))
-                      conteudo = <CelulaEditavel valor={item.tipo_racao} opcoesSelect={opRac} placeholder='ração' onChange={v=>onUpdItem(realIdx,'tipo_racao',v)} cor='#e2e8f0' />
-                    } else if (campo.key==='voo') {
-                      conteudo = <CelulaEditavel valor={item.voo_min} tipo='number' placeholder='min' onChange={v=>onUpdItem(realIdx,'voo_min',v)} cor='#60A5FA' />
-                    } else if (campo.key==='outros') {
-                      conteudo = <CelulaEditavel valor={item.outros} placeholder='banho, narinas…' onChange={v=>onUpdItem(realIdx,'outros',v)} cor='#94a3b8' />
-                    }
+                  let conteudo=null
+                  if(modoEdicao) {
+                    if(campo.key==='produto') conteudo=(
+                      <div>
+                        <CelulaEditavel valor={item.product_id} opcoesSelect={produtos.map(p=>({value:p.id,label:`${MODO_ICON[p.modo]} ${p.nome}`}))} onChange={v=>onUpdItem(realIdx,'product_id',v)} placeholder='— produto —' />
+                        {prod&&dose&&<div style={{ fontSize:10, color:'#2DD4A7', marginTop:3 }}>{dose.linha1}<br/>{dose.linha2}</div>}
+                      </div>
+                    )
+                    else if(campo.key==='gramas') conteudo=<CelulaEditavel valor={item.racao_g} tipo='number' placeholder='g' onChange={v=>onUpdItem(realIdx,'racao_g',v)} />
+                    else if(campo.key==='tipo') conteudo=<CelulaEditavel valor={item.tipo_racao} opcoesSelect={RACOES_COMERCIAIS} onChange={v=>onUpdItem(realIdx,'tipo_racao',v)} placeholder='ração' />
+                    else if(campo.key==='voo') conteudo=<CelulaEditavel valor={item.voo_min} tipo='number' placeholder='min' onChange={v=>onUpdItem(realIdx,'voo_min',v)} />
+                    else if(campo.key==='outros') conteudo=<CelulaEditavel valor={item.outros} placeholder='banho…' onChange={v=>onUpdItem(realIdx,'outros',v)} />
                   } else {
-                    // MODO VISUALIZAÇÃO (com overrides semanais)
-                    if (campo.key==='produto') {
-                      conteudo = (
-                        <div style={{ paddingRight:22 }}>
-                          {prod ? <>
-                            <div style={{ fontWeight:600, color:feito?'#475569':'#e2e8f0', textDecoration:feito?'line-through':'none', fontSize:11 }}>
-                              {MODO_ICON[prod.modo]} {prod.nome}
-                            </div>
-                            {dose && <div style={{ fontSize:10, color:feito?'#334155':'#2DD4A7', marginTop:2 }}>{dose.linha1}</div>}
-                            {dose && <div style={{ fontSize:10, color:feito?'#334155':'#34d399', marginTop:1 }}>{dose.linha2}</div>}
-                            {stk && <div style={{ fontSize:10, color:stkBaixo?'#f87171':'#334155', marginTop:3 }}>📦 {stk.qtd}{stk.unidade}{stkBaixo&&' ⚠️'}</div>}
-                          </> : <span style={{ color:'#334155', fontSize:10 }}>Produto removido</span>}
-                        </div>
-                      )
-                    } else if (campo.key==='gramas') {
-                      const v = ovVal??item.racao_g
-                      conteudo = v ? (
-                        <div>
-                          <span style={{ fontWeight:600, color:'#e2e8f0' }}>{v}g</span>
-                          {temOverride && campo.key==='gramas' && <span title="Ajuste semanal" style={{ marginLeft:4, fontSize:9, color:'#A78BFA' }}>✱</span>}
-                        </div>
-                      ) : null
-                    } else if (campo.key==='tipo') {
-                      const v = ovVal??item.tipo_racao
-                      conteudo = v ? <span style={{ color:'#cbd5e1', fontSize:10 }}>{v}{temOverride&&<span title="Ajuste" style={{ marginLeft:3, fontSize:9, color:'#A78BFA' }}>✱</span>}</span> : null
-                    } else if (campo.key==='voo') {
-                      const v = ovVal??item.voo_min
-                      conteudo = v ? <span style={{ fontWeight:600, color:'#60A5FA' }}>{v} min</span> : null
-                    } else if (campo.key==='outros') {
-                      const v = ovVal??item.outros
-                      conteudo = v ? <span style={{ color:'#94a3b8', fontSize:10 }}>{v}</span> : null
-                    }
-
-                    // override semanal — clique longo/ícone de ajuste
-                    if (onOverride && !modoEdicao && campo.key!=='produto') {
-                      const valAtual = ovVal ?? (campo.key==='gramas'?item.racao_g:campo.key==='tipo'?item.tipo_racao:campo.key==='voo'?item.voo_min:item.outros) ?? ''
-                      conteudo = (
+                    if(campo.key==='produto') conteudo=(
+                      <div style={{ paddingRight:22 }}>
+                        {prod?<>
+                          <div style={{ fontWeight:600, color:feito?'#475569':'#e2e8f0', textDecoration:feito?'line-through':'none' }}>{MODO_ICON[prod.modo]} {prod.nome}</div>
+                          {dose&&<><div style={{ fontSize:10, color:feito?'#334155':'#2DD4A7', marginTop:2 }}>{dose.linha1}</div><div style={{ fontSize:10, color:'#34d399' }}>{dose.linha2}</div></>}
+                          {stkBaixo&&<div style={{ fontSize:10, color:'#f87171', marginTop:2 }}>⚠️ stock baixo</div>}
+                          {prod.qtd>0&&<div style={{ fontSize:10, color:'#475569', marginTop:1 }}>📦 {prod.qtd}{prod.unidade}</div>}
+                        </>:<span style={{ color:'#334155', fontSize:10 }}>Produto removido</span>}
+                        {temOv&&<span style={{ position:'absolute', top:3, left:3, fontSize:9, color:'#A78BFA' }} title="Ajustado esta semana">✱</span>}
+                      </div>
+                    )
+                    else {
+                      const v=ovVal??(campo.key==='gramas'?item.racao_g:campo.key==='tipo'?item.tipo_racao:campo.key==='voo'?item.voo_min:item.outros)
+                      const cor=campo.key==='voo'?'#60A5FA':campo.key==='gramas'?'#e2e8f0':'#94a3b8'
+                      conteudo=(
                         <div style={{ position:'relative' }}>
-                          {conteudo}
-                          <button onClick={()=>onOverride(ovKey, valAtual, campo)} style={{ position:'absolute', bottom:0, right:0, background:'none', border:'none', cursor:'pointer', fontSize:9, color:temOverride?'#A78BFA':'#1B2D52', padding:0 }} title={temOverride?'Ajuste semanal ativo — clique para editar':'Ajustar para esta semana'}>
-                            ✱
-                          </button>
+                          {v?<span style={{ color:cor, fontWeight:campo.key==='gramas'||campo.key==='voo'?600:400 }}>{v}{campo.key==='gramas'?'g':campo.key==='voo'?' min':''}</span>:<span style={{ color:'#1B2D52', fontSize:10 }}>—</span>}
+                          {temOv&&<span style={{ marginLeft:4, fontSize:9, color:'#A78BFA' }}>✱</span>}
+                          {onOverride&&<button onClick={()=>onOverride(ovKey,v||'',campo)} style={{ position:'absolute', bottom:0, right:0, background:'none', border:'none', cursor:'pointer', fontSize:9, color:temOv?'#A78BFA':'#1B2D52', padding:0 }} title="Ajustar esta semana">✱</button>}
                         </div>
                       )
                     }
                   }
 
-                  return (
-                    <td key={d.key} style={tdStyle}>
-                      {checkBox}
-                      {temOverride && campo.key==='produto' && <span style={{ position:'absolute', top:3, left:3, fontSize:9, color:'#A78BFA' }} title="Campo ajustado esta semana">✱</span>}
-                      {conteudo || <span style={{ color:'#1B2D52', fontSize:10 }}>—</span>}
-                    </td>
-                  )
+                  return <td key={d.key} style={tdStyle}>{checkbox}{conteudo}</td>
                 })}
               </tr>
             ))
           })}
         </tbody>
       </table>
-      {!modoEdicao && overrides && Object.keys(overrides).length>0 && (
-        <div style={{ padding:'8px 14px', background:'rgba(167,139,250,.06)', borderTop:'1px solid #162040', fontSize:11, color:'#A78BFA', display:'flex', alignItems:'center', gap:6 }}>
-          <span>✱</span><span>Células com ajuste semanal (afetam apenas esta semana, não o plano base)</span>
+      {!modoEdicao&&overrides&&Object.keys(overrides).length>0&&(
+        <div style={{ padding:'8px 14px', background:'rgba(167,139,250,.06)', borderTop:'1px solid #162040', fontSize:11, color:'#A78BFA' }}>
+          ✱ Células marcadas têm ajuste semanal — não afectam o plano base
         </div>
       )}
     </div>
@@ -341,59 +265,68 @@ export default function Alimentacao({ nav }) {
   const toast = useToast()
   const { t } = useIdioma()
 
-  const [stock, setStock]           = useState([])
+  const [produtos, setProdutos]     = useState([])   // armazém unificado
   const [planos, setPlanos]         = useState([])
   const [aplicacoes, setAplicacoes] = useState([])
-  const [produtos, setProdutos]     = useState([])
   const [pombos, setPombos]         = useState([])
   const [loading, setLoading]       = useState(true)
 
   const [tab, setTab]               = useState('hoje')
-  const [vistaTabela, setVistaTabela] = useState(true)
+  const [vistaTabela, setVistaTabela]     = useState(true)
+  const [vistaPlanoTabela, setVistaPlanoTabela] = useState(false)
+  const [filtroCat, setFiltroCat]   = useState('todos')
+  const [filtroModo, setFiltroModo] = useState('todos')
+
   const [modal, setModal]           = useState(null)
   const [selected, setSelected]     = useState(null)
   const [saving, setSaving]         = useState(false)
   const [confirm, setConfirm]       = useState(null)
 
-  // forms
-  const [formPlano, setFormPlano]   = useState(PLANO_VAZIO)
-  const [vistaPlanoTabela, setVistaPlanoTabela] = useState(false)
   const [formProd, setFormProd]     = useState(PROD_VAZIO)
-  const [formStock, setFormStock]   = useState(STOCK_VAZIO)
-  const sfp  = (k,v) => setFormPlano(f=>({...f,[k]:v}))
+  const [formPlano, setFormPlano]   = useState(PLANO_VAZIO)
   const sfpr = (k,v) => setFormProd(f=>({...f,[k]:v}))
-  const sfs  = (k,v) => setFormStock(f=>({...f,[k]:v}))
+  const sfp  = (k,v) => setFormPlano(f=>({...f,[k]:v}))
 
-  // modal override semanal
-  const [modalOverride, setModalOverride] = useState(null) // { ovKey, valor, campo }
-  const [overrides, setOverrides]         = useState({})   // { ovKey: valor }
+  const [overrides, setOverrides]   = useState({})
+  const [modalOverride, setModalOverride] = useState(null)
 
-  // modal pombos
   const [modalPombos, setModalPombos]   = useState(false)
   const [pombosSel, setPombosSel]       = useState([])
   const [savingPombos, setSavingPombos] = useState(false)
 
-  // modal aplicar
   const [modalAplicar, setModalAplicar]         = useState(false)
   const [planoParaAplicar, setPlanoParaAplicar] = useState(null)
   const [pombosAplicar, setPombosAplicar]       = useState([])
   const [savingAplicar, setSavingAplicar]       = useState(false)
 
-  // calculadora
   const [calcPombos, setCalcPombos] = useState('20')
   const [calcG, setCalcG]           = useState('35')
   const [calcDias, setCalcDias]     = useState('7')
-  const [filtroTipo, setFiltroTipo] = useState('todos')
 
   // ── load ──────────────────────────────────────────────────────────────────
+  // Armazém: unifica getTreatmentProducts + getStock pelo nome
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [s,pl,ap,pr,pb] = await Promise.all([
-        db.getStock(), db.getTreatmentPlans(), db.getTreatmentApplications(),
-        db.getTreatmentProducts(), db.getPombos(),
+      const [pr, st, pl, ap, pb] = await Promise.all([
+        db.getTreatmentProducts(), db.getStock(),
+        db.getTreatmentPlans(), db.getTreatmentApplications(), db.getPombos(),
       ])
-      setStock(s); setPlanos(pl); setAplicacoes(ap); setProdutos(pr); setPombos(pb)
+      // Merge: produto base da biblioteca + dados de stock pelo nome
+      const merged = pr.map(p => {
+        const stk = st.find(s => s.nome.toLowerCase()===p.nome.toLowerCase())
+        return { ...p, qtd:stk?.qtd??0, unidade:stk?.unidade??p.dosagem_unidade??'ml', qtd_minima:stk?.qtd_minima??null, margem_dias:stk?.margem_dias??7, validade:stk?.validade??null, preco:stk?.preco??null, obs_stock:stk?.obs??'', _stock_id:stk?.id??null, categoria:p.categoria??stk?.tipo??'Outro' }
+      })
+      // Itens só no stock (sem produto na biblioteca)
+      const nomesLib = pr.map(p=>p.nome.toLowerCase())
+      const soStock = st.filter(s=>!nomesLib.includes(s.nome.toLowerCase())).map(s=>({
+        id:`stk_${s.id}`, _stock_id:s.id, nome:s.nome, categoria:s.tipo||'Outro',
+        modo:null, dosagem_valor:null, dosagem_unidade:null, dosagem_base:null, obs_uso:'',
+        qtd:s.qtd, unidade:s.unidade, qtd_minima:s.qtd_minima, margem_dias:s.margem_dias??7,
+        validade:s.validade, preco:s.preco, obs_stock:s.obs||'', _soStock:true,
+      }))
+      setProdutos([...merged, ...soStock])
+      setPlanos(pl); setAplicacoes(ap); setPombos(pb)
     } catch(e) { toast('Erro: '+e.message,'err') }
     finally { setLoading(false) }
   }, [])
@@ -402,7 +335,7 @@ export default function Alimentacao({ nav }) {
   // ── computed ──────────────────────────────────────────────────────────────
   const semanaAtual    = segundaFeira()
   const aplicacaoAtiva = aplicacoes.find(a=>a.semana_inicio===semanaAtual)
-  const planoAtivo     = aplicacaoAtiva ? planos.find(p=>p.id===aplicacaoAtiva.plan_id) : null
+  const planoAtivo     = aplicacaoAtiva?planos.find(p=>p.id===aplicacaoAtiva.plan_id):null
   const getProd        = id => produtos.find(p=>p.id===id)
   const efectivo       = pombos.filter(p=>(!p.estado_ext||p.estado_ext==='proprio')&&p.estado==='ativo')
   const nPombos        = aplicacaoAtiva?.pombos_ids?.length||aplicacaoAtiva?.n_pombos||0
@@ -410,17 +343,19 @@ export default function Alimentacao({ nav }) {
 
   const G_DIA = 35
   const consumoDiarioKg = (efectivo.length*G_DIA)/1000
-  const alertasStock = stock.filter(s=>{
-    if(!s.qtd_minima) return false
-    const m = parseFloat(s.margem_dias||7)
-    const extra = ['Cereal','Ração Comercial'].includes(s.tipo)?consumoDiarioKg*m:0
-    return s.qtd<=parseFloat(s.qtd_minima)+extra
-  })
-  const validadeProxima = stock.filter(s=>s.validade&&(new Date(s.validade)-new Date())/86400000<=30)
 
-  function diasParaEsgotar(item) {
-    if(!['Cereal','Ração Comercial'].includes(item.tipo)||consumoDiarioKg<=0) return null
-    const kg=item.unidade==='g'?item.qtd/1000:item.unidade==='kg'?item.qtd:null
+  // alertas com margem
+  const alertasStock = produtos.filter(p => {
+    if(!p.qtd_minima||p.qtd===undefined) return false
+    const m=parseFloat(p.margem_dias||7)
+    const extra=['Cereal','Ração Comercial'].includes(p.categoria)?consumoDiarioKg*m:0
+    return p.qtd<=parseFloat(p.qtd_minima)+extra
+  })
+  const validadeProxima = produtos.filter(p=>p.validade&&(new Date(p.validade)-new Date())/86400000<=30)
+
+  function diasParaEsgotar(prod) {
+    if(!['Cereal','Ração Comercial'].includes(prod.categoria)||consumoDiarioKg<=0) return null
+    const kg=prod.unidade==='g'?prod.qtd/1000:prod.unidade==='kg'?prod.qtd:null
     return kg===null?null:Math.floor(kg/consumoDiarioKg)
   }
 
@@ -436,56 +371,84 @@ export default function Alimentacao({ nav }) {
     } catch(e){toast('Erro','err')}
   }
 
-  // ── override semanal ──────────────────────────────────────────────────────
-  const abrirOverride = (ovKey, valAtual, campo) => setModalOverride({ ovKey, valor:valAtual, campo })
-  const guardarOverride = async (ovKey, novoVal) => {
-    const novosOverrides = { ...overrides }
-    if (novoVal==='' || novoVal===null) delete novosOverrides[ovKey]
-    else novosOverrides[ovKey] = novoVal
-    setOverrides(novosOverrides)
-    // persistir no estado da aplicação
-    if (aplicacaoAtiva) {
-      try { await db.updateTreatmentApplication(aplicacaoAtiva.id,{overrides_semana:novosOverrides}) }
-      catch(e){toast('Erro ao guardar ajuste','err')}
-    }
-    setModalOverride(null)
-    toast('Ajuste semanal guardado!','ok')
-  }
+  // overrides
+  useEffect(()=>{ if(aplicacaoAtiva?.overrides_semana) setOverrides(aplicacaoAtiva.overrides_semana); else setOverrides({}) },[aplicacaoAtiva?.id])
 
-  const guardarPlanoComOverrides = async () => {
-    if (!planoAtivo || Object.keys(overrides).length===0) return
-    // criar novo plano com os overrides aplicados
-    const novosItens = (planoAtivo.itens||[]).map(item => {
-      const per = item.periodo==='tarde'?'tarde':'manha'
-      const nova = { ...item }
-      const chave = `${item.dia_semana}_${per}`
-      const ovGramas = overrides[`${chave}_gramas`]; if(ovGramas!==undefined) nova.racao_g = ovGramas
-      const ovTipo   = overrides[`${chave}_tipo`];   if(ovTipo!==undefined) nova.tipo_racao = ovTipo
-      const ovVoo    = overrides[`${chave}_voo`];    if(ovVoo!==undefined) nova.voo_min = ovVoo
-      const ovOutros = overrides[`${chave}_outros`]; if(ovOutros!==undefined) nova.outros = ovOutros
-      return nova
+  const abrirOverride = (ovKey,valAtual,campo) => setModalOverride({ovKey,valor:valAtual,campo})
+  const guardarOverride = async (ovKey,novoVal) => {
+    const nov={...overrides}
+    if(novoVal===''||novoVal===null) delete nov[ovKey]; else nov[ovKey]=novoVal
+    setOverrides(nov)
+    if(aplicacaoAtiva) { try{ await db.updateTreatmentApplication(aplicacaoAtiva.id,{overrides_semana:nov}) }catch(e){} }
+    setModalOverride(null); toast('Ajuste guardado!','ok')
+  }
+  const guardarVariante = async () => {
+    if(!planoAtivo||Object.keys(overrides).length===0) return
+    const novosItens=(planoAtivo.itens||[]).map(item=>{
+      const per=item.periodo==='tarde'?'tarde':'manha'; const chave=`${item.dia_semana}_${per}`
+      const n={...item}
+      const og=overrides[`${chave}_gramas`]; if(og!==undefined) n.racao_g=og
+      const ot=overrides[`${chave}_tipo`];   if(ot!==undefined) n.tipo_racao=ot
+      const ov=overrides[`${chave}_voo`];    if(ov!==undefined) n.voo_min=ov
+      const oo=overrides[`${chave}_outros`]; if(oo!==undefined) n.outros=oo
+      return n
     })
-    const novoNome = `${planoAtivo.nome} (variante ${new Date().toLocaleDateString('pt-PT')})`
     try {
-      await db.createTreatmentPlan({ nome:novoNome, especialidade:planoAtivo.especialidade, dia_prova:planoAtivo.dia_prova, itens:novosItens, obs:planoAtivo.obs })
-      toast(`Guardado como "${novoNome}"!`,'ok'); load()
-    } catch(e){toast('Erro: '+e.message,'err')}
+      const novoNome=`${planoAtivo.nome} (variante ${new Date().toLocaleDateString('pt-PT')})`
+      await db.createTreatmentPlan({nome:novoNome,especialidade:planoAtivo.especialidade,dia_prova:planoAtivo.dia_prova,itens:novosItens,obs:planoAtivo.obs})
+      toast(`Guardado como variante!`,'ok'); load()
+    } catch(e){toast('Erro','err')}
   }
 
-  // carregar overrides da aplicação ativa
-  useEffect(()=>{
-    if(aplicacaoAtiva?.overrides_semana) setOverrides(aplicacaoAtiva.overrides_semana)
-    else setOverrides({})
-  },[aplicacaoAtiva?.id])
+  // ── produto CRUD (armazém unificado) ─────────────────────────────────────
+  const openNewProd = () => { setFormProd(PROD_VAZIO); setSelected(null); setModal('produto') }
+  const openEditProd = p => {
+    setSelected(p)
+    setFormProd({ nome:p.nome, categoria:p.categoria||'Outro', modo:p.modo||'agua', dosagem_valor:p.dosagem_valor||'', dosagem_unidade:p.dosagem_unidade||'ml', dosagem_base:p.dosagem_base||'litro', obs_uso:p.obs_uso||p.obs||'', qtd:String(p.qtd||0), unidade:p.unidade||'ml', qtd_minima:String(p.qtd_minima||''), margem_dias:String(p.margem_dias||7), validade:p.validade||'', preco:String(p.preco||''), obs_stock:p.obs_stock||'' })
+    setModal('produto')
+  }
+  const saveProd = async () => {
+    if(!formProd.nome.trim()){toast('Nome obrigatório','warn');return}
+    setSaving(true)
+    try {
+      const prodPayload = { nome:formProd.nome.trim(), modo:formProd.modo, dosagem_valor:parseFloat(formProd.dosagem_valor)||null, dosagem_unidade:formProd.dosagem_unidade, dosagem_base:formProd.dosagem_base, categoria:formProd.categoria, obs:formProd.obs_uso }
+      const stockPayload = { nome:formProd.nome.trim(), tipo:formProd.categoria, qtd:parseFloat(formProd.qtd)||0, unidade:formProd.unidade, qtd_minima:formProd.qtd_minima?parseFloat(formProd.qtd_minima):null, margem_dias:formProd.margem_dias?parseInt(formProd.margem_dias):7, validade:formProd.validade||null, preco:formProd.preco?parseFloat(formProd.preco):null, obs:formProd.obs_stock }
+
+      if(selected && !selected._soStock) {
+        await db.updateTreatmentProduct(selected.id, prodPayload)
+        if(selected._stock_id) await db.updateStockItem(selected._stock_id, stockPayload)
+        else await db.createStockItem(stockPayload)
+      } else if(selected?._soStock) {
+        await db.createTreatmentProduct(prodPayload)
+        await db.updateStockItem(selected._stock_id, stockPayload)
+      } else {
+        await db.createTreatmentProduct(prodPayload)
+        await db.createStockItem(stockPayload)
+      }
+      toast(selected?'Actualizado!':'Produto criado!','ok'); setModal(null); setSelected(null); load()
+    } catch(e){toast('Erro: '+e.message,'err')}
+    finally{setSaving(false)}
+  }
+  const delProd = async () => {
+    try {
+      const p=confirm.item
+      if(!p._soStock&&!p.id?.startsWith('stk_')) await db.deleteTreatmentProduct(p.id)
+      if(p._stock_id) await db.deleteStockItem(p._stock_id)
+      toast('Eliminado','ok'); setConfirm(null); load()
+    } catch(e){toast('Erro','err')}
+  }
+  const ajustarQtd = async (prod, delta) => {
+    if(!prod._stock_id){toast('Sem registo de stock','warn');return}
+    try{ await db.updateStockItem(prod._stock_id,{qtd:Math.max(0,(prod.qtd||0)+delta)}); load() }
+    catch(e){toast('Erro','err')}
+  }
 
   // ── plano CRUD ────────────────────────────────────────────────────────────
   const openNewPlano  = () => { setFormPlano(PLANO_VAZIO); setSelected(null); setModal('plano') }
-  const openEditPlano = p  => { setSelected(p); setFormPlano({ nome:p.nome, especialidade:p.especialidade||'geral', dia_prova:p.dia_prova||'domingo', itens:JSON.parse(JSON.stringify(p.itens||[])), obs:p.obs||'' }); setModal('plano') }
-
-  const addItem = per => setFormPlano(f=>({...f, itens:[...f.itens,ITEM_VAZIO(per)]}))
-  const updItem = (i,k,v) => setFormPlano(f=>({...f, itens:f.itens.map((it,idx)=>idx===i?{...it,[k]:v}:it)}))
-  const delItem = i => setFormPlano(f=>({...f, itens:f.itens.filter((_,idx)=>idx!==i)}))
-
+  const openEditPlano = p  => { setSelected(p); setFormPlano({nome:p.nome,especialidade:p.especialidade||'geral',dia_prova:p.dia_prova||'domingo',itens:JSON.parse(JSON.stringify(p.itens||[])),obs:p.obs||''}); setModal('plano') }
+  const addItem = per => setFormPlano(f=>({...f,itens:[...f.itens,ITEM_VAZIO(per)]}))
+  const updItem = (i,k,v) => setFormPlano(f=>({...f,itens:f.itens.map((it,idx)=>idx===i?{...it,[k]:v}:it)}))
+  const delItem = i => setFormPlano(f=>({...f,itens:f.itens.filter((_,idx)=>idx!==i)}))
   const savePlano = async () => {
     if(!formPlano.nome.trim()){toast('Nome obrigatório','warn');return}
     setSaving(true)
@@ -501,52 +464,10 @@ export default function Alimentacao({ nav }) {
     catch(e){toast('Erro','err')}
   }
 
-  // ── produto CRUD ──────────────────────────────────────────────────────────
-  const openNewProd  = () => { setFormProd(PROD_VAZIO); setSelected(null); setModal('produto') }
-  const openEditProd = p  => { setSelected(p); setFormProd({nome:p.nome,modo:p.modo,dosagem_valor:p.dosagem_valor||'',dosagem_unidade:p.dosagem_unidade||'ml',dosagem_base:p.dosagem_base||'litro',categoria:p.categoria||'Suplemento',obs:p.obs||''}); setModal('produto') }
-  const saveProd = async () => {
-    if(!formProd.nome.trim()){toast('Nome obrigatório','warn');return}
-    setSaving(true)
-    try {
-      const payload={nome:formProd.nome.trim(),modo:formProd.modo,dosagem_valor:parseFloat(formProd.dosagem_valor)||null,dosagem_unidade:formProd.dosagem_unidade,dosagem_base:formProd.dosagem_base,categoria:formProd.categoria,obs:formProd.obs}
-      selected?await db.updateTreatmentProduct(selected.id,payload):await db.createTreatmentProduct(payload)
-      toast(selected?'Actualizado!':'Criado!','ok'); setModal(null); setSelected(null); load()
-    } catch(e){toast('Erro: '+e.message,'err')}
-    finally{setSaving(false)}
-  }
-  const delProd = async () => {
-    try{await db.deleteTreatmentProduct(confirm.item.id);toast('Eliminado','ok');setConfirm(null);load()}
-    catch(e){toast('Erro','err')}
-  }
-
-  // ── stock CRUD ────────────────────────────────────────────────────────────
-  const openNewStock  = () => { setFormStock(STOCK_VAZIO); setSelected(null); setModal('stock') }
-  const openEditStock = s  => { setSelected(s); setFormStock({tipo:s.tipo||'Medicamento',nome:s.nome||'',qtd:String(s.qtd||''),unidade:s.unidade||'ml',qtd_minima:String(s.qtd_minima||''),margem_dias:String(s.margem_dias||7),validade:s.validade||'',preco:String(s.preco||''),obs:s.obs||''}); setModal('stock') }
-  const saveStock = async () => {
-    if(!formStock.nome.trim()||!formStock.qtd){toast('Nome e quantidade obrigatórios','warn');return}
-    setSaving(true)
-    try {
-      const payload={tipo:formStock.tipo,nome:formStock.nome.trim(),qtd:parseFloat(formStock.qtd),unidade:formStock.unidade,qtd_minima:formStock.qtd_minima?parseFloat(formStock.qtd_minima):null,margem_dias:formStock.margem_dias?parseInt(formStock.margem_dias):7,validade:formStock.validade||null,preco:formStock.preco?parseFloat(formStock.preco):null,obs:formStock.obs}
-      selected?await db.updateStockItem(selected.id,payload):await db.createStockItem(payload)
-      toast(selected?'Actualizado!':'Adicionado!','ok'); setModal(null); setSelected(null); load()
-    } catch(e){toast('Erro: '+e.message,'err')}
-    finally{setSaving(false)}
-  }
-  const delStock = async () => {
-    try{await db.deleteStockItem(confirm.item.id);toast('Eliminado','ok');setConfirm(null);load()}
-    catch(e){toast('Erro','err')}
-  }
-  const ajustarQtd = async (item,delta) => {
-    try{await db.updateStockItem(item.id,{qtd:Math.max(0,item.qtd+delta)});load()}
-    catch(e){toast('Erro','err')}
-  }
-
   // ── aplicar plano ─────────────────────────────────────────────────────────
   const abrirAplicar = (plano) => {
     setPlanoParaAplicar(plano)
-    const sug=plano.especialidade&&plano.especialidade!=='geral'
-      ?efectivo.filter(p=>(p.esp||[]).includes(plano.especialidade)).map(p=>p.id)
-      :efectivo.map(p=>p.id)
+    const sug=plano.especialidade&&plano.especialidade!=='geral'?efectivo.filter(p=>(p.esp||[]).includes(plano.especialidade)).map(p=>p.id):efectivo.map(p=>p.id)
     setPombosAplicar(sug); setModalAplicar(true)
   }
   const confirmarAplicar = async () => {
@@ -562,70 +483,62 @@ export default function Alimentacao({ nav }) {
     try{await db.deleteTreatmentApplication(aplicacaoAtiva.id);toast('Plano removido','ok');setOverrides({});load()}
     catch(e){toast('Erro','err')}
   }
-
-  // pombos do plano ativo
   const abrirEditarPombos = () => { setPombosSel(aplicacaoAtiva?.pombos_ids||[]); setModalPombos(true) }
   const salvarPombos = async () => {
     if(pombosSel.length===0){toast('Seleccione pombos','warn');return}
     setSavingPombos(true)
-    try {
-      await db.updateTreatmentApplication(aplicacaoAtiva.id,{pombos_ids:pombosSel,n_pombos:pombosSel.length})
-      toast('Pombos actualizados!','ok'); setModalPombos(false); load()
-    } catch(e){toast('Erro','err')}
+    try{ await db.updateTreatmentApplication(aplicacaoAtiva.id,{pombos_ids:pombosSel,n_pombos:pombosSel.length}); toast('Guardado!','ok'); setModalPombos(false); load() }
+    catch(e){toast('Erro','err')}
     finally{setSavingPombos(false)}
   }
-  const toggleSel = (id,setter) => setter(s=>s.includes(id)?s.filter(x=>x!==id):[...s,id])
+  const toggleSel=(id,setter)=>setter(s=>s.includes(id)?s.filter(x=>x!==id):[...s,id])
 
-  // avisos stock ao aplicar
-  const avisosStock = (() => {
+  const avisosStockAplicar=(() => {
     if(!planoParaAplicar) return []
     const n=pombosAplicar.length,av=[]
     planoParaAplicar.itens.forEach(it=>{
       const prod=getProd(it.product_id)
-      if(!prod?.dosagem_valor) return
-      const stk=stock.find(s=>s.nome.toLowerCase()===prod.nome.toLowerCase())
-      if(!stk) return
+      if(!prod?.dosagem_valor||prod.qtd===undefined) return
       const nec=prod.dosagem_base==='pombo'?prod.dosagem_valor*n:prod.dosagem_valor
-      if(stk.qtd<nec) av.push(`${prod.nome}: precisa ~${nec}${prod.dosagem_unidade||''}, tem ${stk.qtd}${stk.unidade||''}`)
+      if(prod.qtd<nec) av.push(`${prod.nome}: precisa ~${nec}${prod.dosagem_unidade||''}, tem ${prod.qtd}${prod.unidade||''}`)
     })
     return av
   })()
 
   // calculadora
   const consumoCalc=(parseFloat(calcPombos)||0)*(parseFloat(calcG)||0)*(parseFloat(calcDias)||0)/1000
-  const stockFiltrado=stock.filter(s=>filtroTipo==='todos'||s.tipo===filtroTipo)
 
-  // ── render lista período ──────────────────────────────────────────────────
-  const renderLista = (itens, per) => {
+  // armazém filtrado
+  const prodsFiltrados = produtos.filter(p=>{
+    if(filtroCat!=='todos'&&p.categoria!==filtroCat) return false
+    if(filtroModo!=='todos'&&p.modo!==filtroModo) return false
+    return true
+  })
+
+  // render lista de período
+  const renderLista = (itens,per) => {
     if(itens.length===0) return null
     const isM=per==='manha'
     return (
       <div style={{ marginBottom:10 }}>
-        <div style={{ fontSize:11, fontWeight:700, color:isM?'#F59E0B':'#60A5FA', textTransform:'uppercase', letterSpacing:1, marginBottom:6 }}>
-          {isM?'🌅 Manhã':'🌆 Tarde'}
-        </div>
+        <div style={{ fontSize:11,fontWeight:700,color:isM?'#F59E0B':'#60A5FA',textTransform:'uppercase',letterSpacing:1,marginBottom:6 }}>{isM?'🌅 Manhã':'🌆 Tarde'}</div>
         {itens.map((item,i)=>{
-          const chave=`${item.dia_semana}_${per}`
-          const feito=!!aplicacaoAtiva?.estado_dias?.[chave]
-          const prod=getProd(item.product_id)
-          const dose=calcDose(prod,nPombos)
-          const stk=prod?stock.find(s=>s.nome.toLowerCase()===prod.nome.toLowerCase()):null
+          const chave=`${item.dia_semana}_${per}`; const feito=!!aplicacaoAtiva?.estado_dias?.[chave]
+          const prod=getProd(item.product_id); const dose=calcDose(prod,nPombos)
+          const stkBaixo=prod&&alertasStock.some(a=>a.nome?.toLowerCase()===prod.nome?.toLowerCase())
           return (
-            <div key={i} style={{ ...S.card, marginBottom:6, borderColor:feito?'rgba(45,212,167,.3)':undefined, padding:'10px 14px' }}>
-              <div style={{ display:'flex', alignItems:'flex-start', gap:10 }}>
-                <button onClick={()=>toggleDia(item.dia_semana,per)} style={{ width:22,height:22,borderRadius:6,border:feito?'none':'2px solid #1B2D52',background:feito?'#2DD4A7':'transparent',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',flexShrink:0,fontSize:13,marginTop:1 }}>
-                  {feito&&'✓'}
-                </button>
+            <div key={i} style={{ ...S.card,marginBottom:6,borderColor:feito?'rgba(45,212,167,.3)':undefined,padding:'10px 14px' }}>
+              <div style={{ display:'flex',alignItems:'flex-start',gap:10 }}>
+                <button onClick={()=>toggleDia(item.dia_semana,per)} style={{ width:22,height:22,borderRadius:6,border:feito?'none':'2px solid #1B2D52',background:feito?'#2DD4A7':'transparent',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',flexShrink:0,fontSize:13,marginTop:1 }}>{feito&&'✓'}</button>
                 <div style={{ flex:1 }}>
                   {prod&&<div style={{ fontSize:13,fontWeight:600,color:feito?'#7A8699':'#fff',textDecoration:feito?'line-through':'none',marginBottom:4 }}>{MODO_ICON[prod.modo]} {prod.nome}</div>}
-                  <div style={{ display:'flex', flexDirection:'column', gap:2 }}>
-                    {dose&&<div style={{ fontSize:12,color:'#2DD4A7' }}>{dose.linha1} {dose.linha2}</div>}
-                    {stk&&<div style={{ fontSize:11,color:alertasStock.some(a=>a.id===stk.id)?'#f87171':'#475569' }}>📦 {stk.qtd}{stk.unidade}</div>}
-                    <div style={{ display:'flex',flexWrap:'wrap',gap:'2px 12px',fontSize:11,color:'#7A8699' }}>
-                      {item.racao_g&&<span>🌾 {item.racao_g}g{item.tipo_racao?` ${item.tipo_racao}`:''}</span>}
-                      {item.voo_min&&<span>✈️ {item.voo_min} min</span>}
-                      {item.outros&&<span>🛁 {item.outros}</span>}
-                    </div>
+                  {dose&&<div style={{ fontSize:12,color:'#2DD4A7',marginBottom:2 }}>{dose.linha1} {dose.linha2}</div>}
+                  {stkBaixo&&<div style={{ fontSize:11,color:'#f87171',marginBottom:2 }}>⚠️ stock baixo</div>}
+                  {prod?.qtd>0&&<div style={{ fontSize:11,color:'#475569',marginBottom:2 }}>📦 {prod.qtd}{prod.unidade}</div>}
+                  <div style={{ display:'flex',flexWrap:'wrap',gap:'2px 12px',fontSize:11,color:'#7A8699' }}>
+                    {item.racao_g&&<span>🌾 {item.racao_g}g{item.tipo_racao?` ${item.tipo_racao}`:''}</span>}
+                    {item.voo_min&&<span>✈️ {item.voo_min} min</span>}
+                    {item.outros&&<span>🛁 {item.outros}</span>}
                   </div>
                 </div>
               </div>
@@ -636,12 +549,11 @@ export default function Alimentacao({ nav }) {
     )
   }
 
-  // ── TABS ──────────────────────────────────────────────────────────────────
-  const TABS=[['hoje','☀️ Hoje'],['semana','📋 Semana'],['planos','🗂️ Planos'],['biblioteca','💊 Biblioteca'],['stock','📦 Stock'],['calculadora','🧮 Calc']]
-  const btnAdd = () => {
-    if(tab==='planos')    return <button className="btn btn-primary" onClick={openNewPlano}>＋ Plano</button>
-    if(tab==='biblioteca') return <button className="btn btn-primary" onClick={openNewProd}>＋ Produto</button>
-    if(tab==='stock')     return <button className="btn btn-primary" onClick={openNewStock}>＋ Item</button>
+  // TABS
+  const TABS=[['hoje','☀️ Hoje'],['semana','📋 Semana'],['planos','🗂️ Planos'],['armazem','🏪 Armazém'],['calculadora','🧮 Calc']]
+  const btnAdd=()=>{
+    if(tab==='planos') return <button className="btn btn-primary" onClick={openNewPlano}>＋ Plano</button>
+    if(tab==='armazem') return <button className="btn btn-primary" onClick={openNewProd}>＋ Produto</button>
     return null
   }
 
@@ -649,7 +561,6 @@ export default function Alimentacao({ nav }) {
 
   return (
     <div>
-      {/* ── header ── */}
       <div className="section-header">
         <div>
           <div className="section-title">Alimentação &amp; Tratamentos</div>
@@ -658,38 +569,37 @@ export default function Alimentacao({ nav }) {
         {btnAdd()}
       </div>
 
-      {/* ── alertas ── */}
+      {/* alertas */}
       {(alertasStock.length>0||validadeProxima.length>0)&&(
         <div style={{ display:'flex',flexDirection:'column',gap:8,marginBottom:16 }}>
           {alertasStock.length>0&&(
-            <div style={{ background:'rgba(239,68,68,.08)',border:'1px solid rgba(239,68,68,.2)',borderRadius:12,padding:'10px 16px',cursor:'pointer' }} onClick={()=>setTab('stock')}>
+            <div style={{ background:'rgba(239,68,68,.08)',border:'1px solid rgba(239,68,68,.2)',borderRadius:12,padding:'10px 16px',cursor:'pointer' }} onClick={()=>setTab('armazem')}>
               <div style={{ fontWeight:600,color:'#f87171',marginBottom:4 }}>⚠️ {alertasStock.length} produto(s) a precisar de reposição</div>
-              {alertasStock.map(s=><div key={s.id} style={{ fontSize:11,color:'#cbd5e1' }}>{s.nome} — {s.qtd}{s.unidade}</div>)}
+              {alertasStock.map(p=><div key={p.id} style={{ fontSize:11,color:'#cbd5e1' }}>{p.nome} — {p.qtd}{p.unidade}</div>)}
             </div>
           )}
           {validadeProxima.length>0&&(
             <div style={{ background:'rgba(234,179,8,.08)',border:'1px solid rgba(234,179,8,.2)',borderRadius:12,padding:'10px 16px' }}>
               <div style={{ fontWeight:600,color:'#D4AF37',marginBottom:4 }}>📅 {validadeProxima.length} produto(s) a expirar em 30 dias</div>
-              {validadeProxima.map(s=><div key={s.id} style={{ fontSize:11,color:'#cbd5e1' }}>{s.nome} — {new Date(s.validade).toLocaleDateString('pt-PT')}</div>)}
+              {validadeProxima.map(p=><div key={p.id} style={{ fontSize:11,color:'#cbd5e1' }}>{p.nome} — {new Date(p.validade).toLocaleDateString('pt-PT')}</div>)}
             </div>
           )}
         </div>
       )}
 
-      {/* ── tabs ── */}
+      {/* tabs */}
       <div style={{ display:'flex',gap:4,background:'#101F40',borderRadius:8,padding:4,marginBottom:16,overflowX:'auto' }}>
         {TABS.map(([k,l])=>(
           <button key={k} onClick={()=>setTab(k)} style={{ flex:1,padding:'8px 10px',borderRadius:6,fontSize:12,fontWeight:500,cursor:'pointer',border:'none',fontFamily:'inherit',whiteSpace:'nowrap',background:tab===k?'#1E5FD9':'none',color:tab===k?'#fff':'#94a3b8' }}>{l}</button>
         ))}
       </div>
 
-      {/* ══ HOJE ══════════════════════════════════════════════════════════════ */}
+      {/* ══ HOJE ══ */}
       {tab==='hoje'&&(
         <div>
           <div style={{ fontSize:12,color:'#94a3b8',marginBottom:12 }}>{new Date().toLocaleDateString('pt-PT',{weekday:'long',day:'numeric',month:'long'})}</div>
           {!planoAtivo?(
-            <EmptyState icon="☀️" title="Sem plano activo" desc="Aplique um plano em 'Planos' para ver o que fazer hoje"
-              action={<button className="btn btn-primary" onClick={()=>setTab('planos')}>Ver Planos →</button>} />
+            <EmptyState icon="☀️" title="Sem plano activo" desc="Aplique um plano em 'Planos'" action={<button className="btn btn-primary" onClick={()=>setTab('planos')}>Ver Planos →</button>} />
           ):!temHoje?(
             <div style={{ ...S.card,textAlign:'center',padding:32 }}>
               <div style={{ fontSize:28,marginBottom:8 }}>✅</div>
@@ -698,8 +608,7 @@ export default function Alimentacao({ nav }) {
             </div>
           ):(
             <div>
-              {/* banner plano */}
-              <div style={{ background:`linear-gradient(135deg, rgba(30,95,217,.15), rgba(${ESP_COLOR[planoAtivo.especialidade]||'30,95,217'},.08))`, border:'1px solid rgba(30,95,217,.3)', borderRadius:12, padding:'14px 18px', marginBottom:16 }}>
+              <div style={{ background:`linear-gradient(135deg,rgba(30,95,217,.15),rgba(11,24,48,.4))`,border:'1px solid rgba(30,95,217,.3)',borderRadius:12,padding:'14px 18px',marginBottom:16 }}>
                 <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:8 }}>
                   <div>
                     <div style={{ fontWeight:700,color:'#fff',fontSize:15 }}>{planoAtivo.nome}</div>
@@ -714,19 +623,17 @@ export default function Alimentacao({ nav }) {
                   </div>
                 </div>
               </div>
-
-              {/* resumo doses */}
+              {/* doses */}
               {(()=>{
                 const todosHoje=[...itensDia(hojeKey,'manha'),...itensDia(hojeKey,'tarde')]
                 const prods=[...new Set(todosHoje.map(i=>i.product_id))].map(id=>getProd(id)).filter(Boolean)
-                if(prods.length===0) return null
+                if(!prods.length) return null
                 return (
                   <div style={{ background:'rgba(45,212,167,.06)',border:'1px solid rgba(45,212,167,.2)',borderRadius:12,padding:'12px 16px',marginBottom:16 }}>
                     <div style={{ fontWeight:700,color:'#2DD4A7',marginBottom:10,fontSize:12,textTransform:'uppercase',letterSpacing:.5 }}>💊 Doses de hoje · {nPombos} pombos</div>
                     {prods.map(prod=>{
                       const dose=calcDose(prod,nPombos)
-                      const stk=stock.find(s=>s.nome.toLowerCase()===prod.nome.toLowerCase())
-                      const insuf=stk&&prod.dosagem_valor&&prod.dosagem_base==='pombo'&&stk.qtd<prod.dosagem_valor*nPombos
+                      const insuf=prod.qtd!==undefined&&prod.dosagem_valor&&prod.dosagem_base==='pombo'&&prod.qtd<prod.dosagem_valor*nPombos
                       return (
                         <div key={prod.id} style={{ display:'flex',justifyContent:'space-between',alignItems:'center',padding:'5px 0',borderBottom:'1px solid rgba(45,212,167,.1)',fontSize:12 }}>
                           <div>
@@ -735,7 +642,7 @@ export default function Alimentacao({ nav }) {
                           </div>
                           <div style={{ textAlign:'right' }}>
                             {dose&&<><div style={{ color:'#2DD4A7',fontWeight:700 }}>{dose.linha1}</div><div style={{ color:'#34d399',fontSize:10 }}>{dose.linha2}</div></>}
-                            {stk&&<div style={{ fontSize:10,color:insuf?'#f87171':'#475569' }}>📦 {stk.qtd}{stk.unidade}{insuf&&' ⚠️'}</div>}
+                            {prod.qtd!==undefined&&<div style={{ fontSize:10,color:insuf?'#f87171':'#475569' }}>📦 {prod.qtd}{prod.unidade}{insuf&&' ⚠️'}</div>}
                           </div>
                         </div>
                       )
@@ -743,7 +650,6 @@ export default function Alimentacao({ nav }) {
                   </div>
                 )
               })()}
-
               {renderLista(itensDia(hojeKey,'manha'),'manha')}
               {renderLista(itensDia(hojeKey,'tarde'),'tarde')}
             </div>
@@ -751,13 +657,12 @@ export default function Alimentacao({ nav }) {
         </div>
       )}
 
-      {/* ══ SEMANA ════════════════════════════════════════════════════════════ */}
+      {/* ══ SEMANA ══ */}
       {tab==='semana'&&(
         <div>
           {!planoAtivo?(
             planos.length===0?(
-              <EmptyState icon="🗂️" title="Sem planos" desc="Crie primeiro um plano"
-                action={<button className="btn btn-primary" onClick={()=>setTab('planos')}>Criar Plano →</button>} />
+              <EmptyState icon="🗂️" title="Sem planos" desc="Crie um plano primeiro" action={<button className="btn btn-primary" onClick={()=>setTab('planos')}>Criar →</button>} />
             ):(
               <div>
                 <div style={{ fontSize:13,color:'#94a3b8',marginBottom:12 }}>Escolha um plano para aplicar esta semana:</div>
@@ -766,7 +671,7 @@ export default function Alimentacao({ nav }) {
                     <div style={{ display:'flex',alignItems:'center',gap:12,flexWrap:'wrap' }}>
                       <div style={{ flex:1 }}>
                         <div style={{ fontSize:13,fontWeight:600,color:'#fff' }}>{p.nome}</div>
-                        <div style={{ fontSize:11,color:'#7A8699' }}><span style={S.pill(ESP_COLOR[p.especialidade]||'#8B5CF6')}>{ESP_LABEL[p.especialidade]}</span> · {(p.itens||[]).length} entradas</div>
+                        <div style={{ display:'flex',gap:6,marginTop:4 }}><span style={S.pill(ESP_COLOR[p.especialidade]||'#8B5CF6')}>{ESP_LABEL[p.especialidade]}</span><span style={{ fontSize:11,color:'#7A8699' }}>{(p.itens||[]).length} entradas</span></div>
                       </div>
                       <button className="btn btn-primary btn-sm" onClick={()=>abrirAplicar(p)}>Aplicar esta semana</button>
                     </div>
@@ -776,7 +681,6 @@ export default function Alimentacao({ nav }) {
             )
           ):(
             <div>
-              {/* banner */}
               <div style={{ background:'linear-gradient(135deg,rgba(30,95,217,.15),rgba(11,24,48,.4))',border:'1px solid rgba(30,95,217,.3)',borderRadius:12,padding:'14px 18px',marginBottom:16 }}>
                 <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:8 }}>
                   <div>
@@ -784,46 +688,35 @@ export default function Alimentacao({ nav }) {
                     <div style={{ display:'flex',gap:8,marginTop:4,flexWrap:'wrap',alignItems:'center' }}>
                       <span style={S.pill(ESP_COLOR[planoAtivo.especialidade]||'#1E5FD9')}>{ESP_LABEL[planoAtivo.especialidade]}</span>
                       <span style={{ fontSize:11,color:'#7A8699' }}>semana {new Date(semanaAtual).toLocaleDateString('pt-PT')}</span>
-                      {Object.keys(overrides).length>0&&<span style={{ ...S.pill('#A78BFA'), fontSize:10 }}>✱ {Object.keys(overrides).length} ajuste(s)</span>}
+                      {Object.keys(overrides).length>0&&<span style={S.pill('#A78BFA')}>✱ {Object.keys(overrides).length} ajuste(s)</span>}
                     </div>
                   </div>
                   <div style={{ display:'flex',gap:6,flexWrap:'wrap' }}>
                     <button className="btn btn-secondary btn-sm" onClick={abrirEditarPombos}>👥 {nPombos} ✏️</button>
-                    {Object.keys(overrides).length>0&&(
-                      <button className="btn btn-secondary btn-sm" style={{ color:'#A78BFA',borderColor:'rgba(167,139,250,.3)' }} onClick={guardarPlanoComOverrides} title="Guardar variante com os ajustes desta semana">💾 Guardar variante</button>
-                    )}
+                    {Object.keys(overrides).length>0&&<button className="btn btn-secondary btn-sm" style={{ color:'#A78BFA',borderColor:'rgba(167,139,250,.3)' }} onClick={guardarVariante}>💾 Guardar variante</button>}
                     <button className="btn btn-secondary btn-sm" onClick={()=>imprimirPlano(planoAtivo,produtos,nPombos)}>🖨️</button>
                     <button className="btn btn-secondary btn-sm" onClick={()=>setVistaTabela(v=>!v)}>{vistaTabela?'☰ Lista':'⊞ Tabela'}</button>
                   </div>
                 </div>
               </div>
-
               {vistaTabela?(
-                <TabelaPlano
-                  plano={planoAtivo} produtos={produtos} stock={stock} nPombos={nPombos}
-                  alertasStock={alertasStock} estado={aplicacaoAtiva?.estado_dias}
-                  overrides={overrides} onToggleDia={toggleDia} onOverride={abrirOverride}
-                  hojeKey={hojeKey} modoEdicao={false}
-                />
+                <TabelaPlano plano={planoAtivo} produtos={produtos} nPombos={nPombos} alertasStock={alertasStock} estado={aplicacaoAtiva?.estado_dias} overrides={overrides} onToggleDia={toggleDia} onOverride={abrirOverride} hojeKey={hojeKey} modoEdicao={false} />
               ):(
                 DIAS_SEMANA.map(({key,full})=>{
-                  const iM=itensDia(key,'manha'), iT=itensDia(key,'tarde')
-                  if(iM.length===0&&iT.length===0) return null
-                  const isHoje=key===hojeKey
-                  const dn=calcDN(key,planoAtivo.dia_prova)
+                  const iM=itensDia(key,'manha'),iT=itensDia(key,'tarde')
+                  if(!iM.length&&!iT.length) return null
+                  const isHoje=key===hojeKey; const dn=calcDN(key,planoAtivo.dia_prova)
                   return (
                     <div key={key} style={{ ...S.card,marginBottom:8,borderColor:isHoje?'rgba(212,175,55,.4)':undefined }}>
                       <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10 }}>
                         <div style={{ fontWeight:700,color:isHoje?'#D4AF37':'#fff',fontSize:13 }}>{full}{isHoje&&' ← Hoje'}</div>
                         <div style={{ fontSize:11,color:'#D4AF37',fontWeight:700 }}>{dn}</div>
                       </div>
-                      {renderLista(iM,'manha')}
-                      {renderLista(iT,'tarde')}
+                      {renderLista(iM,'manha')}{renderLista(iT,'tarde')}
                     </div>
                   )
                 })
               )}
-
               <div style={{ textAlign:'center',marginTop:12 }}>
                 <button className="btn btn-secondary btn-sm" onClick={encerrarAplicacao}>Remover plano desta semana</button>
               </div>
@@ -832,17 +725,15 @@ export default function Alimentacao({ nav }) {
         </div>
       )}
 
-      {/* ══ PLANOS ════════════════════════════════════════════════════════════ */}
+      {/* ══ PLANOS ══ */}
       {tab==='planos'&&(
         planos.length===0
-          ?<EmptyState icon="🗂️" title="Sem planos" desc="Construa o primeiro plano de tratamento"
-              action={<button className="btn btn-primary" onClick={openNewPlano}>＋ Novo Plano</button>} />
+          ?<EmptyState icon="🗂️" title="Sem planos" desc="Construa o primeiro plano de tratamento" action={<button className="btn btn-primary" onClick={openNewPlano}>＋ Novo Plano</button>} />
           :<div style={{ display:'flex',flexDirection:'column',gap:10 }}>
               {planos.map(p=>{
-                const espC=ESP_COLOR[p.especialidade]||'#8B5CF6'
-                const isAtivo=planoAtivo?.id===p.id
+                const espC=ESP_COLOR[p.especialidade]||'#8B5CF6'; const isAtivo=planoAtivo?.id===p.id
                 return (
-                  <div key={p.id} style={{ ...S.card, borderColor:isAtivo?'rgba(45,212,167,.4)':undefined }}>
+                  <div key={p.id} style={{ ...S.card,borderColor:isAtivo?'rgba(45,212,167,.4)':undefined }}>
                     <div style={{ display:'flex',alignItems:'flex-start',gap:12,flexWrap:'wrap' }}>
                       <div style={{ flex:1,minWidth:160 }}>
                         <div style={{ display:'flex',gap:8,alignItems:'center',marginBottom:4 }}>
@@ -869,71 +760,66 @@ export default function Alimentacao({ nav }) {
             </div>
       )}
 
-      {/* ══ BIBLIOTECA ════════════════════════════════════════════════════════ */}
-      {tab==='biblioteca'&&(
-        produtos.length===0
-          ?<EmptyState icon="💊" title="Biblioteca vazia" desc="Adicione produtos — serão reutilizados na construção de planos"
-              action={<button className="btn btn-primary" onClick={openNewProd}>＋ Novo Produto</button>} />
-          :<div style={{ display:'flex',flexDirection:'column',gap:8 }}>
-              {produtos.map(p=>{
-                const dose=calcDose(p,nPombos||1)
-                const stk=stock.find(s=>s.nome.toLowerCase()===p.nome.toLowerCase())
-                return (
-                  <div key={p.id} style={S.card}>
-                    <div style={{ display:'flex',alignItems:'center',gap:12,flexWrap:'wrap' }}>
-                      <div style={{ fontSize:22 }}>{MODO_ICON[p.modo]}</div>
-                      <div style={{ flex:1,minWidth:160 }}>
-                        <div style={{ fontSize:13,fontWeight:600,color:'#fff' }}>{p.nome}</div>
-                        <div style={{ fontSize:11,color:'#7A8699',marginTop:2 }}>{MODO_LABEL[p.modo]}{p.categoria?` · ${p.categoria}`:''}</div>
-                        {dose&&<div style={{ fontSize:11,color:'#2DD4A7',marginTop:3 }}>{dose.linha1} {dose.linha2}{nPombos>0?` (${nPombos} pombos)`:''}</div>}
-                        {stk&&<div style={{ fontSize:10,color:alertasStock.some(a=>a.id===stk.id)?'#f87171':'#475569',marginTop:2 }}>📦 Stock: {stk.qtd}{stk.unidade}</div>}
-                      </div>
-                      <button className="btn btn-secondary btn-sm" onClick={()=>openEditProd(p)}>✏️</button>
-                      <button className="btn btn-icon btn-sm" onClick={()=>setConfirm({tipo:'produto',item:p})}>🗑️</button>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-      )}
-
-      {/* ══ STOCK ════════════════════════════════════════════════════════════ */}
-      {tab==='stock'&&(
+      {/* ══ ARMAZÉM ══ */}
+      {tab==='armazem'&&(
         <div>
-          <div style={{ display:'flex',gap:6,flexWrap:'wrap',marginBottom:12 }}>
-            {['todos',...TIPOS_STOCK].map(tp=>(
-              <button key={tp} onClick={()=>setFiltroTipo(tp)} className={`chip${filtroTipo===tp?' active':''}`}>{tp==='todos'?'Todos':tp}</button>
+          {/* filtros */}
+          <div style={{ display:'flex',gap:6,flexWrap:'wrap',marginBottom:8 }}>
+            {['todos',...CATEGORIAS].map(c=>(
+              <button key={c} onClick={()=>setFiltroCat(c)} className={`chip${filtroCat===c?' active':''}`}>{c==='todos'?'Todos':c}</button>
             ))}
           </div>
-          {stockFiltrado.length===0
-            ?<EmptyState icon="📦" title="Sem itens" desc="Adicione cereais, rações e medicamentos"
-                action={<button className="btn btn-primary" onClick={openNewStock}>＋ Novo Item</button>} />
+          <div style={{ display:'flex',gap:6,flexWrap:'wrap',marginBottom:14 }}>
+            {['todos','agua','racao','direto','outros'].map(m=>(
+              <button key={m} onClick={()=>setFiltroModo(m)} className={`chip${filtroModo===m?' active':''}`} style={{ fontSize:11 }}>
+                {m==='todos'?'Todos os modos':`${MODO_ICON[m]||''} ${MODO_LABEL[m]||m}`}
+              </button>
+            ))}
+          </div>
+          {prodsFiltrados.length===0
+            ?<EmptyState icon="🏪" title="Armazém vazio" desc="Adicione produtos — ficam disponíveis no armazém e nos planos de tratamento" action={<button className="btn btn-primary" onClick={openNewProd}>＋ Novo Produto</button>} />
             :<div className="grid-2">
-                {stockFiltrado.map(s=>{
-                  const icon=s.tipo==='Cereal'?'🌾':s.tipo==='Ração Comercial'?'🥫':s.tipo==='Medicamento'?'💊':s.tipo==='Suplemento'?'🧪':'📦'
-                  const baixo=alertasStock.some(a=>a.id===s.id)
-                  const dias=diasParaEsgotar(s)
+                {prodsFiltrados.map(p=>{
+                  const icon=CAT_ICON[p.categoria]||'📦'
+                  const baixo=alertasStock.some(a=>a.id===p.id)
+                  const dias=diasParaEsgotar(p)
+                  const dose=calcDose(p,nPombos||1)
                   return (
-                    <div key={s.id} style={{ ...S.card,borderColor:baixo?'rgba(248,113,113,.3)':undefined }}>
-                      <div style={{ display:'flex',alignItems:'center',gap:10,marginBottom:10 }}>
+                    <div key={p.id} style={{ ...S.card,borderColor:baixo?'rgba(248,113,113,.3)':undefined }}>
+                      {/* header */}
+                      <div style={{ display:'flex',alignItems:'flex-start',gap:10,marginBottom:10 }}>
                         <div style={{ fontSize:22 }}>{icon}</div>
                         <div style={{ flex:1 }}>
-                          <div style={{ fontSize:13,fontWeight:600,color:'#fff' }}>{s.nome}</div>
-                          <div style={{ fontSize:11,color:'#7A8699' }}>{s.tipo}</div>
+                          <div style={{ fontSize:13,fontWeight:700,color:'#fff' }}>{p.nome}</div>
+                          <div style={{ display:'flex',gap:6,flexWrap:'wrap',marginTop:3 }}>
+                            <span style={{ fontSize:10,color:'#7A8699' }}>{p.categoria}</span>
+                            {p.modo&&<span style={{ fontSize:10,color:'#475569' }}>{MODO_LABEL_FULL[p.modo]}</span>}
+                          </div>
                         </div>
-                        <button className="btn btn-icon btn-sm" onClick={()=>openEditStock(s)}>✏️</button>
-                        <button className="btn btn-icon btn-sm" onClick={()=>setConfirm({tipo:'stock',item:s})}>🗑️</button>
+                        <button className="btn btn-icon btn-sm" onClick={()=>openEditProd(p)}>✏️</button>
+                        <button className="btn btn-icon btn-sm" onClick={()=>setConfirm({tipo:'produto',item:p})}>🗑️</button>
                       </div>
-                      <div style={{ display:'flex',alignItems:'center',gap:8,marginBottom:8 }}>
-                        <button className="btn btn-icon btn-sm" onClick={()=>ajustarQtd(s,-1)}>−</button>
-                        <div style={{ flex:1,textAlign:'center',fontFamily:"'Fraunces',serif",fontSize:24,fontWeight:700,color:baixo?'#f87171':'#fff' }}>{s.qtd}<span style={{ fontSize:14,color:'#7A8699' }}>{s.unidade}</span></div>
-                        <button className="btn btn-icon btn-sm" onClick={()=>ajustarQtd(s,1)}>＋</button>
+                      {/* dosagem */}
+                      {dose&&(
+                        <div style={{ background:'rgba(45,212,167,.06)',border:'1px solid rgba(45,212,167,.15)',borderRadius:8,padding:'6px 10px',marginBottom:8 }}>
+                          <div style={{ fontSize:10,color:'#7A8699',marginBottom:2 }}>Dosagem padrão{nPombos>0?` · ${nPombos} pombos`:''}:</div>
+                          <div style={{ fontSize:12,color:'#2DD4A7',fontWeight:600 }}>{dose.linha1}</div>
+                          <div style={{ fontSize:11,color:'#34d399' }}>{dose.linha2}</div>
+                        </div>
+                      )}
+                      {/* stock */}
+                      <div style={{ display:'flex',alignItems:'center',gap:8,marginBottom:6 }}>
+                        <button className="btn btn-icon btn-sm" onClick={()=>ajustarQtd(p,-1)}>−</button>
+                        <div style={{ flex:1,textAlign:'center',fontFamily:"'Fraunces',serif",fontSize:22,fontWeight:700,color:baixo?'#f87171':'#fff' }}>{p.qtd??'—'}<span style={{ fontSize:13,color:'#7A8699',fontFamily:'inherit' }}>{p.unidade}</span></div>
+                        <button className="btn btn-icon btn-sm" onClick={()=>ajustarQtd(p,1)}>＋</button>
                       </div>
-                      {s.qtd_minima&&<div className="progress"><div className="progress-bar" style={{ width:`${Math.min(100,(s.qtd/(s.qtd_minima*3))*100)}%`,background:baixo?'#f87171':'#2DD4A7' }} /></div>}
-                      {dias!==null&&<div style={{ fontSize:11,color:dias<=5?'#f87171':dias<=14?'#D4AF37':'#7A8699',marginTop:6,fontWeight:dias<=14?600:400 }}>⏳ Esgota em ~{dias} dia{dias!==1?'s':''}</div>}
-                      {s.margem_dias&&s.qtd_minima&&<div style={{ fontSize:10,color:'#475569',marginTop:2 }}>🔔 Alerta {s.margem_dias}d de antecedência</div>}
-                      {s.validade&&<div style={{ fontSize:11,color:'#7A8699',marginTop:2 }}>📅 Válido até {new Date(s.validade).toLocaleDateString('pt-PT')}</div>}
-                      {s.preco&&<div style={{ fontSize:11,color:'#D4AF37',marginTop:2 }}>💶 {s.preco}€</div>}
+                      {p.qtd_minima&&<div className="progress"><div className="progress-bar" style={{ width:`${Math.min(100,((p.qtd||0)/(p.qtd_minima*3))*100)}%`,background:baixo?'#f87171':'#2DD4A7' }} /></div>}
+                      <div style={{ display:'flex',flexDirection:'column',gap:2,marginTop:6 }}>
+                        {dias!==null&&<div style={{ fontSize:11,color:dias<=5?'#f87171':dias<=14?'#D4AF37':'#7A8699',fontWeight:dias<=14?600:400 }}>⏳ Esgota em ~{dias} dia{dias!==1?'s':''}</div>}
+                        {p.margem_dias&&p.qtd_minima&&<div style={{ fontSize:10,color:'#475569' }}>🔔 Alerta {p.margem_dias}d antes do mínimo</div>}
+                        {p.validade&&<div style={{ fontSize:11,color:'#7A8699' }}>📅 Válido até {new Date(p.validade).toLocaleDateString('pt-PT')}</div>}
+                        {p.preco&&<div style={{ fontSize:11,color:'#D4AF37' }}>💶 {p.preco}€</div>}
+                      </div>
                     </div>
                   )
                 })}
@@ -942,7 +828,7 @@ export default function Alimentacao({ nav }) {
         </div>
       )}
 
-      {/* ══ CALCULADORA ══════════════════════════════════════════════════════ */}
+      {/* ══ CALCULADORA ══ */}
       {tab==='calculadora'&&(
         <div style={{ display:'flex',flexDirection:'column',gap:16 }}>
           <div style={S.card}>
@@ -957,9 +843,7 @@ export default function Alimentacao({ nav }) {
               <div style={{ fontFamily:"'Fraunces',serif",fontSize:40,fontWeight:700,color:'#2DD4A7' }}>{consumoCalc.toFixed(1)} kg</div>
               <div style={{ fontSize:12,color:'#7A8699',marginTop:4 }}>Consumo total estimado</div>
             </div>
-            <div style={{ marginTop:12,fontSize:12,color:'#94a3b8' }}>
-              Repouso/Muda: 25-30g · Pré-competição: 30-35g · Competição: 35-45g · Reprodução: 40-50g
-            </div>
+            <div style={{ marginTop:12,fontSize:12,color:'#94a3b8' }}>Repouso/Muda: 25-30g · Pré-competição: 30-35g · Competição: 35-45g · Reprodução: 40-50g</div>
           </div>
           {planoAtivo&&produtos.length>0&&(
             <div style={S.card}>
@@ -968,11 +852,9 @@ export default function Alimentacao({ nav }) {
                 <button className="btn btn-secondary btn-sm" onClick={abrirEditarPombos}>👥 {nPombos} ✏️</button>
               </div>
               {[...new Set((planoAtivo.itens||[]).map(i=>i.product_id))].map(pid=>{
-                const prod=getProd(pid)
-                if(!prod) return null
+                const prod=getProd(pid); if(!prod) return null
                 const dose=calcDose(prod,nPombos)
-                const stk=stock.find(s=>s.nome.toLowerCase()===prod.nome.toLowerCase())
-                const insuf=stk&&prod.dosagem_valor&&prod.dosagem_base==='pombo'&&stk.qtd<prod.dosagem_valor*nPombos
+                const insuf=prod.qtd!==undefined&&prod.dosagem_valor&&prod.dosagem_base==='pombo'&&prod.qtd<prod.dosagem_valor*nPombos
                 return (
                   <div key={pid} style={{ display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderBottom:'1px solid #162040',fontSize:12 }}>
                     <div>
@@ -981,7 +863,7 @@ export default function Alimentacao({ nav }) {
                     </div>
                     <div style={{ textAlign:'right' }}>
                       {dose&&<><div style={{ color:'#2DD4A7',fontWeight:700 }}>{dose.linha1}</div><div style={{ color:'#34d399',fontSize:10 }}>{dose.linha2}</div></>}
-                      {stk&&<div style={{ fontSize:10,color:insuf?'#f87171':'#475569' }}>📦 {stk.qtd}{stk.unidade}{insuf&&' ⚠️'}</div>}
+                      {prod.qtd!==undefined&&<div style={{ fontSize:10,color:insuf?'#f87171':'#475569' }}>📦 {prod.qtd}{prod.unidade}{insuf&&' ⚠️'}</div>}
                     </div>
                   </div>
                 )
@@ -991,157 +873,165 @@ export default function Alimentacao({ nav }) {
         </div>
       )}
 
-      {/* ══ MODAL PLANO ══════════════════════════════════════════════════════ */}
-      <Modal open={modal==='plano'} onClose={()=>{setModal(null);setSelected(null)}}
-        title={selected?`✏️ Editar — ${selected.nome}`:'🗂️ Novo Plano de Tratamento'} wide
-        footer={<><button className="btn btn-secondary" onClick={()=>{setModal(null);setSelected(null)}}>Cancelar</button><button className="btn btn-primary" onClick={savePlano} disabled={saving}>{saving?<Spinner/>:null}{selected?'Guardar alterações':'Criar Plano'}</button></>}>
-
-        {/* metadados */}
-        <div style={{ display:'flex',gap:8,marginBottom:16,flexWrap:'wrap' }}>
-          <div style={{ flex:2,minWidth:180 }}>
-            <div style={{ fontSize:11,color:'#7A8699',marginBottom:4 }}>Nome do Plano *</div>
-            <input className="input" placeholder="Ex: Velocidade — Semana de Prova" value={formPlano.nome} onChange={e=>sfp('nome',e.target.value)} />
-          </div>
-          <div style={{ flex:1,minWidth:120 }}>
-            <div style={{ fontSize:11,color:'#7A8699',marginBottom:4 }}>Especialidade</div>
-            <select className="input" value={formPlano.especialidade} onChange={e=>sfp('especialidade',e.target.value)}>
-              {ESPECIALIDADES.map(e=><option key={e} value={e}>{ESP_LABEL[e]}</option>)}
-            </select>
-          </div>
-          <div style={{ flex:1,minWidth:120 }}>
-            <div style={{ fontSize:11,color:'#7A8699',marginBottom:4 }}>Dia de Prova</div>
-            <select className="input" value={formPlano.dia_prova} onChange={e=>sfp('dia_prova',e.target.value)}>
-              {DIAS_SEMANA.map(d=><option key={d.key} value={d.key}>{d.full}</option>)}
-            </select>
-          </div>
-        </div>
-
-        {/* toggle vista */}
-        <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12 }}>
-          <div style={{ fontSize:12,color:'#94a3b8' }}>
-            {formPlano.itens.length} entr{formPlano.itens.length===1?'ada':'adas'} · {[...new Set(formPlano.itens.map(i=>i.dia_semana))].length} dia(s)
-          </div>
-          <div style={{ display:'flex',gap:6 }}>
-            {produtos.length===0&&<span style={{ fontSize:11,color:'#f87171' }}>⚠️ Biblioteca vazia</span>}
-            <button className="btn btn-secondary btn-sm" onClick={()=>setVistaPlanoTabela(v=>!v)}>{vistaPlanoTabela?'☰ Lista':'⊞ Tabela'}</button>
-          </div>
-        </div>
-
-        {/* vista tabela na construção */}
-        {vistaPlanoTabela&&formPlano.itens.length>0&&(
-          <div style={{ marginBottom:16 }}>
-            <TabelaPlano
-              plano={formPlano} produtos={produtos} stock={stock} nPombos={0}
-              alertasStock={[]} modoEdicao={true}
-              onUpdItem={updItem} onDelItem={delItem}
-            />
-          </div>
-        )}
-
-        {/* vista lista (manhã / tarde) */}
-        {!vistaPlanoTabela&&['manha','tarde'].map(per=>(
-          <div key={per} style={{ marginBottom:16 }}>
-            <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8 }}>
-              <div style={{ fontSize:13,fontWeight:700,color:per==='manha'?'#F59E0B':'#60A5FA' }}>{per==='manha'?'🌅 Manhã':'🌆 Tarde'}</div>
-              <button className="btn btn-secondary btn-sm" onClick={()=>addItem(per)} disabled={produtos.length===0}>＋ Adicionar dia</button>
-            </div>
-            {formPlano.itens.filter(i=>per==='manha'?i.periodo!=='tarde':i.periodo==='tarde').map(item=>{
-              const realIdx=formPlano.itens.indexOf(item)
-              return <ItemPlanoRow key={realIdx} item={item} idx={realIdx} produtos={produtos} plano={formPlano} updItem={updItem} delItem={delItem} racoes={RACOES_COMERCIAIS} />
-            })}
-            {formPlano.itens.filter(i=>per==='manha'?i.periodo!=='tarde':i.periodo==='tarde').length===0&&(
-              <button className="btn btn-secondary btn-sm" style={{ width:'100%',color:'#475569',borderStyle:'dashed' }} onClick={()=>addItem(per)}>＋ Adicionar {per==='manha'?'manhã':'tarde'}</button>
-            )}
-          </div>
-        ))}
-
-        {/* botão adicionar quando tabela */}
-        {vistaPlanoTabela&&(
-          <div style={{ display:'flex',gap:8,marginBottom:16 }}>
-            <button className="btn btn-secondary btn-sm" onClick={()=>addItem('manha')} disabled={produtos.length===0}>＋ Manhã</button>
-            <button className="btn btn-secondary btn-sm" onClick={()=>addItem('tarde')} disabled={produtos.length===0}>＋ Tarde</button>
-          </div>
-        )}
-
-        {produtos.length===0&&(
-          <div style={{ background:'rgba(212,175,55,.08)',border:'1px solid rgba(212,175,55,.2)',borderRadius:8,padding:'10px 14px',fontSize:12,color:'#D4AF37',marginBottom:16 }}>
-            💊 Biblioteca de produtos vazia — vá a "Biblioteca" e crie produtos primeiro.
-          </div>
-        )}
-
-        <Field label="Observações Gerais"><textarea className="input" rows={2} style={{ resize:'none' }} value={formPlano.obs} onChange={e=>sfp('obs',e.target.value)} /></Field>
-      </Modal>
-
-      {/* ══ MODAL PRODUTO ════════════════════════════════════════════════════ */}
+      {/* ══ MODAL PRODUTO (ARMAZÉM) ══ */}
       <Modal open={modal==='produto'} onClose={()=>{setModal(null);setSelected(null)}}
-        title={selected?`✏️ ${selected.nome}`:'💊 Novo Produto'}
+        title={selected?`✏️ ${selected.nome}`:'🏪 Novo Produto'} wide
         footer={<><button className="btn btn-secondary" onClick={()=>{setModal(null);setSelected(null)}}>Cancelar</button><button className="btn btn-primary" onClick={saveProd} disabled={saving}>{saving?<Spinner/>:null}{selected?'Guardar':'Criar'}</button></>}>
-        <Field label="Nome *">
-          <select className="input" value={formProd.nome} onChange={e=>sfpr('nome',e.target.value)} style={{ marginBottom:6 }}>
-            <option value="">— Sugestões —</option>
-            {MEDICAMENTOS_LISTA.map(m=><option key={m}>{m}</option>)}
-          </select>
-          <input className="input" placeholder="Ou escreva o nome" value={formProd.nome} onChange={e=>sfpr('nome',e.target.value)} />
-        </Field>
-        <div style={{ fontSize:11,color:'#7A8699',margin:'4px 0 12px' }}>💡 Nome igual ao do Stock → verificação automática de quantidade.</div>
-        <Field label="Modo de Administração">
-          <select className="input" value={formProd.modo} onChange={e=>sfpr('modo',e.target.value)}>
-            <option value="agua">💧 Na água</option>
-            <option value="racao">🌾 Na ração</option>
-            <option value="direto">💊 Direto ao pombo</option>
-            <option value="outros">🛁 Outros (banho, narinas…)</option>
-          </select>
-        </Field>
-        <div className="form-grid">
-          <Field label="Dosagem"><input className="input" type="number" step="0.1" placeholder="Ex: 15" value={formProd.dosagem_valor} onChange={e=>sfpr('dosagem_valor',e.target.value)} /></Field>
-          <Field label="Unidade"><input className="input" placeholder="ml, g…" value={formProd.dosagem_unidade} onChange={e=>sfpr('dosagem_unidade',e.target.value)} /></Field>
-          <Field label="Por">
+        {/* nome + categoria */}
+        <div style={{ display:'flex',gap:8,marginBottom:12,flexWrap:'wrap' }}>
+          <div style={{ flex:2,minWidth:160 }}>
+            <div style={{ fontSize:11,color:'#7A8699',marginBottom:4 }}>Nome *</div>
+            <select className="input" value={formProd.nome} onChange={e=>sfpr('nome',e.target.value)} style={{ marginBottom:6 }}>
+              <option value="">— Sugestões —</option>
+              {SUGESTOES_PRODUTOS.map(n=><option key={n}>{n}</option>)}
+            </select>
+            <input className="input" placeholder="Ou escreva o nome" value={formProd.nome} onChange={e=>sfpr('nome',e.target.value)} />
+          </div>
+          <div style={{ flex:1,minWidth:130 }}>
+            <div style={{ fontSize:11,color:'#7A8699',marginBottom:4 }}>Categoria</div>
+            <select className="input" value={formProd.categoria} onChange={e=>sfpr('categoria',e.target.value)}>
+              {CATEGORIAS.map(c=><option key={c}>{c}</option>)}
+            </select>
+          </div>
+        </div>
+
+        {/* separador uso */}
+        <div style={{ fontSize:11,fontWeight:700,color:'#D4AF37',textTransform:'uppercase',letterSpacing:1,marginBottom:8,marginTop:4 }}>💊 Modo de Uso</div>
+        <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1fr',gap:8,marginBottom:12,flexWrap:'wrap' }}>
+          <div style={{ gridColumn:'1/3' }}>
+            <div style={{ fontSize:11,color:'#7A8699',marginBottom:4 }}>Administração</div>
+            <select className="input" value={formProd.modo} onChange={e=>sfpr('modo',e.target.value)}>
+              <option value="agua">💧 Na água</option>
+              <option value="racao">🌾 Na ração</option>
+              <option value="direto">💊 Direto ao pombo</option>
+              <option value="outros">🛁 Outros (banho, narinas…)</option>
+            </select>
+          </div>
+          <div>
+            <div style={{ fontSize:11,color:'#7A8699',marginBottom:4 }}>Dosagem</div>
+            <input className="input" type="number" step="0.1" placeholder="Ex: 15" value={formProd.dosagem_valor} onChange={e=>sfpr('dosagem_valor',e.target.value)} />
+          </div>
+          <div>
+            <div style={{ fontSize:11,color:'#7A8699',marginBottom:4 }}>Unidade</div>
+            <input className="input" placeholder="ml, g…" value={formProd.dosagem_unidade} onChange={e=>sfpr('dosagem_unidade',e.target.value)} />
+          </div>
+          <div style={{ gridColumn:'1/3' }}>
+            <div style={{ fontSize:11,color:'#7A8699',marginBottom:4 }}>Por</div>
             <select className="input" value={formProd.dosagem_base} onChange={e=>sfpr('dosagem_base',e.target.value)}>
               <option value="pombo">Pombo</option>
               <option value="litro">Litro de água</option>
               <option value="kg">Kg de ração</option>
             </select>
-          </Field>
-          <Field label="Categoria">
-            <select className="input" value={formProd.categoria} onChange={e=>sfpr('categoria',e.target.value)}>
-              {['Vitamina','Suplemento','Probiótico','Antibiótico','Antiparasitário','Antifúngico','Energético','Outro'].map(c=><option key={c}>{c}</option>)}
-            </select>
-          </Field>
-        </div>
-        <Field label="Observações"><textarea className="input" rows={2} style={{ resize:'none' }} value={formProd.obs} onChange={e=>sfpr('obs',e.target.value)} /></Field>
-      </Modal>
-
-      {/* ══ MODAL STOCK ══════════════════════════════════════════════════════ */}
-      <Modal open={modal==='stock'} onClose={()=>{setModal(null);setSelected(null)}}
-        title={selected?`✏️ ${selected.nome}`:'📦 Novo Item de Stock'}
-        footer={<><button className="btn btn-secondary" onClick={()=>{setModal(null);setSelected(null)}}>Cancelar</button><button className="btn btn-primary" onClick={saveStock} disabled={saving}>{saving?<Spinner/>:null}{selected?'Guardar':'Adicionar'}</button></>}>
-        <div style={{ display:'flex',flexDirection:'column',gap:14 }}>
-          <Field label="Tipo"><select className="input" value={formStock.tipo} onChange={e=>sfs('tipo',e.target.value)}>{TIPOS_STOCK.map(tp=><option key={tp}>{tp}</option>)}</select></Field>
-          <Field label="Nome *">
-            <select className="input" value={formStock.nome} onChange={e=>sfs('nome',e.target.value)} style={{ marginBottom:6 }}>
-              <option value="">— Sugestões —</option>
-              {[...CEREAIS,...RACOES_COMERCIAIS,...MEDICAMENTOS_LISTA].map(n=><option key={n}>{n}</option>)}
-            </select>
-            <input className="input" placeholder="Ou escreva o nome" value={formStock.nome} onChange={e=>sfs('nome',e.target.value)} />
-          </Field>
-          <div className="form-grid" style={{ gridTemplateColumns:'1fr 1fr' }}>
-            <Field label="Quantidade *"><input className="input" type="number" step="0.1" value={formStock.qtd} onChange={e=>sfs('qtd',e.target.value)} /></Field>
-            <Field label="Unidade"><select className="input" value={formStock.unidade} onChange={e=>sfs('unidade',e.target.value)}>{UNIDADES.map(u=><option key={u}>{u}</option>)}</select></Field>
-            <Field label="Stock Mínimo"><input className="input" type="number" step="0.1" placeholder="Ex: 200" value={formStock.qtd_minima} onChange={e=>sfs('qtd_minima',e.target.value)} /></Field>
-            <Field label="Margem (dias)">
-              <input className="input" type="number" placeholder="7" value={formStock.margem_dias} onChange={e=>sfs('margem_dias',e.target.value)} />
-              <div style={{ fontSize:10,color:'#7A8699',marginTop:2 }}>Avisa N dias antes do mínimo</div>
-            </Field>
-            <Field label="Validade"><input className="input" type="date" value={formStock.validade} onChange={e=>sfs('validade',e.target.value)} /></Field>
-            <Field label="Preço (€)"><input className="input" type="number" step="0.01" value={formStock.preco} onChange={e=>sfs('preco',e.target.value)} /></Field>
           </div>
-          <Field label="Observações"><input className="input" value={formStock.obs} onChange={e=>sfs('obs',e.target.value)} /></Field>
+          <div style={{ gridColumn:'3/5' }}>
+            <div style={{ fontSize:11,color:'#7A8699',marginBottom:4 }}>Notas de uso</div>
+            <input className="input" placeholder="Obs. de administração" value={formProd.obs_uso} onChange={e=>sfpr('obs_uso',e.target.value)} />
+          </div>
         </div>
+
+        {/* separador stock */}
+        <div style={{ fontSize:11,fontWeight:700,color:'#2DD4A7',textTransform:'uppercase',letterSpacing:1,marginBottom:8 }}>📦 Stock</div>
+        <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1fr',gap:8,marginBottom:8 }}>
+          <div>
+            <div style={{ fontSize:11,color:'#7A8699',marginBottom:4 }}>Quantidade</div>
+            <input className="input" type="number" step="0.1" placeholder="0" value={formProd.qtd} onChange={e=>sfpr('qtd',e.target.value)} />
+          </div>
+          <div>
+            <div style={{ fontSize:11,color:'#7A8699',marginBottom:4 }}>Unidade</div>
+            <select className="input" value={formProd.unidade} onChange={e=>sfpr('unidade',e.target.value)}>
+              {UNIDADES.map(u=><option key={u}>{u}</option>)}
+            </select>
+          </div>
+          <div>
+            <div style={{ fontSize:11,color:'#7A8699',marginBottom:4 }}>Mínimo (alerta)</div>
+            <input className="input" type="number" step="0.1" placeholder="Ex: 200" value={formProd.qtd_minima} onChange={e=>sfpr('qtd_minima',e.target.value)} />
+          </div>
+          <div>
+            <div style={{ fontSize:11,color:'#7A8699',marginBottom:4 }}>Margem (dias)</div>
+            <input className="input" type="number" placeholder="7" value={formProd.margem_dias} onChange={e=>sfpr('margem_dias',e.target.value)} />
+          </div>
+          <div style={{ gridColumn:'1/3' }}>
+            <div style={{ fontSize:11,color:'#7A8699',marginBottom:4 }}>Validade</div>
+            <input className="input" type="date" value={formProd.validade} onChange={e=>sfpr('validade',e.target.value)} />
+          </div>
+          <div style={{ gridColumn:'3/5' }}>
+            <div style={{ fontSize:11,color:'#7A8699',marginBottom:4 }}>Preço (€)</div>
+            <input className="input" type="number" step="0.01" value={formProd.preco} onChange={e=>sfpr('preco',e.target.value)} />
+          </div>
+        </div>
+        <div>
+          <div style={{ fontSize:11,color:'#7A8699',marginBottom:4 }}>Notas de stock</div>
+          <input className="input" placeholder="Fornecedor, lote…" value={formProd.obs_stock} onChange={e=>sfpr('obs_stock',e.target.value)} />
+        </div>
+        <div style={{ fontSize:11,color:'#475569',marginTop:8 }}>💡 Nome igual ao de outro produto já existente? Os dados são unificados automaticamente.</div>
       </Modal>
 
-      {/* ══ MODAL APLICAR ════════════════════════════════════════════════════ */}
-      <Modal open={modalAplicar} onClose={()=>setModalAplicar(false)}
-        title={`▶ Aplicar "${planoParaAplicar?.nome}"`} wide
+      {/* ══ MODAL PLANO ══ */}
+      <Modal open={modal==='plano'} onClose={()=>{setModal(null);setSelected(null)}}
+        title={selected?`✏️ ${selected.nome}`:'🗂️ Novo Plano de Tratamento'} wide
+        footer={<><button className="btn btn-secondary" onClick={()=>{setModal(null);setSelected(null)}}>Cancelar</button><button className="btn btn-primary" onClick={savePlano} disabled={saving}>{saving?<Spinner/>:null}{selected?'Guardar':'Criar Plano'}</button></>}>
+        <div style={{ display:'flex',gap:8,marginBottom:16,flexWrap:'wrap' }}>
+          <div style={{ flex:2,minWidth:180 }}>
+            <div style={{ fontSize:11,color:'#7A8699',marginBottom:4 }}>Nome *</div>
+            <input className="input" placeholder="Ex: Velocidade — Semana de Prova" value={formPlano.nome} onChange={e=>sfp('nome',e.target.value)} />
+          </div>
+          <div style={{ flex:1,minWidth:120 }}>
+            <div style={{ fontSize:11,color:'#7A8699',marginBottom:4 }}>Especialidade</div>
+            <select className="input" value={formPlano.especialidade} onChange={e=>sfp('especialidade',e.target.value)}>{ESPECIALIDADES.map(e=><option key={e} value={e}>{ESP_LABEL[e]}</option>)}</select>
+          </div>
+          <div style={{ flex:1,minWidth:120 }}>
+            <div style={{ fontSize:11,color:'#7A8699',marginBottom:4 }}>Dia de Prova</div>
+            <select className="input" value={formPlano.dia_prova} onChange={e=>sfp('dia_prova',e.target.value)}>{DIAS_SEMANA.map(d=><option key={d.key} value={d.key}>{d.full}</option>)}</select>
+          </div>
+        </div>
+
+        <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10 }}>
+          <div style={{ fontSize:12,color:'#94a3b8' }}>{formPlano.itens.length} entrada(s)</div>
+          <div style={{ display:'flex',gap:6 }}>
+            {produtos.filter(p=>p.modo).length===0&&<span style={{ fontSize:11,color:'#f87171' }}>⚠️ Sem produtos no armazém</span>}
+            <button className="btn btn-secondary btn-sm" onClick={()=>setVistaPlanoTabela(v=>!v)}>{vistaPlanoTabela?'☰ Lista':'⊞ Tabela'}</button>
+          </div>
+        </div>
+
+        {vistaPlanoTabela&&formPlano.itens.length>0&&(
+          <div style={{ marginBottom:14 }}>
+            <TabelaPlano plano={formPlano} produtos={produtos.filter(p=>p.modo)} nPombos={0} alertasStock={[]} modoEdicao={true} onUpdItem={updItem} />
+          </div>
+        )}
+
+        {!vistaPlanoTabela&&['manha','tarde'].map(per=>(
+          <div key={per} style={{ marginBottom:14 }}>
+            <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8 }}>
+              <div style={{ fontSize:13,fontWeight:700,color:per==='manha'?'#F59E0B':'#60A5FA' }}>{per==='manha'?'🌅 Manhã':'🌆 Tarde'}</div>
+              <button className="btn btn-secondary btn-sm" onClick={()=>addItem(per)} disabled={produtos.filter(p=>p.modo).length===0}>＋ Adicionar dia</button>
+            </div>
+            {formPlano.itens.filter(i=>per==='manha'?i.periodo!=='tarde':i.periodo==='tarde').map(item=>{
+              const ri=formPlano.itens.indexOf(item)
+              return <ItemPlanoRow key={ri} item={item} idx={ri} produtos={produtos.filter(p=>p.modo)} plano={formPlano} updItem={updItem} delItem={delItem} />
+            })}
+            {formPlano.itens.filter(i=>per==='manha'?i.periodo!=='tarde':i.periodo==='tarde').length===0&&(
+              <button className="btn btn-secondary btn-sm" style={{ width:'100%',color:'#475569',borderStyle:'dashed' }} onClick={()=>addItem(per)}>＋ {per==='manha'?'Manhã':'Tarde'}</button>
+            )}
+          </div>
+        ))}
+
+        {vistaPlanoTabela&&(
+          <div style={{ display:'flex',gap:8,marginBottom:12 }}>
+            <button className="btn btn-secondary btn-sm" onClick={()=>addItem('manha')} disabled={produtos.filter(p=>p.modo).length===0}>＋ Manhã</button>
+            <button className="btn btn-secondary btn-sm" onClick={()=>addItem('tarde')} disabled={produtos.filter(p=>p.modo).length===0}>＋ Tarde</button>
+          </div>
+        )}
+
+        {produtos.filter(p=>p.modo).length===0&&(
+          <div style={{ background:'rgba(212,175,55,.08)',border:'1px solid rgba(212,175,55,.2)',borderRadius:8,padding:'10px 14px',fontSize:12,color:'#D4AF37',marginBottom:12 }}>
+            💊 Adicione produtos no Armazém primeiro.
+          </div>
+        )}
+        <Field label="Observações Gerais"><textarea className="input" rows={2} style={{ resize:'none' }} value={formPlano.obs} onChange={e=>sfp('obs',e.target.value)} /></Field>
+      </Modal>
+
+      {/* ══ MODAL APLICAR ══ */}
+      <Modal open={modalAplicar} onClose={()=>setModalAplicar(false)} title={`▶ Aplicar "${planoParaAplicar?.nome}"`} wide
         footer={<><button className="btn btn-secondary" onClick={()=>setModalAplicar(false)}>Cancelar</button><button className="btn btn-primary" onClick={confirmarAplicar} disabled={savingAplicar}>{savingAplicar?<Spinner/>:null}Aplicar a {pombosAplicar.length} pombo(s)</button></>}>
         <div style={{ display:'flex',gap:6,flexWrap:'wrap',marginBottom:12 }}>
           <button className="btn btn-secondary btn-sm" onClick={()=>setPombosAplicar(efectivo.map(p=>p.id))}>Todo o efectivo</button>
@@ -1150,154 +1040,118 @@ export default function Alimentacao({ nav }) {
           <button className="btn btn-secondary btn-sm" onClick={()=>setPombosAplicar(efectivo.filter(p=>p.sexo==='F').map(p=>p.id))}>♀ Fêmeas</button>
           <button className="btn btn-secondary btn-sm" onClick={()=>setPombosAplicar([])}>Limpar</button>
         </div>
-        {avisosStock.length>0&&(
+        {avisosStockAplicar.length>0&&(
           <div style={{ background:'rgba(239,68,68,.08)',border:'1px solid rgba(239,68,68,.2)',borderRadius:8,padding:'10px 14px',marginBottom:12,fontSize:12,color:'#f87171' }}>
             <div style={{ fontWeight:600,marginBottom:4 }}>⚠️ Stock insuficiente:</div>
-            {avisosStock.map((a,i)=><div key={i}>{a}</div>)}
+            {avisosStockAplicar.map((a,i)=><div key={i}>{a}</div>)}
           </div>
         )}
-        <div style={{ fontSize:12,color:'#94a3b8',marginBottom:8 }}>{pombosAplicar.length} de {efectivo.length} pombos seleccionados</div>
+        <div style={{ fontSize:12,color:'#94a3b8',marginBottom:8 }}>{pombosAplicar.length} de {efectivo.length} seleccionados</div>
         <div style={{ display:'flex',flexWrap:'wrap',gap:6,maxHeight:220,overflowY:'auto' }}>
           {efectivo.map(p=>(
-            <button key={p.id} type="button" onClick={()=>toggleSel(p.id,setPombosAplicar)}
-              className={`chip${pombosAplicar.includes(p.id)?' active':''}`} style={{ fontSize:11 }}>
-              {p.emoji} {p.nome}
-            </button>
+            <button key={p.id} type="button" onClick={()=>toggleSel(p.id,setPombosAplicar)} className={`chip${pombosAplicar.includes(p.id)?' active':''}`} style={{ fontSize:11 }}>{p.emoji} {p.nome}</button>
           ))}
         </div>
       </Modal>
 
-      {/* ══ MODAL EDITAR POMBOS ══════════════════════════════════════════════ */}
-      <Modal open={modalPombos} onClose={()=>setModalPombos(false)}
-        title="👥 Pombos em Tratamento" wide
+      {/* ══ MODAL POMBOS ══ */}
+      <Modal open={modalPombos} onClose={()=>setModalPombos(false)} title="👥 Pombos em Tratamento" wide
         footer={<><button className="btn btn-secondary" onClick={()=>setModalPombos(false)}>Cancelar</button><button className="btn btn-primary" onClick={salvarPombos} disabled={savingPombos}>{savingPombos?<Spinner/>:null}Guardar ({pombosSel.length})</button></>}>
-        <div style={{ fontSize:12,color:'#94a3b8',marginBottom:12 }}>As doses são recalculadas automaticamente ao guardar.</div>
+        <div style={{ fontSize:12,color:'#94a3b8',marginBottom:12 }}>As doses são recalculadas automaticamente.</div>
         <div style={{ display:'flex',gap:6,flexWrap:'wrap',marginBottom:12 }}>
           <button className="btn btn-secondary btn-sm" onClick={()=>setPombosSel(efectivo.map(p=>p.id))}>Todo o efectivo</button>
           {ESPECIALIDADES.filter(e=>e!=='geral').map(e=><button key={e} className="btn btn-secondary btn-sm" onClick={()=>setPombosSel(efectivo.filter(p=>(p.esp||[]).includes(e)).map(p=>p.id))}>{ESP_LABEL[e]}</button>)}
-          <button className="btn btn-secondary btn-sm" onClick={()=>setPombosSel(efectivo.filter(p=>p.sexo==='M').map(p=>p.id))}>♂ Machos</button>
-          <button className="btn btn-secondary btn-sm" onClick={()=>setPombosSel(efectivo.filter(p=>p.sexo==='F').map(p=>p.id))}>♀ Fêmeas</button>
+          <button className="btn btn-secondary btn-sm" onClick={()=>setPombosSel(efectivo.filter(p=>p.sexo==='M').map(p=>p.id))}>♂</button>
+          <button className="btn btn-secondary btn-sm" onClick={()=>setPombosSel(efectivo.filter(p=>p.sexo==='F').map(p=>p.id))}>♀</button>
           <button className="btn btn-secondary btn-sm" onClick={()=>setPombosSel([])}>Limpar</button>
         </div>
-        <div style={{ fontSize:12,color:'#94a3b8',marginBottom:8 }}>{pombosSel.length} de {efectivo.length} seleccionados</div>
+        <div style={{ fontSize:12,color:'#94a3b8',marginBottom:8 }}>{pombosSel.length} de {efectivo.length}</div>
         <div style={{ display:'flex',flexWrap:'wrap',gap:6,maxHeight:260,overflowY:'auto' }}>
           {efectivo.map(p=>(
-            <button key={p.id} type="button" onClick={()=>toggleSel(p.id,setPombosSel)}
-              className={`chip${pombosSel.includes(p.id)?' active':''}`} style={{ fontSize:11 }}>
-              {p.emoji} {p.nome}
-            </button>
+            <button key={p.id} type="button" onClick={()=>toggleSel(p.id,setPombosSel)} className={`chip${pombosSel.includes(p.id)?' active':''}`} style={{ fontSize:11 }}>{p.emoji} {p.nome}</button>
           ))}
         </div>
       </Modal>
 
-      {/* ══ MODAL OVERRIDE SEMANAL ═══════════════════════════════════════════ */}
+      {/* ══ MODAL OVERRIDE ══ */}
       {modalOverride&&(
-        <ModalOverride
-          ovKey={modalOverride.ovKey} valorAtual={modalOverride.valor} campo={modalOverride.campo}
-          racoes={RACOES_COMERCIAIS}
-          onGuardar={guardarOverride} onFechar={()=>setModalOverride(null)}
-        />
+        <ModalOverride ovKey={modalOverride.ovKey} valorAtual={modalOverride.valor} campo={modalOverride.campo} onGuardar={guardarOverride} onFechar={()=>setModalOverride(null)} />
       )}
 
-      {/* ══ CONFIRM DELETE ═══════════════════════════════════════════════════ */}
+      {/* ══ CONFIRM ══ */}
       <Modal open={!!confirm} onClose={()=>setConfirm(null)} title="Confirmar eliminação"
-        footer={<><button className="btn btn-secondary" onClick={()=>setConfirm(null)}>Cancelar</button><button className="btn btn-danger" onClick={()=>{if(confirm.tipo==='plano')delPlano();else if(confirm.tipo==='produto')delProd();else delStock()}}>Eliminar</button></>}>
+        footer={<><button className="btn btn-secondary" onClick={()=>setConfirm(null)}>Cancelar</button><button className="btn btn-danger" onClick={()=>{if(confirm.tipo==='plano')delPlano();else delProd()}}>Eliminar</button></>}>
         <p style={{ fontSize:14,color:'#cbd5e1' }}>
           {confirm?.tipo==='plano'&&`Eliminar o plano "${confirm.item.nome}"?`}
-          {confirm?.tipo==='produto'&&`Eliminar "${confirm.item.nome}"? Planos que o usam serão afectados.`}
-          {confirm?.tipo==='stock'&&`Eliminar "${confirm.item.nome}" do stock?`}
+          {confirm?.tipo==='produto'&&`Eliminar "${confirm.item.nome}" do armazém? Remove também o produto dos planos que o usam.`}
         </p>
       </Modal>
     </div>
   )
 }
 
-// ── linha de item (modal de plano, vista lista) ───────────────────────────────
-function ItemPlanoRow({ item, idx, produtos, plano, updItem, delItem, racoes }) {
-  const dn = calcDN(item.dia_semana, plano.dia_prova)
-  const getProd = id => produtos.find(p=>p.id===id)
-  const prod = getProd(item.product_id)
+// ── linha de item do plano (lista) ────────────────────────────────────────────
+function ItemPlanoRow({ item, idx, produtos, plano, updItem, delItem }) {
+  const dn=calcDN(item.dia_semana,plano.dia_prova)
+  const prod=produtos.find(p=>p.id===item.product_id)
   return (
     <div style={{ background:'#070F20',border:'1px solid #162040',borderRadius:10,padding:12,marginBottom:8 }}>
       <div style={{ display:'flex',gap:8,marginBottom:8,alignItems:'flex-end' }}>
         <div style={{ flex:1 }}>
-          <div style={{ fontSize:10,color:'#7A8699',marginBottom:4 }}>Dia da Semana</div>
+          <div style={{ fontSize:10,color:'#7A8699',marginBottom:4 }}>Dia</div>
           <select className="input" value={item.dia_semana} onChange={e=>updItem(idx,'dia_semana',e.target.value)}>
             {DIAS_SEMANA.map(d=><option key={d.key} value={d.key}>{d.full}</option>)}
           </select>
         </div>
         <div style={{ flex:'0 0 72px',textAlign:'center' }}>
           <div style={{ fontSize:10,color:'#7A8699',marginBottom:4 }}>Posição</div>
-          <div style={{ background:'#050D1A',borderRadius:6,padding:'8px 0',fontSize:12,fontWeight:800,color:'#D4AF37',letterSpacing:.5 }}>{dn}</div>
+          <div style={{ background:'#050D1A',borderRadius:6,padding:'8px 0',fontSize:12,fontWeight:800,color:'#D4AF37' }}>{dn}</div>
         </div>
         <button className="btn btn-icon btn-sm" onClick={()=>delItem(idx)} style={{ color:'#f87171' }}>🗑️</button>
       </div>
       <div style={{ marginBottom:8 }}>
-        <div style={{ fontSize:10,color:'#7A8699',marginBottom:4 }}>Produto *</div>
+        <div style={{ fontSize:10,color:'#7A8699',marginBottom:4 }}>Produto do Armazém *</div>
         <select className="input" value={item.product_id} onChange={e=>updItem(idx,'product_id',e.target.value)}>
-          <option value="">— Escolher da biblioteca —</option>
-          {produtos.map(p=><option key={p.id} value={p.id}>{MODO_ICON[p.modo]} {p.nome}{p.dosagem_valor?` · ${p.dosagem_valor}${p.dosagem_unidade}/${p.dosagem_base==='pombo'?'pombo':p.dosagem_base==='litro'?'L':'kg'}`:''}</option>)}
+          <option value="">— Escolher produto —</option>
+          {produtos.map(p=><option key={p.id} value={p.id}>{MODO_ICON[p.modo]||'📦'} {p.nome}{p.dosagem_valor?` · ${p.dosagem_valor}${p.dosagem_unidade}/${p.dosagem_base==='pombo'?'pombo':p.dosagem_base==='litro'?'L':'kg'}`:''}</option>)}
         </select>
-        {prod&&<div style={{ fontSize:11,color:'#2DD4A7',marginTop:4 }}>{MODO_LABEL[prod.modo]}{prod.dosagem_valor?` · ${prod.dosagem_valor}${prod.dosagem_unidade} ${BASE_LABEL[prod.dosagem_base]}`:''}</div>}
+        {prod&&<div style={{ fontSize:11,color:'#2DD4A7',marginTop:4 }}>{MODO_LABEL_FULL[prod.modo]}{prod.dosagem_valor?` · ${prod.dosagem_valor}${prod.dosagem_unidade} ${BASE_LABEL[prod.dosagem_base]}`:''}</div>}
       </div>
       <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,marginBottom:8 }}>
-        <div>
-          <div style={{ fontSize:10,color:'#7A8699',marginBottom:4 }}>Ração (g)</div>
-          <input className="input" type="number" placeholder="20" value={item.racao_g} onChange={e=>updItem(idx,'racao_g',e.target.value)} />
-        </div>
-        <div>
-          <div style={{ fontSize:10,color:'#7A8699',marginBottom:4 }}>Tipo Ração</div>
+        <div><div style={{ fontSize:10,color:'#7A8699',marginBottom:4 }}>Ração (g)</div><input className="input" type="number" placeholder="Ex: 20" value={item.racao_g} onChange={e=>updItem(idx,'racao_g',e.target.value)} /></div>
+        <div><div style={{ fontSize:10,color:'#7A8699',marginBottom:4 }}>Tipo Ração</div>
           <select className="input" value={item.tipo_racao} onChange={e=>updItem(idx,'tipo_racao',e.target.value)}>
             <option value="">—</option>
-            {racoes.map(r=><option key={r} value={r}>{r}</option>)}
+            {RACOES_COMERCIAIS.map(r=><option key={r} value={r}>{r}</option>)}
           </select>
         </div>
-        <div>
-          <div style={{ fontSize:10,color:'#7A8699',marginBottom:4 }}>Voo (min)</div>
-          <input className="input" type="number" placeholder="35" value={item.voo_min} onChange={e=>updItem(idx,'voo_min',e.target.value)} />
-        </div>
+        <div><div style={{ fontSize:10,color:'#7A8699',marginBottom:4 }}>Voo (min)</div><input className="input" type="number" placeholder="Ex: 35" value={item.voo_min} onChange={e=>updItem(idx,'voo_min',e.target.value)} /></div>
       </div>
       <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:8 }}>
-        <div>
-          <div style={{ fontSize:10,color:'#7A8699',marginBottom:4 }}>Outros</div>
-          <input className="input" placeholder="banho, narinas…" value={item.outros} onChange={e=>updItem(idx,'outros',e.target.value)} />
-        </div>
-        <div>
-          <div style={{ fontSize:10,color:'#7A8699',marginBottom:4 }}>Notas</div>
-          <input className="input" placeholder="Opcional" value={item.notas} onChange={e=>updItem(idx,'notas',e.target.value)} />
-        </div>
+        <div><div style={{ fontSize:10,color:'#7A8699',marginBottom:4 }}>Outros</div><input className="input" placeholder="banho, narinas…" value={item.outros} onChange={e=>updItem(idx,'outros',e.target.value)} /></div>
+        <div><div style={{ fontSize:10,color:'#7A8699',marginBottom:4 }}>Notas</div><input className="input" placeholder="Opcional" value={item.notas} onChange={e=>updItem(idx,'notas',e.target.value)} /></div>
       </div>
     </div>
   )
 }
 
 // ── modal override semanal ────────────────────────────────────────────────────
-function ModalOverride({ ovKey, valorAtual, campo, racoes, onGuardar, onFechar }) {
+function ModalOverride({ ovKey, valorAtual, campo, onGuardar, onFechar }) {
   const [val, setVal] = useState(valorAtual||'')
   return (
-    <Modal open={true} onClose={onFechar}
-      title={`✱ Ajuste semanal — ${campo.label}`}
-      footer={
-        <>
-          <button className="btn btn-secondary" onClick={()=>onGuardar(ovKey,'')}>Remover ajuste</button>
-          <button className="btn btn-secondary" onClick={onFechar}>Cancelar</button>
-          <button className="btn btn-primary" onClick={()=>onGuardar(ovKey,val)}>Guardar ajuste</button>
-        </>
-      }>
-      <div style={{ fontSize:12,color:'#94a3b8',marginBottom:12 }}>
-        Este ajuste afecta apenas a semana actual. O plano base não é alterado.<br/>
-        Pode ser guardado como nova variante de plano depois.
-      </div>
+    <Modal open={true} onClose={onFechar} title={`✱ Ajuste semanal — ${campo.label}`}
+      footer={<><button className="btn btn-secondary" onClick={()=>onGuardar(ovKey,'')}>Remover ajuste</button><button className="btn btn-secondary" onClick={onFechar}>Cancelar</button><button className="btn btn-primary" onClick={()=>onGuardar(ovKey,val)}>Guardar</button></>}>
+      <div style={{ fontSize:12,color:'#94a3b8',marginBottom:12 }}>Afecta apenas esta semana. O plano base não é alterado.</div>
       {campo.key==='tipo'?(
         <Field label={campo.label}>
           <select className="input" value={val} onChange={e=>setVal(e.target.value)}>
             <option value="">—</option>
-            {racoes.map(r=><option key={r} value={r}>{r}</option>)}
+            {RACOES_COMERCIAIS.map(r=><option key={r} value={r}>{r}</option>)}
           </select>
         </Field>
       ):(
-        <Field label={`${campo.label} (valor actual: ${valorAtual||'—'})`}>
-          <input className="input" type={campo.key==='gramas'||campo.key==='voo'?'number':'text'} value={val} onChange={e=>setVal(e.target.value)} placeholder={`Novo valor para ${campo.label.toLowerCase()}`} autoFocus />
+        <Field label={`${campo.label} (actual: ${valorAtual||'—'})`}>
+          <input className="input" type={campo.key==='gramas'||campo.key==='voo'?'number':'text'} value={val} onChange={e=>setVal(e.target.value)} autoFocus />
         </Field>
       )}
     </Modal>
