@@ -58,6 +58,95 @@ function calcDose(prod, n) {
 }
 
 // ── impressão ─────────────────────────────────────────────────────────────────
+// -- arredondar litros acima em 0.5L
+function arredondarLitros(ml) {
+  const l = ml / 1000
+  if (l <= 0.5) return 0.5
+  if (l <= 1)   return 1
+  if (l <= 1.5) return 1.5
+  if (l <= 2)   return 2
+  if (l <= 2.5) return 2.5
+  return Math.ceil(l * 2) / 2
+}
+
+// -- guia pratico por item
+function gerarGuia(prod, item, nPombos, mlPorPombo) {
+  if (!prod) return []
+  const linhas = []
+  const racaoGTotal = item.racao_g ? parseFloat(item.racao_g) * nPombos : null
+  const racaoKg = racaoGTotal ? racaoGTotal / 1000 : null
+  const litros = arredondarLitros(mlPorPombo * nPombos)
+
+  if (prod.modo === 'agua') {
+    linhas.push({ icon:'💧', texto:'Prepara ' + litros + 'L de agua limpa (estimativa para ' + nPombos + ' pombos)' })
+    if (prod.dosagem_valor) {
+      const doseAgua = prod.dosagem_base === 'litro'
+        ? (prod.dosagem_valor * litros).toFixed(1)
+        : prod.dosagem_base === 'pombo'
+        ? (prod.dosagem_valor * nPombos).toFixed(1)
+        : prod.dosagem_valor
+      linhas.push({ icon:'🧪', texto:'Adiciona ' + doseAgua + prod.dosagem_unidade + ' de ' + prod.nome })
+    }
+    linhas.push({ icon:'🐦', texto:'Distribui pelos bebedouros' })
+  }
+
+  if (prod.modo === 'racao') {
+    if (item.racao_g && nPombos) {
+      linhas.push({ icon:'⚖️', texto:'Pesa ' + (racaoGTotal ? racaoGTotal.toFixed(0) : '?') + 'g de racao (' + item.racao_g + 'g x ' + nPombos + ' pombos)' })
+      if (item.tipo_racao) linhas.push({ icon:'🌾', texto:'Composicao: ' + item.tipo_racao })
+      if (prod.dosagem_valor && racaoKg) {
+        const doseRac = prod.dosagem_base === 'kg'
+          ? (prod.dosagem_valor * racaoKg).toFixed(2)
+          : prod.dosagem_base === 'pombo'
+          ? (prod.dosagem_valor * nPombos).toFixed(1)
+          : prod.dosagem_valor
+        linhas.push({ icon:'🧪', texto:'Adiciona ' + doseRac + prod.dosagem_unidade + ' de ' + prod.nome + ' a racao' })
+      }
+    } else if (prod.dosagem_valor) {
+      const d = prod.dosagem_base === 'pombo'
+        ? (prod.dosagem_valor * nPombos).toFixed(1) + prod.dosagem_unidade + ' (' + prod.dosagem_valor + prod.dosagem_unidade + '/pombo)'
+        : prod.dosagem_valor + prod.dosagem_unidade + (prod.dosagem_base === 'kg' ? ' por kg de racao' : '')
+      linhas.push({ icon:'🧪', texto:'Adiciona ' + d + ' de ' + prod.nome })
+    }
+    linhas.push({ icon:'🥣', texto:'Mistura bem antes de colocar nos comedouros' })
+  }
+
+  if (prod.modo === 'direto') {
+    if (prod.dosagem_valor) {
+      const d = prod.dosagem_base === 'pombo'
+        ? prod.dosagem_valor + prod.dosagem_unidade + ' por pombo (total: ' + (prod.dosagem_valor * nPombos).toFixed(1) + prod.dosagem_unidade + ')'
+        : prod.dosagem_valor + prod.dosagem_unidade
+      linhas.push({ icon:'💊', texto:'Administra ' + d + ' de ' + prod.nome + ' directamente a cada pombo' })
+    }
+  }
+
+  if (prod.modo === 'outros') {
+    linhas.push({ icon:'🛁', texto: prod.obs || item.outros || ('Aplica ' + prod.nome + ' conforme indicacao') })
+    if (prod.dosagem_valor && prod.dosagem_base === 'pombo') {
+      linhas.push({ icon:'📏', texto:'Dose: ' + prod.dosagem_valor + prod.dosagem_unidade + ' por pombo' })
+    }
+  }
+
+  if (item.outros && prod.modo !== 'outros') linhas.push({ icon:'🛁', texto: item.outros })
+  if (item.voo_min) linhas.push({ icon:'✈️', texto:'Tempo de voo: ' + item.voo_min + ' min' })
+  if (item.notas)   linhas.push({ icon:'📝', texto: item.notas })
+  return linhas
+}
+
+// -- calculo para abate de stock
+function calcAbate(prod, item, nPombos, mlPorPombo) {
+  if (!prod || !prod.dosagem_valor) return null
+  const litros = arredondarLitros(mlPorPombo * nPombos)
+  const racaoGTotal = item.racao_g ? parseFloat(item.racao_g) * nPombos : null
+  const racaoKg = racaoGTotal ? racaoGTotal / 1000 : null
+  let qty = 0
+  if (prod.dosagem_base === 'pombo') qty = prod.dosagem_valor * nPombos
+  else if (prod.dosagem_base === 'litro') qty = prod.dosagem_valor * litros
+  else if (prod.dosagem_base === 'kg' && racaoKg) qty = prod.dosagem_valor * racaoKg
+  else return null
+  return { qty: parseFloat(qty.toFixed(2)), unidade: prod.dosagem_unidade }
+}
+
 function imprimirPlano(plano, produtos, nPombos) {
   const diasComItens = DIAS_SEMANA.filter(d=>(plano.itens||[]).some(i=>i.dia_semana===d.key))
   const getProd = id => produtos.find(p=>p.id===id)
@@ -297,6 +386,9 @@ export default function Alimentacao({ nav }) {
 
   const [overrides, setOverrides]   = useState({})
   const [modalOverride, setModalOverride] = useState(null)
+  const [expandidos, setExpandidos]   = useState({})
+  const [mlPorPombo, setMlPorPombo]   = useState(60)
+  const [modalAbate, setModalAbate]   = useState(null)
 
   const [modalPombos, setModalPombos]   = useState(false)
   const [pombosSel, setPombosSel]       = useState([])
@@ -370,13 +462,32 @@ export default function Alimentacao({ nav }) {
   const itensDia = (dia,per) => (planoAtivo?.itens||[]).filter(i=>i.dia_semana===dia&&(per==='manha'?i.periodo!=='tarde':i.periodo==='tarde'))
   const temHoje = itensDia(hojeKey,'manha').length>0||itensDia(hojeKey,'tarde').length>0
 
-  const toggleDia = async (diaKey,per) => {
+  const toggleDia = async (diaKey, per, itensAbateItem) => {
     if(!aplicacaoAtiva) return
     const chave=`${diaKey}_${per}`
+    const jaFeito = !!aplicacaoAtiva.estado_dias?.[chave]
+    if (!jaFeito && itensAbateItem && itensAbateItem.length > 0) {
+      setModalAbate({ chave, itens: itensAbateItem.map(x=>x.item).filter(Boolean), per, diaKey })
+      return
+    }
     try {
-      const novo={...aplicacaoAtiva.estado_dias,[chave]:!aplicacaoAtiva.estado_dias?.[chave]}
+      const novo={...aplicacaoAtiva.estado_dias,[chave]:jaFeito?false:true}
       await db.updateTreatmentApplication(aplicacaoAtiva.id,{estado_dias:novo}); load()
     } catch(e){toast('Erro','err')}
+  }
+
+  const confirmarAbate = async (chave, itensAbate) => {
+    try {
+      const novo={...aplicacaoAtiva.estado_dias,[chave]:true}
+      await db.updateTreatmentApplication(aplicacaoAtiva.id,{estado_dias:novo})
+      for (const { prod, qty } of itensAbate) {
+        if (!prod || !prod._stock_id || !qty) continue
+        const novaQtd = Math.max(0, (prod.qtd || 0) - qty)
+        await db.updateStockItem(prod._stock_id, { qtd: novaQtd })
+      }
+      toast('Feito! Stock actualizado.','ok')
+      setModalAbate(null); load()
+    } catch(e){ toast('Erro ao actualizar stock','err') }
   }
 
   // overrides
@@ -523,33 +634,75 @@ export default function Alimentacao({ nav }) {
     return true
   })
 
-  // render lista de período
-  const renderLista = (itens,per) => {
+  // render lista de periodo -- expansivel com guia pratico
+  const renderLista = (itens, per) => {
     if(itens.length===0) return null
-    const isM=per==='manha'
+    const isM = per==='manha'
     return (
       <div style={{ marginBottom:10 }}>
         <div style={{ fontSize:11,fontWeight:700,color:isM?'#F59E0B':'#60A5FA',textTransform:'uppercase',letterSpacing:1,marginBottom:6 }}>{isM?'🌅 Manhã':'🌆 Tarde'}</div>
         {itens.map((item,i)=>{
-          const chave=`${item.dia_semana}_${per}`; const feito=!!aplicacaoAtiva?.estado_dias?.[chave]
-          const prod=getProd(item.product_id); const dose=calcDose(prod,nPombos)
+          const chave=`${item.dia_semana}_${per}`
+          const exKey=`${chave}_${i}`
+          const feito=!!aplicacaoAtiva?.estado_dias?.[chave]
+          const prod=getProd(item.product_id)
+          const dose=calcDose(prod,nPombos)
           const stkBaixo=prod&&alertasStock.some(a=>a.nome?.toLowerCase()===prod.nome?.toLowerCase())
+          const abate=calcAbate(prod,item,nPombos,mlPorPombo)
+          const guia=gerarGuia(prod,item,nPombos,mlPorPombo)
+          const expandido=!!expandidos[exKey]
+          const itemAbate={ item, prod, qty:abate?.qty }
           return (
-            <div key={i} style={{ ...S.card,marginBottom:6,borderColor:feito?'rgba(45,212,167,.3)':undefined,padding:'10px 14px' }}>
-              <div style={{ display:'flex',alignItems:'flex-start',gap:10 }}>
-                <button onClick={()=>toggleDia(item.dia_semana,per)} style={{ width:22,height:22,borderRadius:6,border:feito?'none':'2px solid #1B2D52',background:feito?'#2DD4A7':'transparent',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',flexShrink:0,fontSize:13,marginTop:1 }}>{feito&&'✓'}</button>
-                <div style={{ flex:1 }}>
-                  {prod&&<div style={{ fontSize:13,fontWeight:600,color:feito?'#7A8699':'#fff',textDecoration:feito?'line-through':'none',marginBottom:4 }}>{MODO_ICON[prod.modo]} {prod.nome}</div>}
-                  {dose&&<div style={{ fontSize:12,color:'#2DD4A7',marginBottom:2 }}>{dose.linha1} {dose.linha2}</div>}
-                  {stkBaixo&&<div style={{ fontSize:11,color:'#f87171',marginBottom:2 }}>⚠️ stock baixo</div>}
-                  {prod?.qtd>0&&<div style={{ fontSize:11,color:'#475569',marginBottom:2 }}>📦 {prod.qtd}{prod.unidade}</div>}
-                  <div style={{ display:'flex',flexWrap:'wrap',gap:'2px 12px',fontSize:11,color:'#7A8699' }}>
-                    {item.racao_g&&<span>🌾 {item.racao_g}g{item.tipo_racao?` ${item.tipo_racao}`:''}</span>}
-                    {item.voo_min&&<span>✈️ {item.voo_min} min</span>}
-                    {item.outros&&<span>🛁 {item.outros}</span>}
+            <div key={i} style={{ ...S.card, marginBottom:6, borderColor:feito?'rgba(45,212,167,.3)':expandido?'rgba(76,141,255,.3)':undefined, padding:0, overflow:'hidden' }}>
+              <div style={{ display:'flex', alignItems:'flex-start', gap:10, padding:'10px 14px' }}>
+                <button onClick={()=>toggleDia(item.dia_semana, per, abate?[itemAbate]:[])}
+                  style={{ width:22,height:22,borderRadius:6,border:feito?'none':'2px solid #1B2D52',background:feito?'#2DD4A7':'transparent',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',flexShrink:0,fontSize:13,marginTop:2 }}>
+                  {feito&&'✓'}
+                </button>
+                <div style={{ flex:1, cursor:'pointer' }} onClick={()=>setExpandidos(e=>({...e,[exKey]:!e[exKey]}))}>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                    <div>
+                      {prod&&<div style={{ fontSize:13,fontWeight:600,color:feito?'#7A8699':'#fff',textDecoration:feito?'line-through':'none' }}>{MODO_ICON[prod.modo]} {prod.nome}</div>}
+                      {dose&&<div style={{ fontSize:11,color:'#2DD4A7',marginTop:2 }}>{dose.linha1} {dose.linha2}</div>}
+                    </div>
+                    <span style={{ fontSize:11,color:'#475569',paddingLeft:8 }}>{expandido?'▲':'▼'}</span>
                   </div>
+                  {!expandido&&(
+                    <div style={{ display:'flex',flexWrap:'wrap',gap:'2px 12px',fontSize:11,color:'#7A8699',marginTop:3 }}>
+                      {item.racao_g&&<span>🌾 {item.racao_g}g/pombo</span>}
+                      {item.voo_min&&<span>✈️ {item.voo_min} min</span>}
+                      {item.outros&&<span>🛁 {item.outros}</span>}
+                      {stkBaixo&&<span style={{color:'#f87171'}}>⚠️ stock baixo</span>}
+                    </div>
+                  )}
                 </div>
               </div>
+              {expandido&&(
+                <div style={{ background:'rgba(7,15,32,.9)', borderTop:'1px solid #162040', padding:'12px 14px' }}>
+                  <div style={{ fontSize:10,fontWeight:700,color:'#4C8DFF',textTransform:'uppercase',letterSpacing:.5,marginBottom:8 }}>📋 Como preparar</div>
+                  {guia.map((l,gi)=>(
+                    <div key={gi} style={{ display:'flex',gap:8,marginBottom:6,fontSize:12 }}>
+                      <span style={{ flexShrink:0 }}>{l.icon}</span>
+                      <span style={{ color:'#cbd5e1',lineHeight:1.4 }}>{l.texto}</span>
+                    </div>
+                  ))}
+                  <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:10,background:'rgba(45,212,167,.06)',border:'1px solid rgba(45,212,167,.15)',borderRadius:8,padding:'7px 10px' }}>
+                    <div style={{ fontSize:11,color:'#7A8699' }}>
+                      Stock actual: <span style={{ color:stkBaixo?'#f87171':'#2DD4A7',fontWeight:600 }}>{prod?.qtd??'—'}{prod?.unidade}</span>
+                    </div>
+                    {abate&&<div style={{ fontSize:11,color:'#94a3b8' }}>Abate ao ✓: <span style={{ color:'#f87171',fontWeight:600 }}>-{abate.qty}{abate.unidade}</span></div>}
+                  </div>
+                  {prod&&prod.modo==='agua'&&(
+                    <div style={{ display:'flex',alignItems:'center',gap:8,marginTop:8,fontSize:11,color:'#7A8699' }}>
+                      <span>💧 ml/pombo/dia:</span>
+                      <input type="number" value={mlPorPombo} onChange={e=>setMlPorPombo(parseInt(e.target.value)||60)}
+                        style={{ width:55,background:'#101F40',border:'1px solid #1B2D52',borderRadius:6,padding:'3px 6px',color:'#fff',fontSize:11,textAlign:'center' }} />
+                      <span style={{ color:'#475569' }}>→ {arredondarLitros(mlPorPombo*nPombos)}L total</span>
+                    </div>
+                  )}
+                  {prod&&prod.obs&&<div style={{ marginTop:8,fontSize:11,color:'#475569',fontStyle:'italic' }}>ℹ️ {prod.obs}</div>}
+                </div>
+              )}
             </div>
           )
         })}
@@ -1086,6 +1239,44 @@ export default function Alimentacao({ nav }) {
       {/* ══ MODAL OVERRIDE ══ */}
       {modalOverride&&(
         <ModalOverride ovKey={modalOverride.ovKey} valorAtual={modalOverride.valor} campo={modalOverride.campo} onGuardar={guardarOverride} onFechar={()=>setModalOverride(null)} />
+      )}
+
+      {/* == MODAL ABATE STOCK == */}
+      {modalAbate&&(
+        <Modal open={true} onClose={()=>setModalAbate(null)} title="Confirmar e actualizar stock"
+          footer={<>
+            <button className="btn btn-secondary" onClick={async()=>{
+              const novo={...aplicacaoAtiva.estado_dias,[modalAbate.chave]:true}
+              await db.updateTreatmentApplication(aplicacaoAtiva.id,{estado_dias:novo})
+              setModalAbate(null); load(); toast('Marcado sem abate de stock','ok')
+            }}>Marcar sem abater</button>
+            <button className="btn btn-primary" onClick={()=>{
+              const its=(modalAbate.itens||[]).map(item=>({ prod:getProd(item.product_id), qty:calcAbate(getProd(item.product_id),item,nPombos,mlPorPombo)?.qty, item })).filter(x=>x.qty&&x.prod)
+              confirmarAbate(modalAbate.chave, its)
+            }}>Confirmar e abater stock</button>
+          </>}>
+          <div style={{ fontSize:13,color:'#94a3b8',marginBottom:12 }}>Os seguintes produtos serão deduzidos do Armazém:</div>
+          {(modalAbate.itens||[]).map((item,i)=>{
+            const prod=getProd(item.product_id)
+            const abate=calcAbate(prod,item,nPombos,mlPorPombo)
+            if(!abate||!prod) return null
+            return (
+              <div key={i} style={{ display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderBottom:'1px solid #162040',fontSize:12 }}>
+                <div>
+                  <div style={{ color:'#fff',fontWeight:600 }}>{MODO_ICON[prod.modo]} {prod.nome}</div>
+                  <div style={{ color:'#7A8699',fontSize:11 }}>{MODO_LABEL[prod.modo]}</div>
+                </div>
+                <div style={{ textAlign:'right' }}>
+                  <div style={{ color:'#f87171',fontWeight:700 }}>-{abate.qty}{abate.unidade}</div>
+                  <div style={{ color:'#475569',fontSize:11 }}>📦 {prod.qtd}{prod.unidade} → {Math.max(0,(prod.qtd||0)-abate.qty).toFixed(1)}{prod.unidade}</div>
+                </div>
+              </div>
+            )
+          })}
+          <div style={{ fontSize:11,color:'#475569',marginTop:10 }}>
+            Estimativa agua: {arredondarLitros(mlPorPombo*nPombos)}L ({mlPorPombo}ml/pombo x {nPombos} pombos)
+          </div>
+        </Modal>
       )}
 
       {/* ══ CONFIRM ══ */}
