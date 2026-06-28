@@ -206,7 +206,9 @@ export default function Pombais({ nav }) {
     const nCacifos = pb.n_cacifos || 20
 
     return (
-      <div key={pb.id} style={{ background:'#0B1830', border:`1px solid ${cor}30`, borderRadius:14, overflow:'hidden', position:'relative' }}>
+      <div key={pb.id} onClick={()=>{setPombalDetalhe(pb);setPomboDetalhe(null)}} style={{ background:'#0B1830', border:`1px solid ${cor}30`, borderRadius:14, overflow:'hidden', position:'relative', cursor:'pointer', transition:'border-color .2s' }}
+        onMouseEnter={e=>e.currentTarget.style.borderColor=cor+'70'}
+        onMouseLeave={e=>e.currentTarget.style.borderColor=cor+'30'}>
         {/* barra top colorida */}
         <div style={{ height:3, background:`linear-gradient(90deg,${cor},${cor}88)` }} />
 
@@ -223,9 +225,8 @@ export default function Pombais({ nav }) {
               </div>
             </div>
             <div style={{ display:'flex', gap:4 }}>
-              <button className="btn btn-icon btn-sm" onClick={()=>{setPombalDetalhe(pb);setPomboDetalhe(null)}}>👁️</button>
-              <button className="btn btn-icon btn-sm" onClick={()=>openEdit(pb)}>✏️</button>
-              <button className="btn btn-icon btn-sm" onClick={()=>setConfirm(pb)}>🗑️</button>
+              <button className="btn btn-icon btn-sm" onClick={e=>{e.stopPropagation();openEdit(pb)}}>✏️</button>
+              <button className="btn btn-icon btn-sm" onClick={e=>{e.stopPropagation();setConfirm(pb)}}>🗑️</button>
             </div>
           </div>
 
@@ -274,7 +275,7 @@ export default function Pombais({ nav }) {
                   {eclosoesCard.length>2&&<div style={{ fontSize:10, color:'#475569' }}>+{eclosoesCard.length-2} mais eclosões</div>}
                 </div>
               )}
-              <button className="btn btn-secondary btn-sm" style={{ width:'100%', fontSize:11 }} onClick={()=>nav?.('reproducao')}>
+              <button className="btn btn-secondary btn-sm" style={{ width:'100%', fontSize:11 }} onClick={e=>{e.stopPropagation();nav?.('reproducao')}}>
                 🥚 Ver Cacifos na Reprodução →
               </button>
             </div>
@@ -286,7 +287,7 @@ export default function Pombais({ nav }) {
               <div style={{ fontSize:11, color:'#94a3b8', marginBottom:6 }}>Pombos ({n}):</div>
               <div style={{ display:'flex', flexWrap:'wrap', gap:4 }}>
                 {moradores.slice(0,8).map(p=>(
-                  <div key={p.id} onClick={()=>nav?.('pombos')} title={`Ver ${p.nome}`}
+                  <div key={p.id} onClick={e=>{e.stopPropagation();nav?.('pombos')}} title={`Ver ${p.nome}`}
                     style={{ display:'flex', alignItems:'center', gap:3, background:'#101F40', borderRadius:6, padding:'2px 8px', fontSize:11, cursor:'pointer', border:`1px solid ${classificarPombo(p).prioridade<=1?'rgba(248,113,113,.3)':'#1B2D52'}` }}>
                     <span>{p.emoji}</span>
                     <span style={{ color:'#cbd5e1' }}>{p.nome}</span>
@@ -317,7 +318,7 @@ export default function Pombais({ nav }) {
 
           {/* botão novo pombo */}
           <button className="btn btn-secondary btn-sm" style={{ marginTop:12, width:'100%', justifyContent:'center' }}
-            onClick={()=>nav?.('pombos',{prefillPombal:pb.nome})}>
+            onClick={e=>{e.stopPropagation();nav?.('pombos',{prefillPombal:pb.nome})}}>
             ＋ Novo Pombo aqui
           </button>
         </div>
@@ -348,7 +349,7 @@ export default function Pombais({ nav }) {
 
       {/* eclosões próximas globais */}
       {eclosoesProximas.length>0&&(
-        <div style={{ background:'rgba(212,175,55,.07)', border:'1px solid rgba(212,175,55,.2)', borderRadius:12, padding:'12px 16px', marginBottom:16, cursor:'pointer' }} onClick={()=>nav?.('reproducao')}>
+        <div style={{ background:'rgba(212,175,55,.07)', border:'1px solid rgba(212,175,55,.2)', borderRadius:12, padding:'12px 16px', marginBottom:16, cursor:'pointer' }} onClick={e=>{e.stopPropagation();nav?.('reproducao')}}>
           <div style={{ fontWeight:600, color:'#D4AF37', marginBottom:6, fontSize:13 }}>🐣 Eclosões próximas</div>
           {eclosoesProximas.slice(0,3).map((a,i)=>{
             const d=diasAte(a.data_eclosao_prev)
@@ -451,7 +452,7 @@ export default function Pombais({ nav }) {
             </div>
             {renderGrelha(pombalDetalhe, false)}
             <div style={{ marginTop:14, textAlign:'center' }}>
-              <button className="btn btn-primary btn-sm" onClick={()=>nav?.('reproducao')}>Gerir Reprodução →</button>
+              <button className="btn btn-primary btn-sm" onClick={e=>{e.stopPropagation();nav?.('reproducao')}}>Gerir Reprodução →</button>
             </div>
           </div>
         ) : (
