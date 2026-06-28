@@ -56,7 +56,7 @@ import PaginaSucesso from './pages/PaginaSucesso'
 function getNav(t) {
   return [
     { section: 'Principal', items: [
-      { id:'dashboard', icon:'🕊️', label:'Pombal Hoje' }
+      { id:'dashboard', icon:'🕊️', label:'Pombal Hoje' }, 
       { id:'pombos',      icon:'🐦', label:'Pombos' },
       { id:'pombais',     icon:'🏠', label:'Pombais' },
     ]},
