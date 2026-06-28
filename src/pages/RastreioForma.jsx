@@ -8,25 +8,20 @@ const COR_FORMA = (v) => v >= 80 ? '#2DD4A7' : v >= 60 ? '#D4AF37' : v >= 40 ? '
 const LABEL_FORMA = (v) => v >= 80 ? 'Excelente' : v >= 60 ? 'Boa' : v >= 40 ? 'Média' : 'Fraca'
 const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
 
-function GaugeForma({ valor }) {
+// ── GaugeForma recebe temPro e nav como props ─────────────────────────────────
+function GaugeForma({ valor, temPro, nav }) {
+  if (!temPro) return <BloqueioPlano plano="pro" nav={nav} />
   const cor = COR_FORMA(valor)
   const angulo = (valor / 100) * 180
   const rad = (angulo - 90) * (Math.PI / 180)
   const cx = 60, cy = 60, r = 45
   const x = cx + r * Math.cos(rad)
   const y = cy + r * Math.sin(rad)
-  // Verificar plano
-  const temAcesso = temPro
-  if (!temAcesso) return <BloqueioPlano plano="pro" nav={nav} />
-
   return (
     <div style={{ textAlign:'center' }}>
       <svg viewBox="0 0 120 70" style={{ width:140, height:82, display:'block', margin:'0 auto' }}>
-        {/* Arco de fundo */}
         <path d={`M 15 60 A 45 45 0 0 1 105 60`} fill="none" stroke="#101F40" strokeWidth="10" strokeLinecap="round" />
-        {/* Arco de valor */}
         <path d={`M 15 60 A 45 45 0 ${angulo>90?1:0} 1 ${x.toFixed(1)} ${y.toFixed(1)}`} fill="none" stroke={cor} strokeWidth="10" strokeLinecap="round" />
-        {/* Valor central */}
         <text x="60" y="58" textAnchor="middle" fontSize="18" fontWeight="900" fill={cor}>{valor}</text>
         <text x="60" y="68" textAnchor="middle" fontSize="8" fill="#7A8699">{LABEL_FORMA(valor)}</text>
       </svg>
@@ -82,7 +77,6 @@ export default function RastreioForma({ nav }) {
         peso: form.peso ? parseFloat(form.peso) : null,
         obs: form.obs
       })
-      // Actualizar campo forma no pombo
       await supabase.from('pigeons').update({ forma: parseInt(form.forma) }).eq('id', pomboSel.id)
       toast('Forma registada!','ok')
       setModalReg(false)
@@ -92,7 +86,6 @@ export default function RastreioForma({ nav }) {
     finally { setSaving(false) }
   }
 
-  // Top pombos por forma actual
   const formaActual = pombos.map(p => {
     const regs = registos.filter(r=>r.pombo_id===p.id)
     const ultimo = regs[regs.length-1]
@@ -128,7 +121,7 @@ export default function RastreioForma({ nav }) {
           {/* Forma actual */}
           <div className="card card-p" style={{ marginBottom:10 }}>
             <div style={{ display:'flex', gap:16, alignItems:'center' }}>
-              <GaugeForma valor={ultimoRegisto?.forma || pomboSel.forma || 50} />
+              <GaugeForma valor={ultimoRegisto?.forma || pomboSel.forma || 50} temPro={temPro} nav={nav} />
               <div style={{ flex:1 }}>
                 <div style={{ fontSize:15, fontWeight:700, color:'#fff', marginBottom:4 }}>{pomboSel.nome}</div>
                 <div style={{ fontSize:11, color:'#7A8699', marginBottom:6 }}>{pomboSel.anilha} · {pomboSel.provas||0} provas · percentil {pomboSel.percentil||0}%</div>
@@ -151,7 +144,6 @@ export default function RastreioForma({ nav }) {
             <div className="card card-p" style={{ marginBottom:10 }}>
               <div style={{ fontSize:12, fontWeight:600, color:'#fff', marginBottom:8 }}>Evolução da Forma</div>
               <svg viewBox={`0 0 ${graficoForma.length*30} 80`} style={{ width:'100%', height:80, display:'block' }}>
-                {/* Zonas de referência */}
                 <rect x="0" y="0" width="100%" height="16" fill="rgba(45,212,167,.05)" />
                 <rect x="0" y="16" width="100%" height="16" fill="rgba(212,175,55,.05)" />
                 <rect x="0" y="32" width="100%" height="16" fill="rgba(76,141,255,.05)" />
@@ -169,7 +161,6 @@ export default function RastreioForma({ nav }) {
                   )
                 })}
               </svg>
-              {/* Legenda */}
               <div style={{ display:'flex', gap:10, marginTop:4, flexWrap:'wrap' }}>
                 {[['#2DD4A7','80-100 Excelente'],['#D4AF37','60-79 Boa'],['#4C8DFF','40-59 Média'],['#f87171','0-39 Fraca']].map(([c,l])=>(
                   <div key={l} style={{ display:'flex', alignItems:'center', gap:4, fontSize:9, color:'#7A8699' }}>
@@ -202,7 +193,6 @@ export default function RastreioForma({ nav }) {
         </div>
       ) : (
         <div>
-          {/* Overview do efectivo */}
           <div style={{ fontSize:12, color:'#94a3b8', marginBottom:10 }}>Forma actual do efectivo activo</div>
           {loading ? <div style={{ display:'flex', justifyContent:'center', padding:40 }}><Spinner lg /></div>
             : formaActual.length===0 ? <EmptyState icon="📈" title="Sem dados" desc="Selecciona um pombo e regista a forma" />
@@ -223,7 +213,7 @@ export default function RastreioForma({ nav }) {
                           <div style={{ height:4, background:'#101F40', borderRadius:2, overflow:'hidden' }}>
                             <div style={{ height:'100%', width:`${p.formaActual}%`, background:cor, borderRadius:2 }} />
                           </div>
-                          {p.ultimaData && <div style={{ fontSize:9, color:'#475569', marginTop:2 }}>Atualizado: {new Date(p.ultimaData).toLocaleDateString('pt-PT')}</div>}
+                          {p.ultimaData && <div style={{ fontSize:9, color:'#475569', marginTop:2 }}>Actualizado: {new Date(p.ultimaData).toLocaleDateString('pt-PT')}</div>}
                         </div>
                       </div>
                     </div>
@@ -237,7 +227,7 @@ export default function RastreioForma({ nav }) {
       {/* Modal registar */}
       {modalReg && (
         <div style={{ position:'fixed', inset:0, background:'rgba(5,13,26,.8)', zIndex:9000, display:'flex', alignItems:'flex-end', justifyContent:'center', padding:20 }}>
-          <div style={{ background:'#0B1830', border:'1px solid #1B2D52', borderRadius:'16px 16px 16px 16px', padding:20, width:'100%', maxWidth:480 }}>
+          <div style={{ background:'#0B1830', border:'1px solid #1B2D52', borderRadius:16, padding:20, width:'100%', maxWidth:480 }}>
             <div style={{ fontSize:15, fontWeight:700, color:'#fff', marginBottom:14 }}>📈 Registar Forma</div>
             <div className="form-grid">
               <Field label="Pombo">
