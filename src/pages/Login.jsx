@@ -87,10 +87,10 @@ export default function Login() {
       {/* Logo + tagline */}
       <div style={{ textAlign:'center', marginBottom:32, position:'relative' }}>
         <div style={{ margin:'0 auto 16px', textAlign:'center' }}>
-        <img src="/logo.png" alt="ChampionsLoft" style={{ width:160, height:'auto', objectFit:'contain', display:'block', margin:'0 auto' }} onError={e=>{ e.target.style.display='none'; e.target.insertAdjacentHTML('afterend','<div style="width:72px;height:72px;border-radius:16px;background:linear-gradient(140deg,#0A1A2E,#112036);border:1px solid rgba(200,168,75,.3);display:flex;align-items:center;justify-content:center;font-size:36px;margin:0 auto">🕊️</div>') }}/>
+        <img src="/logo.png" alt="ChampionsLoft" style={{ width:220, height:'auto', objectFit:'contain', display:'block', margin:'0 auto' }} onError={e=>{ e.target.style.display='none'; e.target.insertAdjacentHTML('afterend','<div style="width:72px;height:72px;border-radius:16px;background:linear-gradient(140deg,#0A1A2E,#112036);border:1px solid rgba(200,168,75,.3);display:flex;align-items:center;justify-content:center;font-size:36px;margin:0 auto">🕊️</div>') }}/>
       </div>
-        <div style={{ fontFamily:"'Fraunces',serif", fontSize:28, fontWeight:900, color:'#F0EDE8', letterSpacing:'-.02em', marginBottom:6, background:'linear-gradient(120deg,#F0EDE8 40%,#C8A84B)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent' }}>ChampionsLoft</div>
-        <div style={{ fontSize:12, color:'#445566', letterSpacing:'.12em', textTransform:'uppercase', fontFamily:"'Space Mono',monospace" }}>Gestão Columbófila Premium</div>
+
+
       </div>
 
       {/* Card */}
