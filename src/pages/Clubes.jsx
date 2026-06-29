@@ -80,13 +80,13 @@ export default function Clubes({ nav }) {
       const { data: cl } = await supabase.from('clubes').select('*').eq('user_id', user?.id).maybeSingle()
       setClube(cl)
       if (cl) {
-        const [{ data:s },{ data:q },{ data:c },{ data:f }] = await Promise.all([
+        const [resS, resQ, resC, resF] = await Promise.all([
           supabase.from('clube_socios').select('*').eq('clube_id',cl.id).order('nome'),
           supabase.from('clube_quotas').select('*').eq('clube_id',cl.id).order('created_at',{ascending:false}),
           supabase.from('clube_comunicados').select('*').eq('clube_id',cl.id).order('fixado',{ascending:false}).order('data_pub',{ascending:false}),
-          supabase.from('clube_financas').select('*').eq('clube_id',cl.id).order('data_reg',{ascending:false}).catch(()=>({data:[]})),
+          supabase.from('clube_financas').select('*').eq('clube_id',cl.id).order('data_reg',{ascending:false}).then(r=>r).catch(()=>({data:[]})),
         ])
-        setSocios(s||[]); setQuotas(q||[]); setComunicados(c||[]); setFinancas(f||[])
+        setSocios(resS.data||[]); setQuotas(resQ.data||[]); setComunicados(resC.data||[]); setFinancas(resF.data||[])
       }
     } catch(e) { toast('Erro: '+e.message,'err') }
     finally { setLoading(false) }
@@ -161,7 +161,7 @@ export default function Clubes({ nav }) {
   }
 
   const registarTodosComoPagos = async () => {
-    const ativos = socios.filter(s=>s.estatuto==='ativo')
+    const ativos = socios.filter(s=>(s.estatuto||s.estado)==='ativo')
     for (const s of ativos) await registarPagamento(s.id, true)
     toast(`${ativos.length} pagamentos registados!`,'ok')
   }
@@ -221,7 +221,7 @@ export default function Clubes({ nav }) {
   }
 
   // ── KPIs ──────────────────────────────────────────────────────────────────
-  const ativos = socios.filter(s=>s.estatuto==='ativo')
+  const ativos = socios.filter(s=>(s.estatuto||s.estado)==='ativo')
   const quotasMes = quotas.filter(q=>q.ano===anoQuotas&&q.mes===mesQuotas&&q.pago)
   const totalMes = quotasMes.reduce((s,q)=>s+(q.valor||0),0)
   const emFalta = ativos.filter(s=>!quotas.some(q=>q.socio_id===s.id&&q.ano===anoQuotas&&q.mes===mesQuotas&&q.pago))
@@ -231,7 +231,7 @@ export default function Clubes({ nav }) {
   const saldoFin = (totalAnual+receitasFin)-despesasFin
 
   const sociosFiltrados = socios.filter(s=>{
-    if (filtroEstatuto!=='todos'&&s.estatuto!==filtroEstatuto) return false
+    if (filtroEstatuto!=='todos'&&(s.estatuto||s.estado)!==filtroEstatuto) return false
     if (filtroCargo!=='todos'&&s.cargo!==filtroCargo) return false
     if (busca&&!s.nome.toLowerCase().includes(busca.toLowerCase())&&!s.email?.includes(busca)&&!s.num_socio?.includes(busca)) return false
     return true
@@ -420,7 +420,7 @@ export default function Clubes({ nav }) {
                 {sociosFiltrados.map(s=>{
                   const quotaPaga=quotas.some(q=>q.socio_id===s.id&&q.ano===anoQuotas&&q.mes===mesQuotas&&q.pago)
                   return (
-                    <div key={s.id} className="card card-p" style={{ borderLeft:`3px solid ${s.estatuto==='ativo'?'#1B2D52':s.estatuto==='suspenso'?'#f87171':'#D4AF37'}` }}>
+                    <div key={s.id} className="card card-p" style={{ borderLeft:`3px solid ${(s.estatuto||s.estado)==='ativo'?'#1B2D52':(s.estatuto||s.estado)==='suspenso'?'#f87171':'#D4AF37'}` }}>
                       <div style={{ display:'flex', gap:10, alignItems:'center' }}>
                         <div style={{ width:40, height:40, borderRadius:'50%', background:'linear-gradient(135deg,#1E5FD9,#4C8DFF)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, fontWeight:700, color:'#fff', flexShrink:0 }}>
                           {s.nome?.[0]?.toUpperCase()||'?'}
@@ -430,7 +430,7 @@ export default function Clubes({ nav }) {
                             <span style={{ fontSize:13, fontWeight:600, color:'#fff' }}>{s.nome}</span>
                             {s.num_socio&&<span style={{ fontSize:10, color:'#7A8699' }}>#{s.num_socio}</span>}
                             <Badge v={CARGO_COR[s.cargo]||'gray'}>{s.cargo}</Badge>
-                            {s.estatuto!=='ativo'&&<Badge v={s.estatuto==='suspenso'?'red':'yellow'}>{s.estatuto}</Badge>}
+                            {(s.estatuto||s.estado)!=='ativo'&&<Badge v={(s.estatuto||s.estado)==='suspenso'?'red':'yellow'}>{s.estatuto||s.estado}</Badge>}
                           </div>
                           <div style={{ fontSize:11, color:'#7A8699', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
                             {s.email||''}{s.tel?` · ${s.tel}`:''}
