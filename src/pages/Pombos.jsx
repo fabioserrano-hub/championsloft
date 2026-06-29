@@ -487,23 +487,62 @@ export default function Pombos({ nav, params }) {
             </div>
           }>
 
-          {/* header */}
-          <div style={{ display:'flex', gap:14, marginBottom:14, flexWrap:'wrap' }}>
-            <div style={{ width:80, height:80, borderRadius:14, background:'#101F40', display:'flex', alignItems:'center', justifyContent:'center', fontSize:40, overflow:'hidden', flexShrink:0, border:'1px solid #243860' }}>
-              {selected.foto_url?<img src={selected.foto_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />:selected.emoji||'🐦'}
-            </div>
-            <div style={{ flex:1 }}>
-              <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:4 }}>
-                <span style={{ fontFamily:"'Space Mono',monospace", fontSize:11, color:'#D4AF37' }}>{selected.anilha}</span>
-                <Badge v={statusBadge[selected.estado]}>{selected.estado}</Badge>
-                {selected.estado_ext&&selected.estado_ext!=='proprio'&&<Badge v={extBadge[selected.estado_ext]||'gray'}>{selected.estado_ext}</Badge>}
+          {/* ── HERO CARD ── */}
+          {(()=>{
+            const c = classificarPombo(selected)
+            const espPrincipal = (selected.esp||[])[0]
+            const corEsp = espPrincipal ? ESP_COR[espPrincipal] : '#4C8DFF'
+            const idade = idadeDoPombo(selected.anilha)
+            return (
+              <div style={{ borderRadius:16, overflow:'hidden', marginBottom:16, position:'relative', background:'#060F1A' }}>
+                {/* Foto hero */}
+                <div style={{ height:200, position:'relative', background:`linear-gradient(160deg,#0A1A2E,#112036)` }}>
+                  {selected.foto_url
+                    ? <img src={selected.foto_url} alt={selected.nome} style={{ width:'100%', height:'100%', objectFit:'cover', opacity:.9 }}/>
+                    : <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:80 }}>{selected.emoji||'🐦'}</div>
+                  }
+                  {/* gradiente por baixo */}
+                  <div style={{ position:'absolute', bottom:0, left:0, right:0, height:100, background:'linear-gradient(to top, #060F1A, transparent)' }}/>
+                  {/* badges topo */}
+                  <div style={{ position:'absolute', top:12, left:12, display:'flex', gap:6 }}>
+                    <Badge v={statusBadge[selected.estado]}>{selected.estado}</Badge>
+                    {selected.estado_ext&&selected.estado_ext!=='proprio'&&<Badge v={extBadge[selected.estado_ext]||'gray'}>{selected.estado_ext}</Badge>}
+                  </div>
+                  {/* sexo */}
+                  <div style={{ position:'absolute', top:12, right:12, background:'rgba(0,0,0,.6)', borderRadius:8, padding:'4px 10px', fontSize:13, fontWeight:700, color:'#fff' }}>
+                    {selected.sexo==='M'?'♂ Macho':'♀ Fêmea'}
+                  </div>
+                  {/* nome + anilha sobre foto */}
+                  <div style={{ position:'absolute', bottom:12, left:16, right:16 }}>
+                    <div style={{ fontFamily:"'Fraunces',serif", fontSize:24, fontWeight:900, color:'#fff', lineHeight:1.1, textShadow:'0 2px 8px rgba(0,0,0,.8)' }}>{selected.nome}</div>
+                    <div style={{ fontFamily:"'Space Mono',monospace", fontSize:12, color:'#D4AF37', marginTop:2 }}>{selected.anilha}</div>
+                  </div>
+                </div>
+                {/* Info rápida */}
+                <div style={{ padding:'12px 16px', display:'flex', gap:8, flexWrap:'wrap', alignItems:'center', borderBottom:'1px solid #1B2D52' }}>
+                  <div style={{ display:'inline-flex', alignItems:'center', gap:5, fontSize:12, fontWeight:700, color:c.cor }}>
+                    <span style={{ width:7, height:7, borderRadius:'50%', background:c.cor }}/>
+                    {c.tag}
+                  </div>
+                  {idade!==null&&<span style={{ fontSize:11, color:'#7A8699' }}>· {idade} {idade===1?'ano':'anos'}</span>}
+                  {selected.cor&&<span style={{ fontSize:11, color:'#7A8699' }}>· {selected.cor}</span>}
+                  {selected.pombal&&<span style={{ fontSize:11, color:'#7A8699' }}>· 🏠 {selected.pombal}</span>}
+                  <div style={{ marginLeft:'auto', display:'flex', gap:4 }}>
+                    {(selected.esp||[]).map(e=><span key={e} style={{ fontSize:11, fontWeight:700, color:ESP_COR[e], background:`${ESP_COR[e]}18`, border:`1px solid ${ESP_COR[e]}40`, padding:'2px 8px', borderRadius:20 }}>{ESP_ICON[e]} {e}</span>)}
+                  </div>
+                </div>
+                {/* Botão partilhar */}
+                <div style={{ padding:'8px 16px', display:'flex', gap:8, justifyContent:'flex-end' }}>
+                  <button onClick={()=>{ nav?.('comunidade'); }} style={{ background:'rgba(45,212,167,.08)', border:'1px solid rgba(45,212,167,.2)', borderRadius:8, padding:'6px 14px', fontSize:11, fontWeight:600, color:'#2DD4A7', cursor:'pointer', fontFamily:'inherit' }}>
+                    🌐 Partilhar na Comunidade
+                  </button>
+                  <button onClick={()=>{ nav?.('pedigree',{pomboId:selected.id}) }} style={{ background:'rgba(212,175,55,.08)', border:'1px solid rgba(212,175,55,.2)', borderRadius:8, padding:'6px 14px', fontSize:11, fontWeight:600, color:'#D4AF37', cursor:'pointer', fontFamily:'inherit' }}>
+                    🌳 Pedigree
+                  </button>
+                </div>
               </div>
-              {(()=>{ const c=classificarPombo(selected); return <div style={{ display:'inline-flex', alignItems:'center', gap:5, fontSize:11, fontWeight:700, color:c.cor, marginBottom:4 }}><span style={{ width:6, height:6, borderRadius:'50%', background:c.cor }} />{c.tag}</div> })()}
-              <div style={{ fontSize:12, color:'#94a3b8' }}>{selected.sexo==='M'?'♂ Macho':'♀ Fêmea'} · {selected.cor||'—'} · {idadeDoPombo(selected.anilha)!==null?`${idadeDoPombo(selected.anilha)} anos`:'—'}</div>
-              <div style={{ fontSize:12, color:'#7A8699' }}>🏠 {selected.pombal||'—'}</div>
-              {(selected.esp||[]).length>0&&<div style={{ display:'flex', gap:4, marginTop:4, flexWrap:'wrap' }}>{selected.esp.map(e=><span key={e} style={{ fontSize:10, fontWeight:700, color:ESP_COR[e], background:`${ESP_COR[e]}15`, padding:'2px 6px', borderRadius:6 }}>{ESP_ICON[e]} {e}</span>)}</div>}
-            </div>
-          </div>
+            )
+          })()}
 
           {/* KPIs */}
           <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:8, marginBottom:14 }}>
