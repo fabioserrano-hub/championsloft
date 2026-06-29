@@ -105,6 +105,8 @@ export default function Pombos({ nav, params }) {
   const [loadingDetail, setLoadingDetail] = useState(false)
   const [pedigreeInfo, setPedigreeInfo]   = useState(null)
   const [tabDetail, setTabDetail] = useState('info')
+  const [modalPartilha, setModalPartilha] = useState(false)
+  const [pomboPartilha, setPomboPartilha] = useState(null)
 
   const [anilhaPais, setAnilhaPais] = useState('PT')
   const [anilhaAno, setAnilhaAno]   = useState(String(anoAtual))
@@ -405,7 +407,88 @@ export default function Pombos({ nav, params }) {
         : <div style={{ display:'flex', flexDirection:'column', gap:8 }}>{filtered.map(p=><ExternoCard key={p.id} p={p} />)}</div>
       }
 
-      {/* ══ MODAL FORM ════════════════════════════════════════════════════════ */}
+      {/* ══ MODAL PARTILHA ══════════════════════════════════════════════════════ */}
+      {pomboPartilha && (
+        <Modal open={modalPartilha} onClose={()=>setModalPartilha(false)} title="🌐 Partilhar na Comunidade"
+          footer={
+            <div style={{ display:'flex', gap:8, width:'100%' }}>
+              <button className="btn btn-secondary" onClick={()=>setModalPartilha(false)}>Cancelar</button>
+              <div style={{ flex:1 }}/>
+              <button className="btn btn-secondary btn-sm" onClick={()=>{
+                const txt = `${pomboPartilha.nome} (${pomboPartilha.anilha})\n🏆 ${pomboPartilha.provas||0} provas · 📊 ${pomboPartilha.percentil||0}% percentil · 💪 ${pomboPartilha.forma||50}% forma\n#columbofilia #pomboscorreio`
+                navigator.clipboard?.writeText(txt).then(()=>toast('Copiado!','ok'))
+              }}>📋 Copiar</button>
+              <button className="btn btn-primary" onClick={()=>{
+                setModalPartilha(false)
+                const esp = (pomboPartilha.esp||[]).map(e=>ESP_ICON[e]+' '+e).join(' ')
+                const conteudo = `${pomboPartilha.emoji||'🐦'} ${pomboPartilha.nome} — ${pomboPartilha.anilha}\n\n📊 Percentil: ${pomboPartilha.percentil||0}%\n💪 Forma: ${pomboPartilha.forma||50}%\n🏆 Provas: ${pomboPartilha.provas||0}\n${esp?`\n${esp}`:''}\n${pomboPartilha.obs?`\n"${pomboPartilha.obs}"`:''}`
+                nav?.('comunidade', { prefillPost: { tipo:'Geral', conteudo, pomboId: pomboPartilha.id } })
+              }}>🌐 Publicar na LoftSocial →</button>
+            </div>
+          }>
+          {/* Card visual do pombo */}
+          <div style={{ background:'linear-gradient(135deg,#050D1A,#0B1830)', border:'1px solid rgba(212,175,55,.25)', borderRadius:16, overflow:'hidden', marginBottom:12 }}>
+            <div style={{ height:3, background:'linear-gradient(90deg,#B8960C,#D4AF37,#B8960C)' }}/>
+            <div style={{ display:'flex', minHeight:180 }}>
+              {/* Foto — lado esquerdo */}
+              <div style={{ width:'45%', position:'relative', background:'#101F40', flexShrink:0 }}>
+                {pomboPartilha.foto_url
+                  ? <img src={pomboPartilha.foto_url} alt={pomboPartilha.nome} style={{ width:'100%', height:'100%', objectFit:'contain', display:'block' }}/>
+                  : <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:64 }}>{pomboPartilha.emoji||'🐦'}</div>
+                }
+                {/* especialidade */}
+                {(pomboPartilha.esp||[])[0]&&(
+                  <div style={{ position:'absolute', bottom:8, left:8, background:`${ESP_COR[(pomboPartilha.esp||[])[0]]}22`, border:`1px solid ${ESP_COR[(pomboPartilha.esp||[])[0]]}60`, borderRadius:6, padding:'2px 8px', fontSize:10, fontWeight:700, color:ESP_COR[(pomboPartilha.esp||[])[0]] }}>
+                    {ESP_ICON[(pomboPartilha.esp||[])[0]]} {(pomboPartilha.esp||[])[0]}
+                  </div>
+                )}
+              </div>
+              {/* Stats — lado direito */}
+              <div style={{ flex:1, padding:'16px 14px', display:'flex', flexDirection:'column', justifyContent:'space-between' }}>
+                <div>
+                  <div style={{ fontFamily:"'Fraunces',serif", fontSize:20, fontWeight:900, color:'#fff', lineHeight:1.1, marginBottom:4 }}>{pomboPartilha.nome}</div>
+                  <div style={{ fontFamily:"'Space Mono',monospace", fontSize:10, color:'#D4AF37', marginBottom:10 }}>{pomboPartilha.anilha}</div>
+                  <div style={{ display:'flex', gap:4, flexWrap:'wrap', marginBottom:10 }}>
+                    <span style={{ fontSize:10, color:'#94a3b8' }}>{pomboPartilha.sexo==='M'?'♂':'♀'}</span>
+                    {pomboPartilha.cor&&<span style={{ fontSize:10, color:'#94a3b8' }}>· {pomboPartilha.cor}</span>}
+                    {idadeDoPombo(pomboPartilha.anilha)!==null&&<span style={{ fontSize:10, color:'#94a3b8' }}>· {idadeDoPombo(pomboPartilha.anilha)}a</span>}
+                  </div>
+                </div>
+                {/* KPIs */}
+                <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                  {[
+                    { label:'Percentil', value:(pomboPartilha.percentil||0)+'%', cor:(pomboPartilha.percentil||0)>=70?'#2DD4A7':'#D4AF37' },
+                    { label:'Forma', value:(pomboPartilha.forma||50)+'%', cor:(pomboPartilha.forma||50)>=60?'#4C8DFF':'#94a3b8' },
+                    { label:'Provas', value:String(pomboPartilha.provas||0), cor:'#D4AF37' },
+                  ].map(({label,value,cor})=>(
+                    <div key={label} style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                      <span style={{ fontSize:10, color:'#475569', textTransform:'uppercase', letterSpacing:'.05em' }}>{label}</span>
+                      <span style={{ fontFamily:"'Fraunces',serif", fontSize:18, fontWeight:900, color:cor }}>{value}</span>
+                    </div>
+                  ))}
+                </div>
+                {/* Pombal */}
+                {pomboPartilha.pombal&&(
+                  <div style={{ fontSize:10, color:'#7A8699', marginTop:8, borderTop:'1px solid #1B2D52', paddingTop:8 }}>
+                    🏠 {pomboPartilha.pombal}
+                  </div>
+                )}
+                {/* Marca d'água */}
+                <div style={{ fontSize:9, color:'#334155', marginTop:6, fontFamily:"'Space Mono',monospace" }}>championsloft.pt</div>
+              </div>
+            </div>
+            {/* Observações se existirem */}
+            {pomboPartilha.obs&&(
+              <div style={{ padding:'8px 14px', borderTop:'1px solid #1B2D52', fontSize:11, color:'#7A8699', fontStyle:'italic' }}>
+                "{pomboPartilha.obs}"
+              </div>
+            )}
+          </div>
+          <div style={{ fontSize:11, color:'#475569', textAlign:'center' }}>Clica em "Publicar na LoftSocial" para partilhar com a comunidade</div>
+        </Modal>
+      )}
+
+      {/* ══ MODAL FORM ════════════════════════════════════════════════════════ */}}
       <Modal open={modal==='form'} onClose={close} title={selected?`✏️ ${selected.nome}`:'🐦 Novo Pombo'} wide
         footer={<><button className="btn btn-secondary" onClick={close}>Cancelar</button><button className="btn btn-primary" onClick={save} disabled={saving}>{saving?<Spinner/>:null}{selected?t('guardar'):'Adicionar'}</button></>}>
         <div className="form-grid">
@@ -533,7 +616,7 @@ export default function Pombos({ nav, params }) {
                 </div>
                 {/* Botão partilhar */}
                 <div style={{ padding:'8px 16px', display:'flex', gap:8, justifyContent:'flex-end' }}>
-                  <button onClick={()=>{ nav?.('comunidade'); }} style={{ background:'rgba(45,212,167,.08)', border:'1px solid rgba(45,212,167,.2)', borderRadius:8, padding:'6px 14px', fontSize:11, fontWeight:600, color:'#2DD4A7', cursor:'pointer', fontFamily:'inherit' }}>
+                  <button onClick={()=>{ setPomboPartilha(selected); setModalPartilha(true) }} style={{ background:'rgba(45,212,167,.08)', border:'1px solid rgba(45,212,167,.2)', borderRadius:8, padding:'6px 14px', fontSize:11, fontWeight:600, color:'#2DD4A7', cursor:'pointer', fontFamily:'inherit' }}>
                     🌐 Partilhar na Comunidade
                   </button>
                   <button onClick={()=>{ nav?.('pedigree',{pomboId:selected.id}) }} style={{ background:'rgba(212,175,55,.08)', border:'1px solid rgba(212,175,55,.2)', borderRadius:8, padding:'6px 14px', fontSize:11, fontWeight:600, color:'#D4AF37', cursor:'pointer', fontFamily:'inherit' }}>
