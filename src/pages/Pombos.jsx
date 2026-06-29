@@ -427,10 +427,10 @@ export default function Pombos({ nav, params }) {
               }}>🌐 Publicar na LoftSocial →</button>
             </div>
           }>
-          {/* Card visual */}
+          {/* Card visual - já melhorado (mantido) */}
           <div style={{ background:'linear-gradient(135deg,#050D1A,#0B1830)', border:'1px solid rgba(212,175,55,.25)', borderRadius:16, overflow:'hidden', marginBottom:12 }}>
             <div style={{ height:3, background:'linear-gradient(90deg,#B8960C,#D4AF37,#B8960C)' }}/>
-            <div style={{ display:'grid', gridTemplateColumns:'45% 55%', height:200 }}>
+            <div style={{ display:'grid', gridTemplateColumns:'40% 60%', height:240 }}>
               {/* FOTO esquerda */}
               <div style={{ position:'relative', overflow:'hidden', background:'#0A1628' }}>
                 {pomboPartilha.foto_url
@@ -438,43 +438,44 @@ export default function Pombos({ nav, params }) {
                       style={{ position:'absolute', top:0, left:0, width:'100%', height:'100%', objectFit:'cover', objectPosition:'center' }}/>
                   : <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:72 }}>{pomboPartilha.emoji||'🐦'}</div>
                 }
+                <div style={{ position:'absolute', bottom:0, left:0, right:0, height:'40%', background:'linear-gradient(to top, rgba(0,0,0,0.6), transparent)', pointerEvents:'none' }} />
                 {(pomboPartilha.esp||[])[0]&&(
-                  <div style={{ position:'absolute', bottom:8, left:8, background:ESP_COR[(pomboPartilha.esp||[])[0]]+'22', border:'1px solid '+ESP_COR[(pomboPartilha.esp||[])[0]]+'60', borderRadius:6, padding:'2px 8px', fontSize:10, fontWeight:700, color:ESP_COR[(pomboPartilha.esp||[])[0]] }}>
+                  <div style={{ position:'absolute', bottom:12, left:12, background:ESP_COR[(pomboPartilha.esp||[])[0]]+'22', border:'1px solid '+ESP_COR[(pomboPartilha.esp||[])[0]]+'60', borderRadius:6, padding:'4px 12px', fontSize:11, fontWeight:700, color:ESP_COR[(pomboPartilha.esp||[])[0]], backdropFilter:'blur(2px)' }}>
                     {ESP_ICON[(pomboPartilha.esp||[])[0]]} {(pomboPartilha.esp||[])[0]}
                   </div>
                 )}
               </div>
               {/* STATS direita */}
-              <div style={{ padding:'14px 12px', display:'flex', flexDirection:'column', justifyContent:'space-between', overflow:'hidden' }}>
+              <div style={{ padding:'18px 16px', display:'flex', flexDirection:'column', justifyContent:'space-between', overflow:'hidden' }}>
                 <div>
-                  <div style={{ fontFamily:"'Fraunces',serif", fontSize:20, fontWeight:900, color:'#fff', lineHeight:1.1, marginBottom:3 }}>{pomboPartilha.nome}</div>
-                  <div style={{ fontFamily:"'Space Mono',monospace", fontSize:9, color:'#D4AF37', marginBottom:8 }}>{pomboPartilha.anilha}</div>
-                  <div style={{ fontSize:10, color:'#94a3b8', marginBottom:8 }}>
-                    {pomboPartilha.sexo==='M'?'♂':'♀'}{pomboPartilha.cor?' · '+pomboPartilha.cor:''}{idadeDoPombo(pomboPartilha.anilha)!==null?' · '+idadeDoPombo(pomboPartilha.anilha)+'a':''}
+                  <div style={{ fontFamily:"'Fraunces',serif", fontSize:22, fontWeight:900, color:'#fff', lineHeight:1.1, marginBottom:2 }}>{pomboPartilha.nome}</div>
+                  <div style={{ fontFamily:"'Space Mono',monospace", fontSize:10, color:'#D4AF37', marginBottom:10 }}>{pomboPartilha.anilha}</div>
+                  <div style={{ fontSize:11, color:'#94a3b8', marginBottom:12, display:'flex', gap:8, flexWrap:'wrap' }}>
+                    <span>{pomboPartilha.sexo==='M'?'♂':'♀'}</span>
+                    {pomboPartilha.cor&&<span>· {pomboPartilha.cor}</span>}
+                    {idadeDoPombo(pomboPartilha.anilha)!==null&&<span>· {idadeDoPombo(pomboPartilha.anilha)}a</span>}
                   </div>
                 </div>
-                <div style={{ display:'flex', flexDirection:'column', gap:7 }}>
+                <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
                   {[
-                    { l:'PERCENTIL', v:(pomboPartilha.percentil||0)+'%', c:(pomboPartilha.percentil||0)>=70?'#2DD4A7':'#D4AF37' },
-                    { l:'FORMA',     v:(pomboPartilha.forma||50)+'%',    c:(pomboPartilha.forma||50)>=60?'#4C8DFF':'#94a3b8' },
-                    { l:'PROVAS',    v:String(pomboPartilha.provas||0),  c:'#D4AF37' },
-                  ].map(({l,v,c})=>(
-                    <div key={l} style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                      <span style={{ fontSize:9, color:'#475569', letterSpacing:'.08em' }}>{l}</span>
-                      <span style={{ fontFamily:"'Fraunces',serif", fontSize:18, fontWeight:900, color:c }}>{v}</span>
+                    { label:'PERCENTIL', value:(pomboPartilha.percentil||0)+'%', color:(pomboPartilha.percentil||0)>=70?'#2DD4A7':'#D4AF37' },
+                    { label:'FORMA', value:(pomboPartilha.forma||50)+'%', color:(pomboPartilha.forma||50)>=60?'#4C8DFF':'#94a3b8' },
+                    { label:'PROVAS', value:String(pomboPartilha.provas||0), color:'#D4AF37' },
+                  ].map(({label,value,color})=>(
+                    <div key={label} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', borderBottom:'1px solid #1B2D52', paddingBottom:6 }}>
+                      <span style={{ fontSize:10, color:'#475569', letterSpacing:'.08em' }}>{label}</span>
+                      <span style={{ fontFamily:"'Fraunces',serif", fontSize:20, fontWeight:900, color }}>{value}</span>
                     </div>
                   ))}
                 </div>
                 <div>
-                  {pomboPartilha.pombal&&<div style={{ fontSize:10, color:'#7A8699', marginTop:6 }}>🏠 {pomboPartilha.pombal}</div>}
-                  <div style={{ fontSize:8, color:'#334155', marginTop:4, fontFamily:"'Space Mono',monospace" }}>championsloft.pt</div>
+                  {pomboPartilha.pombal&&<div style={{ fontSize:11, color:'#7A8699', marginTop:10 }}>🏠 {pomboPartilha.pombal}</div>}
+                  <div style={{ fontSize:9, color:'#334155', marginTop:4, fontFamily:"'Space Mono',monospace" }}>championsloft.pt</div>
                 </div>
               </div>
             </div>
             {pomboPartilha.obs&&(
-              <div style={{ padding:'8px 14px', borderTop:'1px solid #1B2D52', fontSize:11, color:'#7A8699', fontStyle:'italic' }}>
-                "{pomboPartilha.obs}"
-              </div>
+              <div style={{ padding:'10px 16px', borderTop:'1px solid #1B2D52', fontSize:12, color:'#7A8699', fontStyle:'italic' }}>"{pomboPartilha.obs}"</div>
             )}
           </div>
           <div style={{ fontSize:11, color:'#475569', textAlign:'center' }}>Clica em "Publicar na LoftSocial" para partilhar com a comunidade</div>
@@ -549,7 +550,7 @@ export default function Pombos({ nav, params }) {
         </div>
       </Modal>
 
-      {/* ══ MODAL DETAIL ══════════════════════════════════════════════════════ */}
+      {/* ══ MODAL DETAIL (NOVO LAYOUT COM FOTO ESQUERDA) ═══════════════════════ */}
       {selected && (
         <Modal open={modal==='detail'} onClose={close} title={`${selected.emoji||'🐦'} ${selected.nome}`} wide
           footer={
@@ -563,80 +564,301 @@ export default function Pombos({ nav, params }) {
             </div>
           }>
 
-          {/* ── HERO CARD ── */}
-          {(()=>{
+          {/* ── HEADER: FOTO ESQUERDA / INFO DIREITA ── */}
+          {(() => {
             const c = classificarPombo(selected)
-            const espPrincipal = (selected.esp||[])[0]
-            const corEsp = espPrincipal ? ESP_COR[espPrincipal] : '#4C8DFF'
+            const espPrincipal = (selected.esp || [])[0]
             const idade = idadeDoPombo(selected.anilha)
+            const kmTotalDetailLocal = historicoProvas.reduce((s, r) => s + (r.races?.dist || 0), 0)
+            const melhorPosLocal = historicoProvas.filter(r => r.posicao).sort((a, b) => a.posicao - b.posicao)[0]
+
             return (
-              <div style={{ borderRadius:16, overflow:'hidden', marginBottom:16, position:'relative', background:'#060F1A' }}>
-                {/* Foto hero */}
-                <div style={{ height:200, position:'relative', background:`linear-gradient(160deg,#0A1A2E,#112036)` }}>
-                  {selected.foto_url
-                    ? <img src={selected.foto_url} alt={selected.nome} style={{ width:'100%', height:'100%', objectFit:'cover', opacity:.9 }}/>
-                    : <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:80 }}>{selected.emoji||'🐦'}</div>
-                  }
-                  {/* gradiente por baixo */}
-                  <div style={{ position:'absolute', bottom:0, left:0, right:0, height:100, background:'linear-gradient(to top, #060F1A, transparent)' }}/>
-                  {/* badges topo */}
-                  <div style={{ position:'absolute', top:12, left:12, display:'flex', gap:6 }}>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '38% 62%',
+                  borderRadius: 16,
+                  overflow: 'hidden',
+                  marginBottom: 16,
+                  background: '#060F1A',
+                  border: '1px solid #1B2D52',
+                  minHeight: 280,
+                }}
+              >
+                {/* ─── LADO ESQUERDO: FOTO ─── */}
+                <div
+                  style={{
+                    position: 'relative',
+                    overflow: 'hidden',
+                    background: '#0A1628',
+                    height: '100%',
+                    minHeight: 280,
+                  }}
+                >
+                  {selected.foto_url ? (
+                    <img
+                      src={selected.foto_url}
+                      alt={selected.nome}
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                        objectPosition: 'center',
+                      }}
+                    />
+                  ) : (
+                    <div
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 80,
+                      }}
+                    >
+                      {selected.emoji || '🐦'}
+                    </div>
+                  )}
+                  <div
+                    style={{
+                      position: 'absolute',
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      height: '40%',
+                      background: 'linear-gradient(to top, rgba(0,0,0,0.6), transparent)',
+                      pointerEvents: 'none',
+                    }}
+                  />
+                  {espPrincipal && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        bottom: 12,
+                        left: 12,
+                        background: ESP_COR[espPrincipal] + '22',
+                        border: '1px solid ' + ESP_COR[espPrincipal] + '60',
+                        borderRadius: 6,
+                        padding: '4px 12px',
+                        fontSize: 11,
+                        fontWeight: 700,
+                        color: ESP_COR[espPrincipal],
+                        backdropFilter: 'blur(2px)',
+                      }}
+                    >
+                      {ESP_ICON[espPrincipal]} {espPrincipal}
+                    </div>
+                  )}
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: 12,
+                      left: 12,
+                      display: 'flex',
+                      gap: 6,
+                    }}
+                  >
                     <Badge v={statusBadge[selected.estado]}>{selected.estado}</Badge>
-                    {selected.estado_ext&&selected.estado_ext!=='proprio'&&<Badge v={extBadge[selected.estado_ext]||'gray'}>{selected.estado_ext}</Badge>}
-                  </div>
-                  {/* sexo */}
-                  <div style={{ position:'absolute', top:12, right:12, background:'rgba(0,0,0,.6)', borderRadius:8, padding:'4px 10px', fontSize:13, fontWeight:700, color:'#fff' }}>
-                    {selected.sexo==='M'?'♂ Macho':'♀ Fêmea'}
-                  </div>
-                  {/* nome + anilha sobre foto */}
-                  <div style={{ position:'absolute', bottom:12, left:16, right:16 }}>
-                    <div style={{ fontFamily:"'Fraunces',serif", fontSize:24, fontWeight:900, color:'#fff', lineHeight:1.1, textShadow:'0 2px 8px rgba(0,0,0,.8)' }}>{selected.nome}</div>
-                    <div style={{ fontFamily:"'Space Mono',monospace", fontSize:12, color:'#D4AF37', marginTop:2 }}>{selected.anilha}</div>
+                    {selected.estado_ext && selected.estado_ext !== 'proprio' && (
+                      <Badge v={extBadge[selected.estado_ext] || 'gray'}>
+                        {selected.estado_ext}
+                      </Badge>
+                    )}
                   </div>
                 </div>
-                {/* Info rápida */}
-                <div style={{ padding:'12px 16px', display:'flex', gap:8, flexWrap:'wrap', alignItems:'center', borderBottom:'1px solid #1B2D52' }}>
-                  <div style={{ display:'inline-flex', alignItems:'center', gap:5, fontSize:12, fontWeight:700, color:c.cor }}>
-                    <span style={{ width:7, height:7, borderRadius:'50%', background:c.cor }}/>
-                    {c.tag}
+
+                {/* ─── LADO DIREITO: INFORMAÇÕES ─── */}
+                <div
+                  style={{
+                    padding: '16px 18px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    overflow: 'hidden',
+                  }}
+                >
+                  <div>
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        marginBottom: 2,
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontFamily: "'Fraunces',serif",
+                          fontSize: 24,
+                          fontWeight: 900,
+                          color: '#fff',
+                          lineHeight: 1.1,
+                        }}
+                      >
+                        {selected.nome}
+                      </div>
+                      <div
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 5,
+                          fontSize: 12,
+                          fontWeight: 700,
+                          color: c.cor,
+                        }}
+                      >
+                        <span style={{ width: 7, height: 7, borderRadius: '50%', background: c.cor }} />
+                        {c.tag}
+                      </div>
+                    </div>
+                    <div
+                      style={{
+                        fontFamily: "'Space Mono',monospace",
+                        fontSize: 12,
+                        color: '#D4AF37',
+                        marginBottom: 8,
+                      }}
+                    >
+                      {selected.anilha}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 12,
+                        color: '#94a3b8',
+                        display: 'flex',
+                        gap: 12,
+                        flexWrap: 'wrap',
+                        marginBottom: 10,
+                      }}
+                    >
+                      <span>{selected.sexo === 'M' ? '♂ Macho' : '♀ Fêmea'}</span>
+                      {idade !== null && <span>· {idade} {idade === 1 ? 'ano' : 'anos'}</span>}
+                      {selected.cor && <span>· {selected.cor}</span>}
+                      {selected.pombal && <span>· 🏠 {selected.pombal}</span>}
+                    </div>
+                    {(selected.esp || []).length > 0 && (
+                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 10 }}>
+                        {(selected.esp || []).map((e) => (
+                          <span
+                            key={e}
+                            style={{
+                              fontSize: 11,
+                              fontWeight: 700,
+                              color: ESP_COR[e],
+                              background: `${ESP_COR[e]}18`,
+                              border: `1px solid ${ESP_COR[e]}40`,
+                              padding: '2px 10px',
+                              borderRadius: 20,
+                            }}
+                          >
+                            {ESP_ICON[e]} {e}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  {idade!==null&&<span style={{ fontSize:11, color:'#7A8699' }}>· {idade} {idade===1?'ano':'anos'}</span>}
-                  {selected.cor&&<span style={{ fontSize:11, color:'#7A8699' }}>· {selected.cor}</span>}
-                  {selected.pombal&&<span style={{ fontSize:11, color:'#7A8699' }}>· 🏠 {selected.pombal}</span>}
-                  <div style={{ marginLeft:'auto', display:'flex', gap:4 }}>
-                    {(selected.esp||[]).map(e=><span key={e} style={{ fontSize:11, fontWeight:700, color:ESP_COR[e], background:`${ESP_COR[e]}18`, border:`1px solid ${ESP_COR[e]}40`, padding:'2px 8px', borderRadius:20 }}>{ESP_ICON[e]} {e}</span>)}
+
+                  {/* KPIs em grelha */}
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(5, 1fr)',
+                      gap: 6,
+                      margin: '6px 0 10px 0',
+                    }}
+                  >
+                    {[
+                      { v: selected.provas ?? 0, l: 'Provas', cor: '#D4AF37' },
+                      { v: (selected.percentil ?? 0) + '%', l: 'Percentil', cor: '#2DD4A7' },
+                      { v: (selected.forma ?? 50) + '%', l: 'Forma', cor: '#4C8DFF' },
+                      {
+                        v: loadingDetail ? '…' : kmTotalDetailLocal > 0 ? kmTotalDetailLocal + 'km' : '—',
+                        l: 'km Total',
+                        cor: '#A855F7',
+                      },
+                      {
+                        v: loadingDetail ? '…' : melhorPosLocal ? melhorPosLocal.posicao + 'º' : '—',
+                        l: 'Melhor Pos.',
+                        cor: '#F59E0B',
+                      },
+                    ].map(({ v, l, cor }) => (
+                      <div
+                        key={l}
+                        style={{
+                          textAlign: 'center',
+                          background: '#101F40',
+                          borderRadius: 8,
+                          padding: '6px 2px',
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontFamily: "'Fraunces',serif",
+                            fontSize: 18,
+                            fontWeight: 900,
+                            color: cor,
+                          }}
+                        >
+                          {v}
+                        </div>
+                        <div style={{ fontSize: 9, color: '#7A8699', marginTop: 1 }}>{l}</div>
+                      </div>
+                    ))}
                   </div>
-                </div>
-                {/* Botão partilhar */}
-                <div style={{ padding:'8px 16px', display:'flex', gap:8, justifyContent:'flex-end' }}>
-                  <button onClick={(e)=>{ e.stopPropagation(); const p=selected; setPomboPartilha(p); setModal(null); setTimeout(()=>setModalPartilha(true),50) }} style={{ background:'rgba(45,212,167,.08)', border:'1px solid rgba(45,212,167,.2)', borderRadius:8, padding:'6px 14px', fontSize:11, fontWeight:600, color:'#2DD4A7', cursor:'pointer', fontFamily:'inherit' }}>
-                    🌐 Partilhar na Comunidade
-                  </button>
-                  <button onClick={()=>{ nav?.('pedigree',{pomboId:selected.id}) }} style={{ background:'rgba(212,175,55,.08)', border:'1px solid rgba(212,175,55,.2)', borderRadius:8, padding:'6px 14px', fontSize:11, fontWeight:600, color:'#D4AF37', cursor:'pointer', fontFamily:'inherit' }}>
-                    🌳 Pedigree
-                  </button>
+
+                  {/* Botões Partilhar e Pedigree */}
+                  <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        const p = selected
+                        setPomboPartilha(p)
+                        setModal(null)
+                        setTimeout(() => setModalPartilha(true), 50)
+                      }}
+                      style={{
+                        background: 'rgba(45,212,167,.08)',
+                        border: '1px solid rgba(45,212,167,.2)',
+                        borderRadius: 8,
+                        padding: '6px 14px',
+                        fontSize: 11,
+                        fontWeight: 600,
+                        color: '#2DD4A7',
+                        cursor: 'pointer',
+                        fontFamily: 'inherit',
+                      }}
+                    >
+                      🌐 Partilhar na Comunidade
+                    </button>
+                    <button
+                      onClick={() => {
+                        nav?.('pedigree', { pomboId: selected.id })
+                      }}
+                      style={{
+                        background: 'rgba(212,175,55,.08)',
+                        border: '1px solid rgba(212,175,55,.2)',
+                        borderRadius: 8,
+                        padding: '6px 14px',
+                        fontSize: 11,
+                        fontWeight: 600,
+                        color: '#D4AF37',
+                        cursor: 'pointer',
+                        fontFamily: 'inherit',
+                      }}
+                    >
+                      🌳 Pedigree
+                    </button>
+                  </div>
                 </div>
               </div>
             )
           })()}
 
-          {/* KPIs */}
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:8, marginBottom:14 }}>
-            {[
-              {v:selected.provas??0, l:'Provas', cor:'#D4AF37'},
-              {v:(selected.percentil??0)+'%', l:'Percentil', cor:'#2DD4A7'},
-              {v:(selected.forma??50)+'%', l:'Forma', cor:'#4C8DFF'},
-              {v:loadingDetail?'…':kmTotalDetail>0?kmTotalDetail+'km':'—', l:'km Total', cor:'#A855F7'},
-              {v:loadingDetail?'…':melhorPos?melhorPos.posicao+'º':'—', l:'Melhor Pos.', cor:'#F59E0B'},
-            ].map(({v,l,cor})=>(
-              <div key={l} style={{ textAlign:'center', background:'#101F40', borderRadius:10, padding:'8px 4px' }}>
-                <div style={{ fontFamily:"'Fraunces',serif", fontSize:18, fontWeight:900, color:cor }}>{v}</div>
-                <div style={{ fontSize:9, color:'#7A8699', marginTop:1 }}>{l}</div>
-              </div>
-            ))}
-          </div>
-
-          {/* tabs do detalhe */}
+          {/* TABS de detalhe (Info, Provas, Saúde, Família, Treinos) */}
           <div style={{ display:'flex', gap:4, background:'#101F40', borderRadius:8, padding:4, marginBottom:14, overflowX:'auto' }}>
             {[['info','📋 Info'],['provas','🏆 Provas'],['saude','🏥 Saúde'],['familia','🌳 Família'],['treinos','🎯 Treinos']].map(([k,l])=>(
               <button key={k} onClick={()=>setTabDetail(k)} style={{ flex:1, padding:'6px 8px', borderRadius:6, fontSize:11, fontWeight:500, cursor:'pointer', border:'none', fontFamily:'inherit', whiteSpace:'nowrap', background:tabDetail===k?'#1E5FD9':'none', color:tabDetail===k?'#fff':'#94a3b8' }}>{l}</button>
@@ -695,7 +917,6 @@ export default function Pombos({ nav, params }) {
               {/* ── PROVAS ── */}
               {tabDetail==='provas'&&(
                 <div>
-                  {/* resumo */}
                   <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:8, marginBottom:12 }}>
                     {[
                       {v:kmTotalDetail+'km', l:'km Percorridos', cor:'#A855F7'},
