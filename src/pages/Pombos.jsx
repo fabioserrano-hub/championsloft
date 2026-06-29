@@ -430,9 +430,9 @@ export default function Pombos({ nav, params }) {
           {/* Card visual */}
           <div style={{ background:'linear-gradient(135deg,#050D1A,#0B1830)', border:'1px solid rgba(212,175,55,.25)', borderRadius:16, overflow:'hidden', marginBottom:12 }}>
             <div style={{ height:3, background:'linear-gradient(90deg,#B8960C,#D4AF37,#B8960C)' }}/>
-            <div style={{ display:'flex', height:200 }}>
-              {/* FOTO esquerda — altura fixa, objectFit cover */}
-              <div style={{ width:'45%', height:200, flexShrink:0, position:'relative', overflow:'hidden', background:'#0A1628' }}>
+            <div style={{ display:'grid', gridTemplateColumns:'45% 55%', height:200 }}>
+              {/* FOTO esquerda */}
+              <div style={{ position:'relative', overflow:'hidden', background:'#0A1628' }}>
                 {pomboPartilha.foto_url
                   ? <img src={pomboPartilha.foto_url} alt={pomboPartilha.nome}
                       style={{ position:'absolute', top:0, left:0, width:'100%', height:'100%', objectFit:'cover', objectPosition:'center' }}/>
@@ -445,7 +445,7 @@ export default function Pombos({ nav, params }) {
                 )}
               </div>
               {/* STATS direita */}
-              <div style={{ flex:1, padding:'14px 12px', display:'flex', flexDirection:'column', justifyContent:'space-between', overflow:'hidden' }}>
+              <div style={{ padding:'14px 12px', display:'flex', flexDirection:'column', justifyContent:'space-between', overflow:'hidden' }}>
                 <div>
                   <div style={{ fontFamily:"'Fraunces',serif", fontSize:20, fontWeight:900, color:'#fff', lineHeight:1.1, marginBottom:3 }}>{pomboPartilha.nome}</div>
                   <div style={{ fontFamily:"'Space Mono',monospace", fontSize:9, color:'#D4AF37', marginBottom:8 }}>{pomboPartilha.anilha}</div>
