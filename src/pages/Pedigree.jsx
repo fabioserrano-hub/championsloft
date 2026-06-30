@@ -272,7 +272,7 @@ export default function Pedigree({ nav, params }) {
           const c = document.createElement('canvas')
           c.width = img.width; c.height = img.height
           c.getContext('2d').drawImage(img,0,0)
-          try { res(c.toDataURL('image/jpeg',0.85)) } catch { res(null) }
+          try { res({ data: c.toDataURL('image/jpeg',0.85), ratio: img.width/img.height }) } catch { res(null) }
         }
         img.onerror = () => res(null); img.src = url
       })
@@ -424,7 +424,15 @@ export default function Pedigree({ nav, params }) {
         let ty=by+7
         if(showFoto && imgs[nodeKey]) {
           const fh=Math.min(18,bh-18)
-          if(fh>6){ doc.addImage(imgs[nodeKey],'JPEG',x+1.5,ty,w-3,fh); ty+=fh+1.5 }
+          if(fh>6){
+            const maxW=w-3
+            const img=imgs[nodeKey]
+            let dw=maxW, dh=fh
+            if(img.ratio){ if(maxW/fh > img.ratio){ dw=fh*img.ratio } else { dh=maxW/img.ratio } }
+            const ox=x+1.5+(maxW-dw)/2, oy=ty+(fh-dh)/2
+            doc.addImage(img.data,'JPEG',ox,oy,dw,dh)
+            ty+=fh+1.5
+          }
         }
         if(node.anilha){ doc.setFontSize(tipo==='main'?6:4.8); doc.setFont('courier','bold'); doc.setTextColor(...GOLD); doc.text(node.anilha.substring(0,20),x+2.5,ty); ty+=3.2 }
         if(node.nome){ const fs=tipo==='main'?8.5:bh>20?7:6; doc.setFontSize(fs); doc.setFont('helvetica','bold'); doc.setTextColor(...NAVY); doc.text(node.nome.substring(0,17),x+2.5,ty); ty+=fs*0.42+1.8 }
@@ -580,33 +588,43 @@ export default function Pedigree({ nav, params }) {
 
   return (
     <div id="pedigree-root">
-      <div className="section-header" id="pedigree-config-card">
-        <div><div className="section-title">🌳 Pedigree</div></div>
-        <div style={{ display:'flex', gap:6, alignItems:'center', flexWrap:'wrap' }}>
-          {/* ── melhoria 5: selector de tema ── */}
-          <div style={{ display:'flex', gap:3, background:'#101F40', borderRadius:8, padding:3 }}>
-            {Object.entries(TEMAS).map(([id,t]) => (
-              <button key={id} onClick={() => mudarTema(id)} title={t.nome}
-                style={{ width:20, height:20, borderRadius:'50%', background:t.primaria, border:temaId===id?'2px solid #fff':'2px solid transparent', cursor:'pointer', padding:0 }}/>
-            ))}
+      {/* ── Header premium ── */}
+      <div style={{ background:`linear-gradient(135deg,#050D1A,#0B1830)`, border:`1px solid ${tema.primaria}33`, borderRadius:14, padding:'16px 18px', marginBottom:14, position:'relative', overflow:'hidden' }} id="pedigree-config-card">
+        <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background:`linear-gradient(90deg,${tema.primariaEscura},${tema.primaria},${tema.primariaEscura})` }}/>
+        <div style={{ position:'absolute', top:'-30%', right:'-10%', width:200, height:200, background:`radial-gradient(circle, ${tema.primaria}18 0%, transparent 70%)`, borderRadius:'50%', pointerEvents:'none' }}/>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', flexWrap:'wrap', gap:12, position:'relative' }}>
+          <div>
+            <div style={{ fontFamily:"'Fraunces',serif", fontSize:20, fontWeight:900, color:'#fff', display:'flex', alignItems:'center', gap:8 }}>
+              <span style={{ fontSize:22 }}>🌳</span> Pedigree
+            </div>
+            <div style={{ fontSize:11, color:'#7A8699', marginTop:2 }}>Árvore genealógica premium · até 4 gerações</div>
           </div>
-          {arvore && <button className="btn btn-primary btn-sm" onClick={gerarPDF}>📥 PDF</button>}
-          {arvore && pomboPedigree?.id && (
-            <BotaoQR
-              titulo={`Pedigree — ${pomboPedigree.nome}`}
-              conteudo={linkPublico}
-              subtitulo={`${pomboPedigree.nome} · ${pomboPedigree.anilha}`}
-            />
-          )}
-          {arvore && pomboPedigree?.id && (
-            <button className="btn btn-secondary btn-sm" onClick={copiarLink} title="Copiar link público">
-              {linkCopiado ? '✓ Copiado' : '🔗 Copiar link'}
-            </button>
-          )}
+          <div style={{ display:'flex', gap:6, alignItems:'center', flexWrap:'wrap' }}>
+            {/* selector de tema */}
+            <div style={{ display:'flex', gap:4, background:'rgba(255,255,255,.04)', border:'1px solid #1B2D52', borderRadius:10, padding:4 }}>
+              {Object.entries(TEMAS).map(([id,t]) => (
+                <button key={id} onClick={() => mudarTema(id)} title={t.nome}
+                  style={{ width:20, height:20, borderRadius:'50%', background:t.primaria, border:temaId===id?'2px solid #fff':'2px solid transparent', cursor:'pointer', padding:0, boxShadow:temaId===id?`0 0 8px ${t.primaria}`:'none', transition:'all .2s' }}/>
+              ))}
+            </div>
+            {arvore && <button className="btn btn-primary btn-sm" onClick={gerarPDF}>📥 PDF</button>}
+            {arvore && pomboPedigree?.id && (
+              <BotaoQR
+                titulo={`Pedigree — ${pomboPedigree.nome}`}
+                conteudo={linkPublico}
+                subtitulo={`${pomboPedigree.nome} · ${pomboPedigree.anilha}`}
+              />
+            )}
+            {arvore && pomboPedigree?.id && (
+              <button className="btn btn-secondary btn-sm" onClick={copiarLink} title="Copiar link público">
+                {linkCopiado ? '✓ Copiado' : '🔗 Copiar link'}
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
-      <div className="card card-p" id="pedigree-config-card" style={{ marginBottom: 16 }}>
+      <div className="card card-p" id="pedigree-config-card" style={{ marginBottom: 16, border:`1px solid ${tema.primaria}22` }}>
         <div style={{ display:'flex', gap:12, flexWrap:'wrap', alignItems:'flex-end' }}>
           <div style={{ flex:1, minWidth:200 }}>
             <div style={{ display:'flex', gap:6, marginBottom:6, flexWrap:'wrap' }}>
@@ -679,7 +697,35 @@ export default function Pedigree({ nav, params }) {
       </div>
 
       {!arvore ? (
-        <EmptyState icon="🌳" title="Seleccione um pombo" desc="Escolha o pombo principal para gerar o pedigree premium com até 4 gerações" />
+        <div style={{ position:'relative', borderRadius:16, overflow:'hidden', background:`linear-gradient(160deg,#050D1A,#0B1830)`, border:`1px solid ${tema.primaria}30`, padding:'56px 24px', textAlign:'center' }}>
+          {/* glow decorativo */}
+          <div style={{ position:'absolute', top:'-20%', left:'50%', transform:'translateX(-50%)', width:320, height:320, background:`radial-gradient(circle, ${tema.primaria}14 0%, transparent 70%)`, borderRadius:'50%', pointerEvents:'none' }}/>
+          {/* mini árvore decorativa */}
+          <div style={{ position:'relative', display:'flex', flexDirection:'column', alignItems:'center', gap:14, marginBottom:28 }}>
+            <div style={{ width:64, height:64, borderRadius:16, background:`linear-gradient(140deg,${tema.primariaEscura}30,${tema.primaria}15)`, border:`1px solid ${tema.primaria}50`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:30 }}>🌳</div>
+            <div style={{ display:'flex', gap:8 }}>
+              {[1,2].map(i=>(
+                <div key={i} style={{ width:36, height:36, borderRadius:10, background:'#101F40', border:'1px solid #1B2D52' }}/>
+              ))}
+            </div>
+            <div style={{ display:'flex', gap:6 }}>
+              {[1,2,3,4].map(i=>(
+                <div key={i} style={{ width:24, height:24, borderRadius:7, background:'#0B1830', border:'1px solid #162040' }}/>
+              ))}
+            </div>
+          </div>
+          <div style={{ position:'relative', fontFamily:"'Fraunces',serif", fontSize:22, fontWeight:900, color:'#fff', marginBottom:8 }}>Cria o pedigree do teu pombo</div>
+          <div style={{ position:'relative', fontSize:13, color:'#7A8699', maxWidth:380, margin:'0 auto 4px', lineHeight:1.7 }}>
+            Selecciona um pombo do efectivo acima para gerar a árvore genealógica completa — pais, avós e bisavós, pronta para PDF, partilha ou impressão.
+          </div>
+          <div style={{ position:'relative', display:'flex', gap:18, justifyContent:'center', marginTop:24, flexWrap:'wrap' }}>
+            {[['🖼️','Fotos dos ancestrais'],['🏆','Conquistas'],['📥','PDF premium'],['🔗','Link público']].map(([icon,label])=>(
+              <div key={label} style={{ display:'flex', alignItems:'center', gap:6, fontSize:11, color:'#7A8699' }}>
+                <span style={{ fontSize:14 }}>{icon}</span>{label}
+              </div>
+            ))}
+          </div>
+        </div>
       ) : (
         <div ref={printRef}>
           {/* Cabeçalho premium */}
