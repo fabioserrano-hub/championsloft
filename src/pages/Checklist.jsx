@@ -17,9 +17,12 @@ const SUGESTOES = [
   { titulo: 'Pesagem geral do efectivo', cat: 'Saúde', dias: 14 },
 ]
 const CATS = ['Manutenção', 'Alimentação', 'Saúde', 'Administrativo', 'Treino', 'Outro']
+const PRIORIDADES = ['alta','media','baixa']
+const priCor = { alta:'#f87171', media:'#D4AF37', baixa:'#2DD4A7' }
+const priIcon = { alta:'🔴', media:'🟡', baixa:'🟢' }
 const catIcon = { 'Manutenção': '🧹', 'Alimentação': '🌾', 'Saúde': '🏥', 'Administrativo': '📋', 'Treino': '🎯', 'Outro': '📌' }
 const catCor = { 'Manutenção': '#4C8DFF', 'Alimentação': '#2DD4A7', 'Saúde': '#f87171', 'Administrativo': '#D4AF37', 'Treino': '#C084FC', 'Outro': '#94a3b8' }
-const EMPTY = { titulo: '', cat: 'Manutenção', data_prevista: new Date().toISOString().slice(0, 10), estado: 'por_iniciar', obs: '', recorrencia_dias: '' }
+const EMPTY = { titulo: '', cat: 'Manutenção', prioridade:'media', data_prevista: new Date().toISOString().slice(0, 10), estado: 'por_iniciar', obs: '', recorrencia_dias: '' }
 
 export default function Checklist({ nav }) {
   const toast = useToast()
@@ -33,6 +36,7 @@ export default function Checklist({ nav }) {
   const [filtro, setFiltro] = useState('pendentes')
   const [form, setForm] = useState(EMPTY)
   const sf = (k, v) => setForm(f => ({ ...f, [k]: v }))
+  const [agrupar, setAgrupar] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -47,14 +51,14 @@ export default function Checklist({ nav }) {
   const isAtrasada = (t) => t.estado === 'por_iniciar' && t.data_prevista && t.data_prevista < hoje
 
   const openNew = (presetTitulo) => { setForm(presetTitulo ? { ...EMPTY, titulo: presetTitulo.titulo, cat: presetTitulo.cat, data_prevista: new Date(Date.now() + presetTitulo.dias * 86400000).toISOString().slice(0, 10), recorrencia_dias: presetTitulo.dias } : EMPTY); setSelected(null); setModal(true) }
-  const openEdit = (t) => { setSelected(t); setForm({ titulo: t.titulo || '', cat: t.cat || 'Manutenção', data_prevista: t.data_prevista || '', estado: t.estado || 'por_iniciar', obs: t.obs || '', recorrencia_dias: t.recorrencia_dias || '' }); setModal(true) }
+  const openEdit = (t) => { setSelected(t); setForm({ titulo: t.titulo || '', cat: t.cat || 'Manutenção', prioridade: t.prioridade||'media', data_prevista: t.data_prevista || '', estado: t.estado || 'por_iniciar', obs: t.obs || '', recorrencia_dias: t.recorrencia_dias || '' }); setModal(true) }
   const close = () => { setModal(false); setSelected(null) }
 
   const save = async () => {
     if (!form.titulo.trim()) { toast('Título obrigatório', 'warn'); return }
     setSaving(true)
     try {
-      const payload = { titulo: form.titulo.trim(), cat: form.cat, data_prevista: form.data_prevista || null, estado: form.estado, obs: form.obs, recorrencia_dias: form.recorrencia_dias ? parseInt(form.recorrencia_dias) : null }
+      const payload = { titulo: form.titulo.trim(), cat: form.cat, prioridade: form.prioridade||'media', data_prevista: form.data_prevista || null, estado: form.estado, obs: form.obs, recorrencia_dias: form.recorrencia_dias ? parseInt(form.recorrencia_dias) : null }
       selected ? await db.updateTarefa(selected.id, payload) : await db.createTarefa(payload)
       toast(selected ? 'Actualizada!' : 'Tarefa adicionada!', 'ok'); close(); load()
     } catch (e) { toast('Erro: ' + e.message, 'err') }
@@ -110,9 +114,11 @@ export default function Checklist({ nav }) {
               <span>✅</span> Checklist
             </div>
             <div style={{ fontSize:11, color:'#7A8699', marginTop:2 }}>{pendentesCount} pendentes · {atrasadasCount > 0 ? <span style={{ color:'#f87171' }}>{atrasadasCount} atrasadas</span> : '0 atrasadas'}</div>
+            {tarefas.length>0&&<div style={{ height:3, background:'#101F40', borderRadius:2, marginTop:5, maxWidth:200, overflow:'hidden' }}><div style={{ height:'100%', width:`${Math.round(concluidasCount/tarefas.length*100)}%`, background:'#2DD4A7', borderRadius:2 }}/></div>}
           </div>
           <div style={{ display:'flex', gap:6 }}>
             <BotaoGuia modulo="checklist"/>
+            <button className="btn btn-secondary btn-sm" onClick={()=>setAgrupar(v=>!v)}>{agrupar?'📋 Lista':'📂 Agrupar'}</button>
             <button className="btn btn-primary" onClick={() => openNew()}>+ Nova</button>
           </div>
         </div>
@@ -165,7 +171,7 @@ export default function Checklist({ nav }) {
       {/* Lista */}
       {loading ? <div style={{ display:'flex', justifyContent:'center', padding:60 }}><Spinner lg /></div>
         : filtered.length === 0 ? <EmptyState icon="✅" title="Nada por aqui" desc="Sem tarefas nesta categoria" />
-        : <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+        : !agrupar ? <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
             {filtered.map(tarefa => {
               const atrasada = isAtrasada(tarefa)
               const cor = catCor[tarefa.cat] || '#94a3b8'
@@ -187,12 +193,52 @@ export default function Checklist({ nav }) {
                         {tarefa.recorrencia_dias && <span> · 🔁 {tarefa.recorrencia_dias}d</span>}
                       </div>
                     </div>
-                    <div style={{ display:'flex', gap:4, flexShrink:0 }}>
+                    <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:4, flexShrink:0 }}>
+                      <span title={tarefa.prioridade} style={{ fontSize:12 }}>{priIcon[tarefa.prioridade||'media']}</span>
                       <button className="btn btn-secondary btn-sm" onClick={() => openEdit(tarefa)}>✏️</button>
                       <button className="btn btn-icon btn-sm" onClick={() => setConfirm(tarefa)}>🗑️</button>
                     </div>
                   </div>
                   {tarefa.obs && <div style={{ fontSize:11, color:'#7A8699', marginTop:8, paddingTop:8, borderTop:'1px solid #162040', fontStyle:'italic' }}>{tarefa.obs}</div>}
+                </div>
+              )
+            })}
+          </div>
+      </div>
+        ) : (
+          <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+            {CATS.filter(cat=>filtered.some(t=>t.cat===cat)).map(cat=>{
+              const grupo = filtered.filter(t=>t.cat===cat)
+              const cor = catCor[cat]||'#94a3b8'
+              return (
+                <div key={cat}>
+                  <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:6 }}>
+                    <span style={{ fontSize:16 }}>{catIcon[cat]}</span>
+                    <span style={{ fontSize:12, fontWeight:700, color:cor }}>{cat}</span>
+                    <span style={{ fontSize:11, color:'#475569' }}>({grupo.length})</span>
+                    <div style={{ flex:1, height:1, background:'#1B2D52' }}/>
+                  </div>
+                  <div style={{ display:'flex', flexDirection:'column', gap:5 }}>
+                    {grupo.sort((a,b)=>{ const p={alta:0,media:1,baixa:2}; return (p[a.prioridade||'media']||1)-(p[b.prioridade||'media']||1) }).map(tarefa=>{
+                      const atrasada=isAtrasada(tarefa)
+                      const cor2=catCor[tarefa.cat]||'#94a3b8'
+                      return (
+                        <div key={tarefa.id} style={{ background:'#0B1830', border:`1px solid ${atrasada?'rgba(248,113,113,.25)':'#1B2D52'}`, borderRadius:9, padding:'10px 12px', borderLeft:`3px solid ${atrasada?'#f87171':cor2}` }}>
+                          <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                            <button onClick={()=>toggleConcluida(tarefa)} style={{ width:22,height:22,borderRadius:6,border:tarefa.estado==='concluida'?'none':'2px solid #1B2D52',background:tarefa.estado==='concluida'?'#2DD4A7':'transparent',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',flexShrink:0,fontSize:11 }}>
+                              {tarefa.estado==='concluida'&&<span style={{ color:'#050D1A',fontWeight:900 }}>✓</span>}
+                            </button>
+                            <div style={{ flex:1, minWidth:0 }}>
+                              <div style={{ fontSize:12,fontWeight:600,color:tarefa.estado==='concluida'?'#475569':'#fff',textDecoration:tarefa.estado==='concluida'?'line-through':'none' }}>{tarefa.titulo}</div>
+                              {tarefa.data_prevista&&<div style={{ fontSize:10,color:atrasada?'#f87171':'#7A8699' }}>{atrasada?'⚠️ ':''}{new Date(tarefa.data_prevista).toLocaleDateString('pt-PT')}{tarefa.recorrencia_dias?` · 🔁 ${tarefa.recorrencia_dias}d`:''}</div>}
+                            </div>
+                            <span style={{ fontSize:11 }}>{priIcon[tarefa.prioridade||'media']}</span>
+                            <button className="btn btn-secondary btn-sm" onClick={()=>openEdit(tarefa)}>✏️</button>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
                 </div>
               )
             })}
@@ -203,8 +249,9 @@ export default function Checklist({ nav }) {
         footer={<><button className="btn btn-secondary" onClick={close}>Cancelar</button><button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? <Spinner /> : null}{selected ? t('guardar') : 'Adicionar'}</button></>}>
         <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
           <Field label="Título *"><input className="input" placeholder="Ex: Limpeza geral do pombal" value={form.titulo} onChange={e => sf('titulo', e.target.value)} /></Field>
-          <div className="form-grid" style={{ gridTemplateColumns:'1fr 1fr' }}>
+          <div className="form-grid" style={{ gridTemplateColumns:'1fr 1fr 1fr' }}>
             <Field label="Categoria"><select className="input" value={form.cat} onChange={e => sf('cat', e.target.value)}>{CATS.map(c => <option key={c}>{c}</option>)}</select></Field>
+            <Field label="Prioridade"><select className="input" value={form.prioridade||'media'} onChange={e=>sf('prioridade',e.target.value)}>{PRIORIDADES.map(p=><option key={p} value={p}>{priIcon[p]} {p}</option>)}</select></Field>
             <Field label="Data Prevista"><input className="input" type="date" value={form.data_prevista} onChange={e => sf('data_prevista', e.target.value)} /></Field>
           </div>
           {selected && <Field label="Estado"><select className="input" value={form.estado} onChange={e => sf('estado', e.target.value)}><option value="por_iniciar">Por Iniciar</option><option value="concluida">Concluída</option></select></Field>}
