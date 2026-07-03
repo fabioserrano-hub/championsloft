@@ -1,78 +1,75 @@
 // src/utils/FichaPomboPDF.js
-// Ficha Premium Fly2Win — jsPDF, sem emojis, layout 2 paginas
 import jsPDF from 'jspdf'
 
+const W = 210, H = 297, PAD = 14
+
+// Paleta light
 const C = {
-  void:   [2,   5,   9],
-  ocean:  [10,  26,  46],
-  steel:  [17,  32,  54],
-  panel:  [11,  20,  38],
-  gold:   [200, 168, 75],
-  goldD:  [122, 96,  32],
-  goldL:  [240, 210, 130],
-  white:  [240, 237, 232],
-  fog:    [136, 153, 170],
-  ghost:  [68,  85,  102],
-  teal:   [45,  212, 167],
-  red:    [248, 113, 113],
-  blue:   [76,  141, 255],
-  purple: [168, 85,  247],
-  amber:  [245, 158, 11],
+  bg:      [255, 255, 255],
+  bg2:     [248, 249, 252],
+  bg3:     [240, 243, 248],
+  panel:   [255, 255, 255],
+  border:  [220, 228, 240],
+  gold:    [180, 140, 40],
+  goldL:   [212, 175, 75],
+  goldXL:  [245, 220, 140],
+  dark:    [20,  30,  50],
+  mid:     [60,  80,  110],
+  fog:     [120, 140, 170],
+  teal:    [16,  160, 120],
+  blue:    [50,  110, 220],
+  purple:  [130, 70,  210],
+  amber:   [200, 130, 20],
+  red:     [200, 60,  60],
+  green:   [30,  160, 80],
 }
 
-const W = 210, H = 297
-const PAD = 12
+const safe = v => (v===null||v===undefined) ? '' : String(v)
+const f = (doc,size,style='normal') => { doc.setFontSize(size); doc.setFont('helvetica',style) }
+const tc = (doc,col) => doc.setTextColor(...col)
+const fc = (doc,col) => doc.setFillColor(...col)
+const dc = (doc,col) => doc.setDrawColor(...col)
 
-// helpers
-const safe = v => (v === null || v === undefined) ? '' : String(v)
-const fill = (doc, col) => doc.setFillColor(...col)
-const stroke = (doc, col) => doc.setDrawColor(...col)
-const txt = (doc, col) => doc.setTextColor(...col)
-const font = (doc, size, style='normal') => { doc.setFontSize(size); doc.setFont('helvetica', style) }
-
-function rect(doc, x, y, w, h, col, r=0) {
-  fill(doc, col)
-  if (r > 0) doc.roundedRect(x, y, w, h, r, r, 'F')
-  else doc.rect(x, y, w, h, 'F')
+function box(doc, x, y, w, h, fill, r=2, stroke=null, sw=0.3) {
+  fc(doc, fill)
+  doc.roundedRect(x, y, w, h, r, r, stroke ? 'FD' : 'F')
+  if (stroke) { dc(doc, stroke); doc.setLineWidth(sw); doc.roundedRect(x,y,w,h,r,r,'S') }
 }
 
-function line(doc, x1, y1, x2, y2, col, lw=0.3) {
-  doc.setLineWidth(lw)
-  stroke(doc, col)
-  doc.line(x1, y1, x2, y2)
+function hline(doc, y, col=C.border, lw=0.3) {
+  doc.setLineWidth(lw); dc(doc,col)
+  doc.line(PAD, y, W-PAD, y)
 }
 
 function secTitle(doc, label, y) {
-  font(doc, 7, 'bold')
-  txt(doc, C.gold)
+  f(doc,7,'bold'); tc(doc,C.gold)
   doc.text(label.toUpperCase(), PAD, y)
-  line(doc, PAD, y+1.5, W-PAD, y+1.5, C.goldD, 0.2)
-  return y + 6
+  hline(doc, y+1.5, C.goldL, 0.4)
+  return y+7
 }
 
-function kpiBox(doc, x, y, w, h, value, label, cor) {
-  rect(doc, x, y, w, h, C.panel, 3)
-  font(doc, 14, 'bold')
-  txt(doc, cor)
-  doc.text(safe(value), x + w/2, y + h/2 + 1, { align:'center' })
-  font(doc, 6, 'normal')
-  txt(doc, C.fog)
-  doc.text(label.toUpperCase(), x + w/2, y + h - 3, { align:'center' })
+function kpiCard(doc, x, y, w, h, value, label, cor) {
+  box(doc, x, y, w, h, C.bg2, 3, C.border, 0.2)
+  // accent top
+  fc(doc, cor); doc.rect(x, y, w, 2, 'F')
+  f(doc,13,'bold'); tc(doc,cor)
+  doc.text(safe(value), x+w/2, y+h/2+2, {align:'center'})
+  f(doc,5.5,'normal'); tc(doc,C.fog)
+  doc.text(label.toUpperCase(), x+w/2, y+h-3, {align:'center'})
 }
 
 async function loadImg(url) {
   return new Promise(resolve => {
-    const img = new Image()
-    img.crossOrigin = 'anonymous'
+    const img = new Image(); img.crossOrigin='anonymous'
     img.onload = () => {
       try {
-        const c = document.createElement('canvas')
-        c.width = img.width; c.height = img.height
-        c.getContext('2d').drawImage(img, 0, 0)
-        resolve(c.toDataURL('image/jpeg', 0.85))
+        const c=document.createElement('canvas')
+        c.width=img.width; c.height=img.height
+        c.getContext('2d').drawImage(img,0,0)
+        resolve(c.toDataURL('image/jpeg',0.85))
       } catch { resolve(null) }
     }
-    img.onerror = () => resolve(null)
+    img.onerror = ()=>resolve(null)
     img.src = url
   })
 }
@@ -81,367 +78,349 @@ function anoDeAnilha(anilha) {
   const m = anilha?.match(/-(\d{2})-/)
   if (!m) return null
   const a = parseInt(m[1])
-  return a > 50 ? 1900+a : 2000+a
+  return a>50 ? 1900+a : 2000+a
 }
 
-// ── PAGINA 1 ─────────────────────────────────────────────────────────────────
-async function pagina1(doc, pombo, historicoProvas, pedigreeInfo) {
-  // fundo
-  rect(doc, 0, 0, W, H, C.void)
+// ── PAGINA 1 ──────────────────────────────────────────────────────────────────
+async function pagina1(doc, pombo, provas, pedigree) {
+  fc(doc, C.bg); doc.rect(0,0,W,H,'F')
 
-  // barra dourada topo
-  rect(doc, 0, 0, W, 4, C.gold)
+  // barra topo dourada
+  fc(doc, C.gold); doc.rect(0,0,W,8,'F')
+  fc(doc, C.goldXL); doc.rect(0,6,W,2,'F')
 
-  // watermark diagonal
-  doc.saveGraphicsState()
-  doc.setGState(new doc.GState({ opacity: 0.04 }))
-  font(doc, 48, 'bold')
-  txt(doc, C.gold)
-  doc.text('FLY2WIN', W/2, H/2, { align:'center', angle:45 })
-  doc.restoreGraphicsState()
+  // logo/marca no topo
+  f(doc,9,'bold'); tc(doc,[255,255,255])
+  doc.text('FLY2WIN', PAD, 5.5)
+  f(doc,5,'normal'); tc(doc,C.goldXL)
+  doc.text('Fly to Win  |  Conquer the Skies', PAD+22, 5.5)
+  f(doc,5,'normal'); tc(doc,[255,255,255])
+  doc.text('FICHA DE POMBO', W-PAD, 5.5, {align:'right'})
 
-  let y = 10
+  let y = 14
 
-  // ── HEADER CARD ──────────────────────────────────────────────────────────
-  rect(doc, PAD, y, W-PAD*2, 52, C.ocean, 4)
+  // ── HEADER CARD ─────────────────────────────────────────────────────────
+  box(doc, PAD, y, W-PAD*2, 54, C.bg2, 4, C.border, 0.3)
 
   // foto
-  const fW = 38, fH = 44
-  const fX = PAD+4, fY = y+4
-  rect(doc, fX, fY, fW, fH, C.steel, 3)
+  const fW=42, fH=48, fX=PAD+5, fY=y+3
+  box(doc, fX, fY, fW, fH, C.bg3, 3, C.border, 0.2)
   if (pombo.foto_url) {
     const img = await loadImg(pombo.foto_url)
-    if (img) doc.addImage(img, 'JPEG', fX, fY, fW, fH, undefined, 'FAST')
+    if (img) doc.addImage(img,'JPEG',fX,fY,fW,fH,undefined,'FAST')
   } else {
-    font(doc, 8, 'normal')
-    txt(doc, C.fog)
-    doc.text('Sem foto', fX+fW/2, fY+fH/2, { align:'center' })
+    f(doc,7,'normal'); tc(doc,C.fog)
+    doc.text('Sem foto', fX+fW/2, fY+fH/2, {align:'center'})
   }
-
-  // badge estado
-  const estadoCor = pombo.estado === 'ativo' ? C.teal : pombo.estado === 'lesionado' ? C.red : C.fog
-  rect(doc, fX, fY+fH-7, fW, 7, estadoCor)
-  font(doc, 5, 'bold')
-  txt(doc, C.void)
-  doc.text((pombo.estado||'ativo').toUpperCase(), fX+fW/2, fY+fH-3, { align:'center' })
+  // estado badge
+  const estadoCor = pombo.estado==='ativo'?C.green:pombo.estado==='lesionado'?C.red:C.fog
+  fc(doc,estadoCor); doc.roundedRect(fX,fY+fH-7,fW,7,0,0,'F')
+  f(doc,5,'bold'); tc(doc,[255,255,255])
+  doc.text((pombo.estado||'ativo').toUpperCase(), fX+fW/2, fY+fH-3, {align:'center'})
 
   // info direita
-  const iX = fX+fW+8
-  font(doc, 20, 'bold')
-  txt(doc, C.white)
-  doc.text(safe(pombo.nome), iX, y+14)
-
-  font(doc, 10, 'normal')
-  txt(doc, C.gold)
-  doc.text(safe(pombo.anilha), iX, y+21)
-
-  // linha info
+  const iX = fX+fW+10
   const anoNasc = anoDeAnilha(pombo.anilha)
   const idade = anoNasc ? new Date().getFullYear()-anoNasc : null
-  const sexoTxt = pombo.sexo === 'M' ? 'Macho' : 'Femea'
-  const infoLinha = [sexoTxt, pombo.cor, idade ? `${idade} anos` : null, pombo.pombal].filter(Boolean).join('  |  ')
-  font(doc, 7.5, 'normal')
-  txt(doc, C.fog)
-  doc.text(infoLinha, iX, y+28)
+  const sexoTxt = pombo.sexo==='M' ? 'Macho' : 'Femea'
 
-  // especialidades
-  if ((pombo.esp||[]).length > 0) {
-    const ESP_LABEL = { velocidade:'VELOCIDADE', meio_fundo:'MEIO-FUNDO', fundo:'FUNDO', grande_fundo:'GRANDE FUNDO', 'meio-fundo':'MEIO-FUNDO', 'grande-fundo':'GRANDE FUNDO' }
-    const ESP_C = { velocidade:C.amber, meio_fundo:C.blue, fundo:C.teal, grande_fundo:C.purple, 'meio-fundo':C.blue, 'grande-fundo':C.purple }
+  f(doc,22,'bold'); tc(doc,C.dark)
+  doc.text(safe(pombo.nome), iX, y+16)
+
+  f(doc,10,'bold'); tc(doc,C.gold)
+  doc.text(safe(pombo.anilha), iX, y+23)
+
+  // linha info
+  const info = [sexoTxt, pombo.cor, idade?`${idade} anos`:null, pombo.pombal].filter(Boolean)
+  f(doc,7,'normal'); tc(doc,C.mid)
+  doc.text(info.join('  |  '), iX, y+30)
+
+  // especialidades pills
+  if ((pombo.esp||[]).length>0) {
+    const ESP_LABEL = {velocidade:'Velocidade',meio_fundo:'Meio-Fundo',fundo:'Fundo',grande_fundo:'Grande Fundo','meio-fundo':'Meio-Fundo','grande-fundo':'Grande Fundo'}
+    const ESP_C = {velocidade:C.amber,meio_fundo:C.blue,fundo:C.teal,grande_fundo:C.purple,'meio-fundo':C.blue,'grande-fundo':C.purple}
     let ex = iX
     ;(pombo.esp||[]).forEach(e => {
-      const lbl = ESP_LABEL[e]||e.toUpperCase()
+      const lbl = ESP_LABEL[e]||e
       const ec = ESP_C[e]||C.fog
-      const bw = doc.getStringUnitWidth(lbl)*6.5/doc.internal.scaleFactor + 8
-      rect(doc, ex, y+32, bw, 7, [...ec, 0.15].slice(0,3), 2)
-      // border
-      doc.setLineWidth(0.3)
-      doc.setDrawColor(...ec)
-      doc.roundedRect(ex, y+32, bw, 7, 2, 2, 'S')
-      font(doc, 5.5, 'bold')
-      txt(doc, ec)
-      doc.text(lbl, ex+bw/2, y+37, { align:'center' })
-      ex += bw + 4
+      const bw = lbl.length*2.2+8
+      fc(doc,[...ec.slice(0,2),ec[2]]); // light bg — approximate
+      box(doc, ex, y+34, bw, 7, [...ec.map(v=>Math.min(255,v+180))], 10, ec, 0.5)
+      f(doc,5.5,'bold'); tc(doc,ec)
+      doc.text(lbl, ex+bw/2, y+39, {align:'center'})
+      ex += bw+4
     })
   }
 
-  // criador
+  // criador + pombal direita
   if (pombo.criador) {
-    font(doc, 7, 'normal')
-    txt(doc, C.fog)
-    doc.text(`Criador: ${safe(pombo.criador)}`, W-PAD-4, y+14, { align:'right' })
+    f(doc,6,'normal'); tc(doc,C.fog)
+    doc.text('Criador:', W-PAD-4, y+14, {align:'right'})
+    f(doc,7,'bold'); tc(doc,C.mid)
+    doc.text(safe(pombo.criador), W-PAD-4, y+19, {align:'right'})
   }
 
-  y += 58
+  // taxa vitoria
+  const vitorias = provas.filter(r=>r.posicao===1).length
+  const taxaVit = provas.length>0 ? Math.round(vitorias/provas.length*100) : 0
+  if (provas.length>0) {
+    f(doc,6,'normal'); tc(doc,C.fog)
+    doc.text('Taxa vitoria:', W-PAD-4, y+30, {align:'right'})
+    f(doc,8,'bold'); tc(doc,taxaVit>=10?C.gold:C.mid)
+    doc.text(taxaVit+'%', W-PAD-4, y+36, {align:'right'})
+  }
+
+  y += 60
 
   // ── KPIs ─────────────────────────────────────────────────────────────────
-  const kmTotal = historicoProvas.reduce((s,r)=>s+(r.races?.dist||0),0)
-  const melhorPos = historicoProvas.filter(r=>r.posicao).sort((a,b)=>a.posicao-b.posicao)[0]
+  const kmTotal = provas.reduce((s,r)=>s+(r.races?.dist||0),0)
+  const melhorPos = provas.filter(r=>r.posicao).sort((a,b)=>a.posicao-b.posicao)[0]
+  const vels = provas.filter(r=>r.velocidade)
+  const velMax = vels.length ? Math.max(...vels.map(r=>r.velocidade)) : null
+  const velMin = vels.length ? Math.min(...vels.map(r=>r.velocidade)) : null
+
   const kpis = [
-    { v: safe(pombo.provas??0),             l:'Provas',      c:C.gold },
-    { v: safe(pombo.percentil??0)+'%',      l:'Percentil',   c:C.teal },
-    { v: safe(pombo.forma??50)+'%',         l:'Forma',       c:C.blue },
-    { v: kmTotal>0 ? kmTotal+'km' : '---',  l:'km Totais',   c:C.purple },
-    { v: melhorPos ? melhorPos.posicao+'.' : '---', l:'Melhor Pos.', c:C.amber },
+    {v:safe(pombo.provas??0),                    l:'Provas',      c:C.gold},
+    {v:safe(pombo.percentil??0)+'%',             l:'Percentil',   c:C.teal},
+    {v:safe(pombo.forma??50)+'%',                l:'Forma Atual', c:C.blue},
+    {v:kmTotal>0?kmTotal+'km':'---',             l:'km Totais',   c:C.purple},
+    {v:melhorPos?melhorPos.posicao+'.':'---',    l:'Melhor Pos.', c:C.amber},
+    {v:taxaVit>0?taxaVit+'%':'---',              l:'Taxa Vitoria',c:C.green},
   ]
-  const kW = (W-PAD*2-8) / kpis.length
-  kpis.forEach((k,i) => kpiBox(doc, PAD+i*(kW+2), y, kW, 20, k.v, k.l, k.c))
+  const kW = (W-PAD*2-kpis.length*2)/(kpis.length)
+  kpis.forEach((k,i)=>kpiCard(doc, PAD+i*(kW+2), y, kW, 20, k.v, k.l, k.c))
   y += 26
 
   // ── PEDIGREE ─────────────────────────────────────────────────────────────
-  if (pedigreeInfo?.pai || pedigreeInfo?.mae || pombo.pai || pombo.mae) {
-    y = secTitle(doc, 'Pedigree — Progenitores', y)
-    const cols = [
-      { label:'PAI', data:pedigreeInfo?.pai, raw:pombo.pai },
-      { mae:'MAE', data:pedigreeInfo?.mae, raw:pombo.mae, label:'MAE' },
-    ]
-    const cW = (W-PAD*2-6)/2
-    cols.forEach((c,i) => {
-      const cx = PAD + i*(cW+6)
-      rect(doc, cx, y, cW, 22, C.panel, 3)
-      font(doc, 6, 'bold')
-      txt(doc, C.fog)
-      doc.text(c.label, cx+4, y+5)
-      const nome = c.data?.nome || c.raw || '---'
-      const anilha = c.data?.anilha || ''
-      font(doc, 9, 'bold')
-      txt(doc, C.white)
-      doc.text(safe(nome), cx+4, y+12)
-      if (anilha) {
-        font(doc, 7, 'normal')
-        txt(doc, C.gold)
-        doc.text(safe(anilha), cx+4, y+18)
-      }
-      if ((c.data?.percentil||0) > 0) {
-        font(doc, 10, 'bold')
-        txt(doc, C.teal)
-        doc.text(safe(c.data.percentil)+'%', cx+cW-4, y+14, { align:'right' })
-        font(doc, 6, 'normal')
-        txt(doc, C.fog)
-        doc.text('percentil', cx+cW-4, y+19, { align:'right' })
+  if (pedigree?.pai||pedigree?.mae||pombo.pai||pombo.mae) {
+    y = secTitle(doc,'Pedigree — Progenitores',y)
+    const cW=(W-PAD*2-6)/2
+    ;[{l:'PAI',d:pedigree?.pai,r:pombo.pai},{l:'MAE',d:pedigree?.mae,r:pombo.mae}].forEach((c,i)=>{
+      const cx=PAD+i*(cW+6)
+      box(doc,cx,y,cW,24,C.bg2,3,C.border,0.2)
+      // accent lateral
+      fc(doc,i===0?C.blue:C.red); doc.rect(cx,y,2,24,'F')
+      f(doc,6,'bold'); tc(doc,C.fog)
+      doc.text(c.l, cx+6, y+6)
+      const nome=c.d?.nome||c.r||'---'
+      const anilha=c.d?.anilha||''
+      f(doc,9,'bold'); tc(doc,C.dark)
+      doc.text(safe(nome), cx+6, y+13)
+      if (anilha) { f(doc,7,'normal'); tc(doc,C.gold); doc.text(safe(anilha),cx+6,y+19) }
+      if ((c.d?.percentil||0)>0) {
+        f(doc,11,'bold'); tc(doc,C.teal)
+        doc.text(safe(c.d.percentil)+'%', cx+cW-4, y+15, {align:'right'})
+        f(doc,5,'normal'); tc(doc,C.fog)
+        doc.text('percentil', cx+cW-4, y+20, {align:'right'})
       }
     })
-    y += 28
+    y += 30
   }
 
-  // ── AVOS (se existem nos dados de pedigree) ──────────────────────────────
-  // simplificado — anilha dos avos via campos pai.pai / mae.mae se existirem
-  const avo_pp = pedigreeInfo?.pai?.pai_nome || null
-  const avo_pm = pedigreeInfo?.pai?.mae_nome || null
-  const avo_mp = pedigreeInfo?.mae?.pai_nome || null
-  const avo_mm = pedigreeInfo?.mae?.mae_nome || null
-  if (avo_pp || avo_pm || avo_mp || avo_mm) {
-    y = secTitle(doc, 'Avo(s)', y)
-    const avos = [
-      {l:'Avo Pat. Paterno', v:avo_pp},
-      {l:'Avo Pat. Materno', v:avo_pm},
-      {l:'Avo Mat. Paterno', v:avo_mp},
-      {l:'Avo Mat. Materno', v:avo_mm},
-    ].filter(a=>a.v)
-    const aW = (W-PAD*2-avos.length*2) / avos.length
-    avos.forEach((a,i) => {
-      const ax = PAD + i*(aW+2)
-      rect(doc, ax, y, aW, 14, C.panel, 2)
-      font(doc, 5.5, 'bold')
-      txt(doc, C.fog)
-      doc.text(a.l, ax+4, y+5)
-      font(doc, 7.5, 'normal')
-      txt(doc, C.white)
-      doc.text(safe(a.v).slice(0,18), ax+4, y+11)
+  // ── STATS VELOCIDADE ─────────────────────────────────────────────────────
+  if (vels.length>0) {
+    y = secTitle(doc,'Velocidades',y)
+    const velMedia = Math.round(vels.reduce((s,r)=>s+r.velocidade,0)/vels.length*10)/10
+    const sW=(W-PAD*2-6)/3
+    ;[
+      {l:'Maxima',  v:safe(velMax)+'km/h', c:C.green},
+      {l:'Media',   v:safe(velMedia)+'km/h',c:C.blue},
+      {l:'Minima',  v:safe(velMin)+'km/h', c:C.amber},
+    ].forEach((s,i)=>{
+      const sx=PAD+i*(sW+3)
+      box(doc,sx,y,sW,16,C.bg2,3,C.border,0.2)
+      f(doc,9,'bold'); tc(doc,s.c)
+      doc.text(s.v, sx+sW/2, y+9, {align:'center'})
+      f(doc,5.5,'normal'); tc(doc,C.fog)
+      doc.text(s.l.toUpperCase(), sx+sW/2, y+14, {align:'center'})
     })
-    y += 20
+    y += 22
   }
 
   // ── OBSERVACOES ──────────────────────────────────────────────────────────
   if (pombo.obs) {
-    y = secTitle(doc, 'Observacoes', y)
-    rect(doc, PAD, y, W-PAD*2, 18, C.panel, 3)
-    font(doc, 8, 'normal')
-    txt(doc, C.white)
-    const lines = doc.splitTextToSize(safe(pombo.obs), W-PAD*2-8)
-    doc.text(lines.slice(0,2), PAD+4, y+7)
-    y += 24
+    y = secTitle(doc,'Observacoes',y)
+    box(doc,PAD,y,W-PAD*2,18,C.bg2,3,C.border,0.2)
+    fc(doc,C.gold); doc.rect(PAD,y,2,18,'F')
+    f(doc,7.5,'normal'); tc(doc,C.mid)
+    const lines=doc.splitTextToSize(safe(pombo.obs),W-PAD*2-10)
+    doc.text(lines.slice(0,2),PAD+6,y+7)
+    y+=24
   }
 
-  // ── PROVAS (primeiras 6 na p1 se couberem) ────────────────────────────────
-  if (historicoProvas.length > 0 && y < H-70) {
-    y = secTitle(doc, `Historial de Provas (${historicoProvas.length})`, y)
-
-    // cabeçalho tabela
-    rect(doc, PAD, y, W-PAD*2, 7, C.steel)
-    font(doc, 6, 'bold')
-    txt(doc, C.fog)
-    ;[['PROVA',PAD+3],['DATA',90],['DIST',115],['POS.',135],['VEL.',155],['TOP',175]].forEach(([l,x])=>doc.text(l,x,y+4.5))
-    y += 8
-
-    const maxP1 = Math.min(historicoProvas.length, Math.floor((H-y-20)/7))
-    historicoProvas.slice(0,maxP1).forEach((r,i) => {
-      if (i%2===0) rect(doc, PAD, y-1, W-PAD*2, 7, C.panel)
-      const nome = safe(r.races?.nome||'Prova').slice(0,28)
-      const data = r.races?.data_reg ? new Date(r.races.data_reg).toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit',year:'2-digit'}) : '---'
-      const dist = r.races?.dist ? r.races.dist+'km' : '---'
-      const pos = r.posicao ? r.posicao+'.' : '---'
-      const vel = r.velocidade ? r.velocidade+'km/h' : '---'
-      const pct = r.posicao && r.races?.n_pombos ? Math.round((r.posicao/r.races.n_pombos)*100)+'%' : '---'
-      font(doc, 6.5, 'normal')
-      txt(doc, C.white)
-      doc.text(nome, PAD+3, y+4)
-      txt(doc, C.fog)
-      doc.text(data, 90, y+4)
-      doc.text(dist, 115, y+4)
-      const pc = r.posicao===1 ? C.gold : r.posicao<=3 ? C.amber : C.white
-      txt(doc, pc)
-      font(doc, 6.5, r.posicao===1?'bold':'normal')
-      doc.text(pos, 135, y+4)
-      font(doc, 6.5, 'normal')
-      txt(doc, C.teal)
-      doc.text(vel, 155, y+4)
-      txt(doc, C.fog)
-      doc.text(pct, 175, y+4)
-      y += 7
+  // ── PROVAS (primeiras 8) ──────────────────────────────────────────────────
+  if (provas.length>0 && y<H-50) {
+    y = secTitle(doc,`Historial de Provas (${provas.length})`,y)
+    // header tabela
+    box(doc,PAD,y,W-PAD*2,7,C.dark,2)
+    f(doc,5.5,'bold'); tc(doc,[255,255,255])
+    ;[['PROVA',PAD+3],['DATA',95],['DIST',115],['POS.',133],['VEL.',152],['TOP %',170]].forEach(([l,x])=>doc.text(l,x,y+4.5))
+    y+=8
+    const max8=Math.min(provas.length,Math.floor((H-y-22)/7))
+    provas.slice(0,max8).forEach((r,i)=>{
+      if(i%2===0) box(doc,PAD,y-1,W-PAD*2,7,C.bg3,0)
+      else { fc(doc,C.bg); doc.rect(PAD,y-1,W-PAD*2,7,'F') }
+      const nome=safe(r.races?.nome||'Prova').slice(0,30)
+      const data=r.races?.data_reg?new Date(r.races.data_reg).toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit',year:'2-digit'}):'---'
+      const dist=r.races?.dist?r.races.dist+'km':'---'
+      const pos=r.posicao?r.posicao+'.':'---'
+      const vel=r.velocidade?r.velocidade+'km/h':'---'
+      const pct=r.posicao&&r.races?.n_pombos?Math.round((r.posicao/r.races.n_pombos)*100)+'%':'---'
+      f(doc,6,'normal'); tc(doc,C.dark); doc.text(nome,PAD+3,y+4)
+      tc(doc,C.fog); doc.text(data,95,y+4); doc.text(dist,115,y+4)
+      const pc=r.posicao===1?C.gold:r.posicao<=3?C.amber:C.mid
+      f(doc,6,r.posicao===1?'bold':'normal'); tc(doc,pc); doc.text(pos,133,y+4)
+      f(doc,6,'normal'); tc(doc,C.teal); doc.text(vel,152,y+4)
+      tc(doc,C.fog); doc.text(pct,170,y+4)
+      y+=7
     })
-    y += 4
+    y+=2
   }
 
-  // ── RODAPE P1 ─────────────────────────────────────────────────────────────
-  rect(doc, 0, H-10, W, 10, C.steel)
-  rect(doc, 0, H-3, W, 3, C.gold)
-  font(doc, 6, 'normal')
-  txt(doc, C.fog)
-  doc.text('Fly2Win  |  fly2win.pt  |  Fly to Win, Conquer the Skies', W/2, H-6, { align:'center' })
-  doc.text(`Emitido em ${new Date().toLocaleDateString('pt-PT')}`, W-PAD, H-6, { align:'right' })
-  doc.text('Pagina 1', PAD, H-6)
+  // ── RODAPE ───────────────────────────────────────────────────────────────
+  hline(doc,H-12,C.border,0.3)
+  f(doc,6,'normal'); tc(doc,C.fog)
+  doc.text('Fly2Win  |  fly2win.pt  |  Fly to Win, Conquer the Skies',W/2,H-7,{align:'center'})
+  doc.text(`Emitido em ${new Date().toLocaleDateString('pt-PT')}`,W-PAD,H-7,{align:'right'})
+  f(doc,6,'bold'); tc(doc,C.gold); doc.text('1 / 2',PAD,H-7)
 }
 
-// ── PAGINA 2 ─────────────────────────────────────────────────────────────────
-function pagina2(doc, pombo, historicoProvas, pedigreeInfo) {
+// ── PAGINA 2 ──────────────────────────────────────────────────────────────────
+function pagina2(doc, pombo, provas) {
   doc.addPage()
-  rect(doc, 0, 0, W, H, C.void)
-  rect(doc, 0, 0, W, 4, C.gold)
+  fc(doc,C.bg); doc.rect(0,0,W,H,'F')
+  fc(doc,C.gold); doc.rect(0,0,W,8,'F')
+  fc(doc,C.goldXL); doc.rect(0,6,W,2,'F')
+  f(doc,9,'bold'); tc(doc,[255,255,255]); doc.text('FLY2WIN',PAD,5.5)
+  f(doc,5,'normal'); tc(doc,[255,255,255]); doc.text('FICHA DE POMBO',W-PAD,5.5,{align:'right'})
 
-  // watermark
-  doc.saveGraphicsState()
-  doc.setGState(new doc.GState({ opacity: 0.04 }))
-  font(doc, 48, 'bold')
-  txt(doc, C.gold)
-  doc.text('FLY2WIN', W/2, H/2, { align:'center', angle:45 })
-  doc.restoreGraphicsState()
-
-  let y = 12
-
+  let y=14
   // mini header
-  rect(doc, PAD, y, W-PAD*2, 14, C.ocean, 3)
-  font(doc, 11, 'bold')
-  txt(doc, C.white)
-  doc.text(safe(pombo.nome), PAD+8, y+9)
-  font(doc, 7, 'normal')
-  txt(doc, C.gold)
-  doc.text(safe(pombo.anilha), W-PAD-4, y+9, { align:'right' })
-  y += 20
+  box(doc,PAD,y,W-PAD*2,13,C.bg2,3,C.border,0.2)
+  f(doc,11,'bold'); tc(doc,C.dark); doc.text(safe(pombo.nome),PAD+6,y+9)
+  f(doc,7,'normal'); tc(doc,C.gold); doc.text(safe(pombo.anilha),W-PAD-4,y+9,{align:'right'})
+  y+=19
 
-  // provas restantes (se houver mais de 6)
-  if (historicoProvas.length > 6) {
-    y = secTitle(doc, `Provas — Continuacao (${historicoProvas.length} total)`, y)
-    rect(doc, PAD, y, W-PAD*2, 7, C.steel)
-    font(doc, 6, 'bold')
-    txt(doc, C.fog)
-    ;[['PROVA',PAD+3],['DATA',90],['DIST',115],['POS.',135],['VEL.',155],['TOP',175]].forEach(([l,x])=>doc.text(l,x,y+4.5))
-    y += 8
-
-    historicoProvas.slice(6).forEach((r,i) => {
-      if (y > H-30) return
-      if (i%2===0) rect(doc, PAD, y-1, W-PAD*2, 7, C.panel)
-      const nome = safe(r.races?.nome||'Prova').slice(0,28)
-      const data = r.races?.data_reg ? new Date(r.races.data_reg).toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit',year:'2-digit'}) : '---'
-      const dist = r.races?.dist ? r.races.dist+'km' : '---'
-      const pos = r.posicao ? r.posicao+'.' : '---'
-      const vel = r.velocidade ? r.velocidade+'km/h' : '---'
-      const pct = r.posicao && r.races?.n_pombos ? Math.round((r.posicao/r.races.n_pombos)*100)+'%' : '---'
-      font(doc, 6.5, 'normal')
-      txt(doc, C.white); doc.text(nome, PAD+3, y+4)
-      txt(doc, C.fog);   doc.text(data, 90, y+4); doc.text(dist, 115, y+4)
-      txt(doc, r.posicao===1?C.gold:r.posicao<=3?C.amber:C.white)
-      doc.text(pos, 135, y+4)
-      txt(doc, C.teal); doc.text(vel, 155, y+4)
-      txt(doc, C.fog);  doc.text(pct, 175, y+4)
-      y += 7
+  // provas restantes
+  if (provas.length>8) {
+    y=secTitle(doc,`Provas — Continuacao`,y)
+    box(doc,PAD,y,W-PAD*2,7,C.dark,2)
+    f(doc,5.5,'bold'); tc(doc,[255,255,255])
+    ;[['PROVA',PAD+3],['DATA',95],['DIST',115],['POS.',133],['VEL.',152],['TOP %',170]].forEach(([l,x])=>doc.text(l,x,y+4.5))
+    y+=8
+    provas.slice(8).forEach((r,i)=>{
+      if(y>H-30) return
+      if(i%2===0) box(doc,PAD,y-1,W-PAD*2,7,C.bg3,0)
+      else { fc(doc,C.bg); doc.rect(PAD,y-1,W-PAD*2,7,'F') }
+      const nome=safe(r.races?.nome||'Prova').slice(0,30)
+      const data=r.races?.data_reg?new Date(r.races.data_reg).toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit',year:'2-digit'}):'---'
+      const dist=r.races?.dist?r.races.dist+'km':'---'
+      const pos=r.posicao?r.posicao+'.':'---'
+      const vel=r.velocidade?r.velocidade+'km/h':'---'
+      const pct=r.posicao&&r.races?.n_pombos?Math.round((r.posicao/r.races.n_pombos)*100)+'%':'---'
+      f(doc,6,'normal'); tc(doc,C.dark); doc.text(nome,PAD+3,y+4)
+      tc(doc,C.fog); doc.text(data,95,y+4); doc.text(dist,115,y+4)
+      const pc=r.posicao===1?C.gold:r.posicao<=3?C.amber:C.mid
+      f(doc,6,r.posicao===1?'bold':'normal'); tc(doc,pc); doc.text(pos,133,y+4)
+      f(doc,6,'normal'); tc(doc,C.teal); doc.text(vel,152,y+4)
+      tc(doc,C.fog); doc.text(pct,170,y+4)
+      y+=7
     })
-    y += 6
+    y+=6
   }
 
-  // estatisticas resumo
-  if (historicoProvas.length > 0) {
-    y = secTitle(doc, 'Resumo Estatistico', y)
-    const vitorias = historicoProvas.filter(r=>r.posicao===1).length
-    const podios = historicoProvas.filter(r=>r.posicao&&r.posicao<=3).length
-    const vels = historicoProvas.filter(r=>r.velocidade)
-    const velMedia = vels.length ? Math.round(vels.reduce((s,r)=>s+r.velocidade,0)/vels.length*10)/10 : null
-    const kmTotal = historicoProvas.reduce((s,r)=>s+(r.races?.dist||0),0)
-    const dists = historicoProvas.map(r=>r.races?.dist||0).filter(d=>d>0)
-    const distMax = dists.length ? Math.max(...dists) : 0
+  // ── RESUMO ESTATISTICO ───────────────────────────────────────────────────
+  if (provas.length>0) {
+    y=secTitle(doc,'Resumo Estatistico',y)
+    const vitorias=provas.filter(r=>r.posicao===1).length
+    const podios=provas.filter(r=>r.posicao&&r.posicao<=3).length
+    const vels=provas.filter(r=>r.velocidade)
+    const velMedia=vels.length?Math.round(vels.reduce((s,r)=>s+r.velocidade,0)/vels.length*10)/10:null
+    const kmTotal=provas.reduce((s,r)=>s+(r.races?.dist||0),0)
+    const dists=provas.map(r=>r.races?.dist||0).filter(d=>d>0)
+    const distMax=dists.length?Math.max(...dists):0
+    const taxaVit=Math.round(vitorias/provas.length*100)
 
-    const stats = [
-      {l:'Vitorias',     v:safe(vitorias),              c:C.gold},
-      {l:'Podios (Top3)',v:safe(podios),                c:C.amber},
-      {l:'Vel. Media',   v:velMedia ? velMedia+'km/h' : '---', c:C.teal},
-      {l:'km Totais',    v:kmTotal > 0 ? kmTotal+'km' : '---', c:C.purple},
-      {l:'Dist. Maxima', v:distMax > 0 ? distMax+'km' : '---', c:C.blue},
+    const stats=[
+      {l:'Vitorias',      v:safe(vitorias),               c:C.gold},
+      {l:'Podios Top 3',  v:safe(podios),                 c:C.amber},
+      {l:'Taxa Vitoria',  v:taxaVit+'%',                  c:C.green},
+      {l:'Vel. Media',    v:velMedia?velMedia+'km/h':'---',c:C.blue},
+      {l:'km Totais',     v:kmTotal>0?kmTotal+'km':'---', c:C.purple},
+      {l:'Dist. Maxima',  v:distMax>0?distMax+'km':'---', c:C.teal},
     ]
-    const sW = (W-PAD*2-stats.length*2) / stats.length
-    stats.forEach((s,i) => {
-      kpiBox(doc, PAD+i*(sW+2), y, sW, 18, s.v, s.l, s.c)
+    const sW=(W-PAD*2-stats.length*2)/stats.length
+    stats.forEach((s,i)=>kpiCard(doc,PAD+i*(sW+2),y,sW,20,s.v,s.l,s.c))
+    y+=26
+  }
+
+  // ── LINHA TEMPORAL POR EPOCA ─────────────────────────────────────────────
+  if (provas.length>0) {
+    const porEpoca={}
+    provas.forEach(r=>{
+      if(!r.races?.data_reg) return
+      const ep=new Date(r.races.data_reg).getFullYear()
+      if(!porEpoca[ep]) porEpoca[ep]={provas:0,vitorias:0,podios:0,percentis:[]}
+      porEpoca[ep].provas++
+      if(r.posicao===1) porEpoca[ep].vitorias++
+      if(r.posicao&&r.posicao<=3) porEpoca[ep].podios++
     })
-    y += 24
+    const epocas=Object.keys(porEpoca).sort()
+    if(epocas.length>0) {
+      y=secTitle(doc,'Resumo por Epoca',y)
+      box(doc,PAD,y,W-PAD*2,7,C.dark,2)
+      f(doc,5.5,'bold'); tc(doc,[255,255,255])
+      ;[['EPOCA',PAD+3],['PROVAS',70],['VITORIAS',100],['PODIOS',130]].forEach(([l,x])=>doc.text(l,x,y+4.5))
+      y+=8
+      epocas.forEach((ep,i)=>{
+        const d=porEpoca[ep]
+        if(i%2===0) box(doc,PAD,y-1,W-PAD*2,7,C.bg3,0)
+        else { fc(doc,C.bg); doc.rect(PAD,y-1,W-PAD*2,7,'F') }
+        f(doc,6.5,'bold'); tc(doc,C.dark); doc.text(safe(ep),PAD+3,y+4)
+        f(doc,6,'normal'); tc(doc,C.mid); doc.text(safe(d.provas),70,y+4)
+        tc(doc,d.vitorias>0?C.gold:C.fog); doc.text(safe(d.vitorias),100,y+4)
+        tc(doc,d.podios>0?C.amber:C.fog); doc.text(safe(d.podios),130,y+4)
+        y+=7
+      })
+      y+=6
+    }
   }
 
-  // info de origem
-  if (pombo.criador || pombo.data_aquisicao || pombo.valor_aquisicao) {
-    y = secTitle(doc, 'Origem / Aquisicao', y)
-    rect(doc, PAD, y, W-PAD*2, 22, C.panel, 3)
-    font(doc, 7.5, 'normal')
-    txt(doc, C.fog)
-    let ly = y+7
-    if (pombo.criador) { txt(doc,C.white); doc.text('Criador: ', PAD+4, ly); txt(doc,C.fog); doc.text(safe(pombo.criador), PAD+28, ly); ly+=7 }
-    if (pombo.data_aquisicao) { txt(doc,C.white); doc.text('Data aquisicao: ', PAD+4, ly); txt(doc,C.fog); doc.text(new Date(pombo.data_aquisicao).toLocaleDateString('pt-PT'), PAD+46, ly); ly+=7 }
-    if (pombo.valor_aquisicao) { txt(doc,C.white); doc.text('Valor: ', PAD+4, ly); txt(doc,C.gold); doc.text(safe(pombo.valor_aquisicao)+'EUR', PAD+20, ly) }
-    y += 28
-  }
+  // ── CERTIFICADO / VERIFICACAO ─────────────────────────────────────────────
+  y=secTitle(doc,'Certificado de Autenticidade',y)
+  box(doc,PAD,y,W-PAD*2,36,C.bg2,4,C.gold,0.5)
+  fc(doc,C.gold); doc.rect(PAD,y,3,36,'F')
 
-  // QR code placeholder
-  y = secTitle(doc, 'Verificacao Digital', y)
-  rect(doc, PAD, y, W-PAD*2, 28, C.panel, 3)
-  // QR placeholder (quadrado)
-  rect(doc, PAD+4, y+4, 20, 20, C.steel, 2)
-  font(doc, 5, 'normal')
-  txt(doc, C.fog)
-  doc.text('QR CODE', PAD+14, y+15, { align:'center' })
-  font(doc, 7, 'normal')
-  txt(doc, C.white)
-  doc.text('Pombo verificado na plataforma Fly2Win', PAD+30, y+10)
-  font(doc, 6.5, 'normal')
-  txt(doc, C.fog)
-  doc.text(`Anilha: ${safe(pombo.anilha)}`, PAD+30, y+16)
-  doc.text(`Percentil verificado: ${safe(pombo.percentil||0)}%  |  Provas: ${safe(pombo.provas||0)}`, PAD+30, y+22)
-  txt(doc, C.teal)
-  doc.text('fly2win.pt/pedigree', PAD+30, y+27)
-  y += 34
+  // QR placeholder
+  box(doc,PAD+8,y+6,24,24,C.bg3,2,C.border,0.3)
+  f(doc,5,'normal'); tc(doc,C.fog); doc.text('QR CODE',PAD+20,y+19,{align:'center'})
 
-  // rodape p2
-  rect(doc, 0, H-10, W, 10, C.steel)
-  rect(doc, 0, H-3, W, 3, C.gold)
-  font(doc, 6, 'normal')
-  txt(doc, C.fog)
-  doc.text('Fly2Win  |  fly2win.pt  |  Fly to Win, Conquer the Skies', W/2, H-6, { align:'center' })
-  doc.text(`Emitido em ${new Date().toLocaleDateString('pt-PT')}`, W-PAD, H-6, { align:'right' })
-  doc.text('Pagina 2', PAD, H-6)
+  f(doc,8,'bold'); tc(doc,C.dark)
+  doc.text('Pombo verificado na plataforma Fly2Win', PAD+38, y+10)
+  f(doc,7,'normal'); tc(doc,C.mid)
+  doc.text(`Anilha: ${safe(pombo.anilha)}`, PAD+38, y+17)
+  doc.text(`Percentil: ${safe(pombo.percentil||0)}%   |   Provas: ${safe(pombo.provas||0)}`, PAD+38, y+23)
+  f(doc,7,'bold'); tc(doc,C.gold)
+  doc.text('fly2win.pt/pedigree', PAD+38, y+30)
+  // data emissao
+  f(doc,6,'normal'); tc(doc,C.fog)
+  doc.text(`Emitido em ${new Date().toLocaleDateString('pt-PT')}`,W-PAD-4,y+30,{align:'right'})
+  y+=42
+
+  // ── RODAPE ───────────────────────────────────────────────────────────────
+  hline(doc,H-12,C.border,0.3)
+  f(doc,6,'normal'); tc(doc,C.fog)
+  doc.text('Fly2Win  |  fly2win.pt  |  Fly to Win, Conquer the Skies',W/2,H-7,{align:'center'})
+  doc.text(`Emitido em ${new Date().toLocaleDateString('pt-PT')}`,W-PAD,H-7,{align:'right'})
+  f(doc,6,'bold'); tc(doc,C.gold); doc.text('2 / 2',PAD,H-7)
 }
 
 // ── EXPORT ────────────────────────────────────────────────────────────────────
-export async function gerarFichaPombo(pombo, historicoProvas=[], pedigreeInfo=null) {
-  const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' })
-  await pagina1(doc, pombo, historicoProvas, pedigreeInfo)
-  pagina2(doc, pombo, historicoProvas, pedigreeInfo)
-  const nome = safe(pombo.nome).replace(/[^a-zA-Z0-9_-]/g,'_')||'pombo'
-  const anilha = safe(pombo.anilha).replace(/[^a-zA-Z0-9]/g,'')||''
+export async function gerarFichaPombo(pombo, provas=[], pedigree=null) {
+  const doc = new jsPDF({orientation:'portrait',unit:'mm',format:'a4'})
+  await pagina1(doc, pombo, provas, pedigree)
+  pagina2(doc, pombo, provas)
+  const nome=safe(pombo.nome).replace(/[^a-zA-Z0-9_-]/g,'_')||'pombo'
+  const anilha=safe(pombo.anilha).replace(/[^a-zA-Z0-9]/g,'')||''
   doc.save(`Fly2Win_${nome}_${anilha}.pdf`)
 }
