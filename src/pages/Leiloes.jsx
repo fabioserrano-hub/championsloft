@@ -4,6 +4,7 @@ import { useAuth } from '../hooks/useAuth'
 import { useLicenca, BloqueioPlano } from '../hooks/useLicenca'
 import { useToast, Spinner, Modal, Field, EmptyState } from '../components/ui'
 import { useIdioma } from '../hooks/useIdioma'
+import { GuiaAuto, BotaoGuia } from '../components/GuiaModulo'
 
 // ── constantes ────────────────────────────────────────────────────────────────
 const ESP_ICON = { velocidade:'⚡','meio-fundo':'🎯',fundo:'🏔️','grande-fundo':'🌍',meio_fundo:'🎯',grande_fundo:'🌍' }
@@ -274,6 +275,14 @@ export default function Leiloes({ nav }) {
     window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`,'_blank')
   }
 
+  // ── registar venda nas Finanças ───────────────────────────────────────────
+  const registarVendaFinancas = async (leilao, valorFinal) => {
+    try {
+      await db.createFinanca({ tipo:'receita', categoria:'Leilões', descricao:`Venda: ${leilao.nome}`, valor:valorFinal, data_reg:new Date().toISOString().slice(0,10), pombo_id:leilao.pombo_id||null })
+      toast('💰 Registado nas Finanças!','ok')
+    } catch(e) { toast('Aviso: não registado nas Finanças','warn') }
+  }
+
   // ── filtros ───────────────────────────────────────────────────────────────
   const leiloesFiltrados = leiloes.filter(l=>{
     if(filtroTipo!=='todos'&&(l.subtipo||'pombo')!==filtroTipo) return false
@@ -313,18 +322,15 @@ export default function Leiloes({ nav }) {
       <div key={l.id} style={{background:'#0B1830',border:`1px solid ${urgente?'rgba(248,113,113,.35)':encerrado?'#162040':isDesc?'rgba(45,212,167,.25)':isFav?'rgba(212,175,55,.35)':'rgba(212,175,55,.15)'}`,borderRadius:14,overflow:'hidden',transition:'border-color .2s'}}>
         <div style={{height:2,background:encerrado?'#162040':isDesc?'linear-gradient(90deg,#10B981,#2DD4A7)':urgente?'#f87171':'linear-gradient(90deg,#6B4F00,#D4AF37,#B8960C)'}} />
         <div style={{padding:'12px 14px'}}>
-          {/* tipo badge */}
           {isDesc&&<div style={{display:'inline-flex',alignItems:'center',gap:5,fontSize:10,fontWeight:700,color:'#2DD4A7',background:'rgba(45,212,167,.1)',padding:'2px 8px',borderRadius:8,marginBottom:8}}>🥚 Leilão de Descendente</div>}
 
           <div style={{display:'flex',gap:12,alignItems:'flex-start'}}>
-            {/* foto */}
             <div style={{position:'relative',flexShrink:0}}>
               <div style={{width:64,height:64,borderRadius:10,background:'#101F40',overflow:'hidden',display:'flex',alignItems:'center',justifyContent:'center',fontSize:isDesc?32:28,border:`1px solid ${isDesc?'rgba(45,212,167,.2)':'#1B2D52'}`}}>
                 {isDesc?'🥚':l.foto_url?<img src={l.foto_url} style={{width:'100%',height:'100%',objectFit:'cover'}} alt=""/>:'🐦'}
               </div>
               {l.garantia_performance&&<div style={{position:'absolute',bottom:-4,left:'50%',transform:'translateX(-50%)',fontSize:9,background:'#10B981',color:'#fff',padding:'1px 5px',borderRadius:6,whiteSpace:'nowrap',fontWeight:700}}>✓ Garantia</div>}
             </div>
-            {/* info */}
             <div style={{flex:1,minWidth:0}}>
               <div style={{display:'flex',gap:6,alignItems:'center',flexWrap:'wrap',marginBottom:2}}>
                 <span style={{fontSize:14,fontWeight:700,color:'#fff'}}>{l.nome}</span>
@@ -347,7 +353,6 @@ export default function Leiloes({ nav }) {
                 {vendedorScore&&<ScoreVendedor score={vendedorScore.score} total={vendedorScore.total}/>}
               </div>
             </div>
-            {/* lance + tempo */}
             <div style={{textAlign:'center',flexShrink:0,minWidth:72}}>
               <div style={{fontSize:9,color:'#7A8699',marginBottom:1}}>Lance actual</div>
               <div style={{fontFamily:"'Fraunces',serif",fontSize:22,fontWeight:900,color:'#D4AF37',lineHeight:1}}>{lanceAtual.toFixed(0)}€</div>
@@ -357,17 +362,14 @@ export default function Leiloes({ nav }) {
             </div>
           </div>
 
-          {/* descrição */}
           {l.descricao&&<div style={{fontSize:11,color:'#7A8699',marginTop:8,lineHeight:1.5,borderTop:'1px solid #162040',paddingTop:8}}>{l.descricao.slice(0,120)}{l.descricao.length>120?'…':''}</div>}
 
-          {/* garantia */}
           {l.garantia_performance&&(
             <div style={{marginTop:8,fontSize:10,color:'#10B981',background:'rgba(16,185,129,.07)',border:'1px solid rgba(16,185,129,.2)',borderRadius:8,padding:'5px 10px'}}>
               ✅ Garantia de performance — devolução se não atingir {l.garantia_percentil}% nas primeiras {l.garantia_provas} provas
             </div>
           )}
 
-          {/* badges */}
           <div style={{display:'flex',gap:5,marginTop:8,flexWrap:'wrap'}}>
             {estouAGanhar&&!encerrado&&<span style={{fontSize:10,fontWeight:700,color:'#2DD4A7',background:'rgba(45,212,167,.1)',padding:'2px 8px',borderRadius:8}}>🏆 A ganhar</span>}
             {meuLance&&!estouAGanhar&&!encerrado&&<span style={{fontSize:10,color:'#f87171',background:'rgba(248,113,113,.1)',padding:'2px 8px',borderRadius:8}}>Superado — {meuLance.valor}€</span>}
@@ -375,7 +377,6 @@ export default function Leiloes({ nav }) {
             {urgente&&!encerrado&&<span style={{fontSize:10,color:'#f87171',background:'rgba(248,113,113,.1)',padding:'2px 8px',borderRadius:8}}>🔥 Última hora</span>}
           </div>
 
-          {/* acções */}
           <div style={{display:'flex',gap:6,marginTop:10,flexWrap:'wrap',alignItems:'center'}}>
             <button onClick={e=>toggleFavorito(l.id,e)} style={{background:'none',border:`1px solid ${isFav?'rgba(212,175,55,.4)':'#1B2D52'}`,borderRadius:8,padding:'5px 8px',cursor:'pointer',fontSize:14,color:isFav?'#D4AF37':'#475569'}} title={isFav?'Remover':'Favorito'}>
               {isFav?'⭐':'☆'}
@@ -386,6 +387,12 @@ export default function Leiloes({ nav }) {
             <button className="btn btn-secondary btn-sm" onClick={()=>toggleExpandido(l.id)}>
               {aberto?'▲ Fechar':'📋 Lances'}
             </button>
+            {encerrado&&isMinhaPubl&&lics.length>0&&(
+              <button className="btn btn-secondary btn-sm" style={{color:'#2DD4A7',borderColor:'rgba(45,212,167,.3)'}}
+                onClick={()=>registarVendaFinancas(l,lics[0]?.valor||lanceAtual)}>
+                💰 Finanças
+              </button>
+            )}
             {!encerrado&&!isMinhaPubl&&(
               <button onClick={()=>{toggleExpandido(l.id);setTimeout(()=>document.getElementById(`lic-${l.id}`)?.focus(),150)}}
                 style={{background:'linear-gradient(135deg,#B8960C,#D4AF37)',color:'#050D1A',border:'none',borderRadius:8,padding:'6px 14px',cursor:'pointer',fontFamily:'inherit',fontWeight:700,fontSize:12,marginLeft:'auto'}}>
@@ -395,7 +402,6 @@ export default function Leiloes({ nav }) {
           </div>
         </div>
 
-        {/* painel expandido */}
         {aberto&&(
           <div style={{borderTop:'1px solid #162040',background:'#070F1D',padding:'12px 14px'}}>
             {lics.length>0?(
@@ -453,6 +459,8 @@ export default function Leiloes({ nav }) {
   // ── RENDER ────────────────────────────────────────────────────────────────
   return (
     <div>
+      <GuiaAuto modulo="leiloes"/>
+
       {/* Header */}
       <div style={{background:'linear-gradient(135deg,#0A0800,#1A1000,#0D0A00)',border:'1px solid rgba(212,175,55,.3)',borderRadius:14,padding:'16px',marginBottom:14,position:'relative',overflow:'hidden'}}>
         <div style={{position:'absolute',top:0,left:0,right:0,height:3,background:'linear-gradient(90deg,#3D2C00,#D4AF37,#F5CC50,#D4AF37,#3D2C00)'}}/>
@@ -466,6 +474,7 @@ export default function Leiloes({ nav }) {
             <button onClick={()=>setModalAlertas(true)} style={{background:'rgba(212,175,55,.1)',border:'1px solid rgba(212,175,55,.25)',borderRadius:10,padding:'8px 12px',cursor:'pointer',fontFamily:'inherit',fontSize:12,color:'#D4AF37'}}>
               🔔 {alertas.length>0?`${alertas.length}`:''} Alertas
             </button>
+            <BotaoGuia modulo="leiloes"/>
             <button onClick={()=>{setForm(EMPTY);setModal(true)}} style={{background:'linear-gradient(135deg,#B8960C,#D4AF37)',color:'#050D1A',border:'none',borderRadius:10,padding:'10px 16px',cursor:'pointer',fontFamily:'inherit',fontWeight:700,fontSize:13,boxShadow:'0 4px 15px rgba(212,175,55,.3)'}}>
               🔨 Leiloar
             </button>
@@ -540,7 +549,6 @@ export default function Leiloes({ nav }) {
       <Modal open={modal} onClose={()=>{setModal(false);setForm(EMPTY)}} title="🔨 Criar Leilão" wide
         footer={<><button className="btn btn-secondary" onClick={()=>setModal(false)}>Cancelar</button><button onClick={criarLeilao} disabled={saving} style={{background:'linear-gradient(135deg,#B8960C,#D4AF37)',color:'#050D1A',border:'none',borderRadius:8,padding:'10px 20px',cursor:'pointer',fontFamily:'inherit',fontWeight:700}}>{saving?<Spinner/>:null}{form.tipo_leilao==='descendente'?'🥚 Publicar':'🔨 Publicar'}</button></>}>
 
-        {/* tipo de leilão */}
         <div style={{display:'flex',gap:8,marginBottom:16}}>
           {[['pombo','🐦 Pombo do efectivo','Leiloa um pombo que já tens'],['descendente','🥚 Descendente futuro','Reserva uma ninhada antes de nascer']].map(([v,titulo,desc])=>(
             <div key={v} onClick={()=>sf('tipo_leilao',v)} style={{flex:1,padding:'12px',borderRadius:10,border:`2px solid ${form.tipo_leilao===v?v==='descendente'?'#2DD4A7':'#D4AF37':'#1B2D52'}`,background:form.tipo_leilao===v?v==='descendente'?'rgba(45,212,167,.06)':'rgba(212,175,55,.06)':'#101F40',cursor:'pointer'}}>
@@ -551,7 +559,6 @@ export default function Leiloes({ nav }) {
           ))}
         </div>
 
-        {/* ── LEILÃO DE POMBO ── */}
         {form.tipo_leilao==='pombo'&&(
           <div style={{display:'flex',flexDirection:'column',gap:12}}>
             <div style={{padding:'10px 12px',background:'rgba(212,175,55,.06)',border:'1px solid rgba(212,175,55,.15)',borderRadius:8,fontSize:12,color:'#94a3b8'}}>
@@ -560,7 +567,6 @@ export default function Leiloes({ nav }) {
             <Field label="🐦 Pombo do efectivo">
               <SelectorPombo pombos={pombos} value={form.pombo_id} onChange={onSelectPombo}/>
             </Field>
-            {/* dados preenchidos (editáveis) */}
             {form.pombo_id&&(
               <>
                 <div style={{fontSize:11,color:'#7A8699',marginBottom:-4}}>Podes editar os dados abaixo antes de publicar:</div>
@@ -572,7 +578,6 @@ export default function Leiloes({ nav }) {
                 </div>
               </>
             )}
-            {/* sem pombo seleccionado — entrada manual */}
             {!form.pombo_id&&(
               <div className="form-grid">
                 <div className="col-2"><Field label="Nome do pombo *"><input className="input" value={form.nome} onChange={e=>sf('nome',e.target.value)} placeholder="Ex: Relâmpago"/></Field></div>
@@ -585,7 +590,6 @@ export default function Leiloes({ nav }) {
           </div>
         )}
 
-        {/* ── LEILÃO DE DESCENDENTE ── */}
         {form.tipo_leilao==='descendente'&&(
           <div style={{display:'flex',flexDirection:'column',gap:12}}>
             <div style={{padding:'10px 12px',background:'rgba(45,212,167,.06)',border:'1px solid rgba(45,212,167,.15)',borderRadius:8,fontSize:12,color:'#94a3b8',lineHeight:1.6}}>
@@ -627,7 +631,6 @@ export default function Leiloes({ nav }) {
           </div>
         )}
 
-        {/* campos comuns */}
         <div style={{borderTop:'1px solid #1B2D52',paddingTop:14,marginTop:14}}>
           <div className="form-grid">
             <Field label="Lance mínimo (€) *"><input className="input" type="number" value={form.leilao_min} onChange={e=>sf('leilao_min',e.target.value)} placeholder="Ex: 50"/></Field>
@@ -640,7 +643,6 @@ export default function Leiloes({ nav }) {
             {form.tipo_leilao==='pombo'&&<Field label="URL Foto"><input className="input" value={form.foto_url} onChange={e=>sf('foto_url',e.target.value)} placeholder="https://..."/></Field>}
             <div className="col-2"><Field label="Descrição"><textarea className="input" rows={3} style={{resize:'none'}} value={form.descricao} onChange={e=>sf('descricao',e.target.value)} placeholder={form.tipo_leilao==='descendente'?'Linhagem, historial dos pais, condições de entrega...':'Linhagem, historial de provas, pontos fortes...'}/></Field></div>
           </div>
-          {/* opções avançadas */}
           <div style={{fontSize:12,fontWeight:600,color:'#7A8699',marginBottom:10,marginTop:4}}>⚙️ Opções</div>
           <div style={{display:'flex',flexDirection:'column',gap:8}}>
             <div onClick={()=>sf('leilao_silencioso',!form.leilao_silencioso)} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px',background:form.leilao_silencioso?'rgba(139,92,246,.08)':'#101F40',border:`1px solid ${form.leilao_silencioso?'rgba(139,92,246,.3)':'#1B2D52'}`,borderRadius:10,cursor:'pointer'}}>
