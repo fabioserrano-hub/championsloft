@@ -645,5 +645,50 @@ export const db = {
     if (error) { if (error.code === '42P01') return []; throw error }
     return data || []
   },
+  // ─── Mensagens ───────────────────────────────────────────────
+  async getConversas() {
+    const uid = await this.uid()
+    const { data, error } = await supabase.from('mensagens_conversas')
+      .select('*').or(`user_a.eq.${uid},user_b.eq.${uid}`)
+      .order('updated_at', { ascending: false })
+    if (error) throw error
+    return data || []
+  },
+  async criarConversa(outroId, outroNome, outraFoto, meuNome, minhaFoto) {
+    const uid = await this.uid()
+    const { data, error } = await supabase.from('mensagens_conversas').insert({
+      user_a: uid, user_b: outroId,
+      nome_a: meuNome, nome_b: outroNome,
+      foto_a: minhaFoto || '', foto_b: outraFoto || '',
+      updated_at: new Date().toISOString()
+    }).select().single()
+    if (error) throw error
+    return data
+  },
+  async getMensagens(conversaId) {
+    const { data, error } = await supabase.from('mensagens')
+      .select('*').eq('conversa_id', conversaId)
+      .order('created_at', { ascending: true })
+    if (error) throw error
+    return data || []
+  },
+  async enviarMensagem(conversaId, conteudo, autorNome, replyId, replyTexto) {
+    const uid = await this.uid()
+    const { data, error } = await supabase.from('mensagens').insert({
+      conversa_id: conversaId, user_id: uid, autor: autorNome,
+      conteudo, lida: false,
+      reply_to: replyId || null, reply_texto: replyTexto || null
+    }).select().single()
+    if (error) throw error
+    await supabase.from('mensagens_conversas').update({
+      ultima_msg: conteudo, updated_at: new Date().toISOString()
+    }).eq('id', conversaId)
+    return data
+  },
+  async marcarMensagensLidas(conversaId) {
+    const uid = await this.uid()
+    await supabase.from('mensagens').update({ lida: true })
+      .eq('conversa_id', conversaId).neq('user_id', uid)
+  },
 }
 
