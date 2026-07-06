@@ -456,29 +456,8 @@ export default function Alimentacao({ nav }) {
   const [provasFuturas, setProvasFuturas] = useState([])
   const [meteoProva, setMeteoProva]       = useState({})
   const [alertaIgnorado, setAlertaIgnorado] = useState({})
-
   const DIAS_ANTES = { velocidade:4, 'meio-fundo':6, meio_fundo:6, fundo:7, 'grande-fundo':9, grande_fundo:9 }
   const PLANO_REC  = { velocidade:'Pre-Competicao', 'meio-fundo':'Pre-Competicao', meio_fundo:'Pre-Competicao', fundo:'Preparacao Fundo', 'grande-fundo':'Preparacao Fundo', grande_fundo:'Preparacao Fundo' }
-
-  useEffect(()=>{
-    const carregar = async () => {
-      try {
-        const { supabase } = await import('../lib/supabase')
-        const hoje = new Date().toISOString().slice(0,10)
-        const limite = new Date(Date.now()+21*86400000).toISOString().slice(0,10)
-        const { data } = await supabase.from('races').select('id,nome,data_reg,tipo,local_solta,lat_solta,lon_solta,dist').gte('data_reg',hoje).lte('data_reg',limite).order('data_reg')
-        setProvasFuturas(data||[])
-        ;(data||[]).filter(r=>r.lat_solta&&r.lon_solta).forEach(async r=>{
-          try {
-            const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${r.lat_solta}&longitude=${r.lon_solta}&daily=precipitation_sum,windspeed_10m_max,temperature_2m_max&timezone=auto&start_date=${r.data_reg}&end_date=${r.data_reg}`)
-            const j = await res.json()
-            setMeteoProva(m=>({...m,[r.id]:{prec:j.daily?.precipitation_sum?.[0]??0,vento:j.daily?.windspeed_10m_max?.[0]??0,temp:j.daily?.temperature_2m_max?.[0]??0}}))
-          } catch {}
-        })
-      } catch {}
-    }
-    carregar()
-  },[])
 
   // ── load ──────────────────────────────────────────────────────────────────
   // Armazém: unifica getTreatmentProducts + getStock pelo nome
@@ -508,6 +487,26 @@ export default function Alimentacao({ nav }) {
     finally { setLoading(false) }
   }, [])
   useEffect(()=>{ load() },[load])
+
+  useEffect(()=>{
+    const carregar = async () => {
+      try {
+        const { supabase } = await import('../lib/supabase')
+        const hoje = new Date().toISOString().slice(0,10)
+        const limite = new Date(Date.now()+21*86400000).toISOString().slice(0,10)
+        const { data } = await supabase.from('races').select('id,nome,data_reg,tipo,local_solta,lat_solta,lon_solta,dist').gte('data_reg',hoje).lte('data_reg',limite).order('data_reg')
+        setProvasFuturas(data||[])
+        ;(data||[]).filter(r=>r.lat_solta&&r.lon_solta).forEach(async r=>{
+          try {
+            const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${r.lat_solta}&longitude=${r.lon_solta}&daily=precipitation_sum,windspeed_10m_max,temperature_2m_max&timezone=auto&start_date=${r.data_reg}&end_date=${r.data_reg}`)
+            const j = await res.json()
+            setMeteoProva(m=>({...m,[r.id]:{prec:j.daily?.precipitation_sum?.[0]??0,vento:j.daily?.windspeed_10m_max?.[0]??0,temp:j.daily?.temperature_2m_max?.[0]??0}}))
+          } catch {}
+        })
+      } catch {}
+    }
+    carregar()
+  },[])
 
   // ── computed ──────────────────────────────────────────────────────────────
   const semanaAtual    = segundaFeira()
@@ -847,31 +846,24 @@ export default function Alimentacao({ nav }) {
       {/* banner provas futuras */}
       {provasFuturas.filter(r=>{
         const dias=Math.round((new Date(r.data_reg)-new Date())/86400000)
-        const ante=DIAS_ANTES[r.tipo]||5
-        return dias>=0&&dias<=ante&&!alertaIgnorado[r.id]
+        return dias>=0&&dias<=(DIAS_ANTES[r.tipo]||5)&&!alertaIgnorado[r.id]
       }).map(r=>{
         const dias=Math.round((new Date(r.data_reg)-new Date())/86400000)
-        const ante=DIAS_ANTES[r.tipo]||5
         const mt=meteoProva[r.id]
-        const recNome=PLANO_REC[r.tipo]||'Pre-Competicao'
-        const planoSug=planos.find(p=>p.nome?.toLowerCase().includes(recNome.toLowerCase().slice(0,6)))
+        const planoSug=planos.find(p=>p.nome?.toLowerCase().includes((PLANO_REC[r.tipo]||'').toLowerCase().slice(0,6)))
         return (
           <div key={r.id} style={{background:'rgba(212,175,55,.08)',border:'1px solid rgba(212,175,55,.25)',borderRadius:12,padding:'12px 14px',marginBottom:8}}>
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8,flexWrap:'wrap'}}>
               <div style={{flex:1}}>
                 <div style={{fontWeight:700,color:'#D4AF37',marginBottom:3}}>🏁 {r.nome} — daqui a {dias} dia(s)</div>
-                <div style={{fontSize:11,color:'#94a3b8',marginBottom:4}}>{r.tipo?.replace('_','-')||'—'}{r.dist?` · ${r.dist}km`:''}{r.local_solta?` · ${r.local_solta}`:''}</div>
-                {mt&&<div style={{fontSize:11,color:'#94a3b8',marginBottom:6}}>
-                  🌡️ {mt.temp}°C · 💨 {mt.vento}km/h · 🌧️ {mt.prec}mm
-                  {mt.prec>5&&<span style={{color:'#f87171',fontWeight:600}}> ⚠️ Chuva — reforçar electrólitos</span>}
-                  {mt.vento>40&&<span style={{color:'#f87171',fontWeight:600}}> ⚠️ Vento forte</span>}
-                </div>}
-                {planoSug&&<div style={{fontSize:11,color:'#2DD4A7'}}>💊 Plano sugerido: <strong>{planoSug.nome}</strong></div>}
+                <div style={{fontSize:11,color:'#94a3b8'}}>{r.tipo?.replace('_','-')||'—'}{r.dist?` · ${r.dist}km`:''}{r.local_solta?` · Solta: ${r.local_solta}`:''}</div>
+                {mt&&<div style={{fontSize:11,color:'#94a3b8',marginTop:3}}>🌡️ {mt.temp}°C · 💨 {mt.vento}km/h · 🌧️ {mt.prec}mm{mt.prec>5?<span style={{color:'#f87171',fontWeight:600}}> ⚠️ Chuva — reforçar electrólitos</span>:null}{mt.vento>40?<span style={{color:'#f87171',fontWeight:600}}> ⚠️ Vento forte</span>:null}</div>}
+                {planoSug&&<div style={{fontSize:11,color:'#2DD4A7',marginTop:3}}>💊 Sugerido: <strong>{planoSug.nome}</strong></div>}
               </div>
-              <div style={{display:'flex',gap:6,flexShrink:0,flexWrap:'wrap'}}>
-                {planoSug&&<button className="btn btn-primary btn-sm" onClick={()=>{setPlanoParaAplicar(planoSug);setModalAplicar(true)}}>✅ Aplicar</button>}
-                <button className="btn btn-secondary btn-sm" onClick={()=>setTab('auto')}>🗓️ Ver</button>
-                <button className="btn btn-icon btn-sm" onClick={()=>setAlertaIgnorado(a=>({...a,[r.id]:true}))}>✕</button>
+              <div style={{display:'flex',gap:6}}>
+                {planoSug&&<button className='btn btn-primary btn-sm' onClick={()=>{setPlanoParaAplicar(planoSug);setModalAplicar(true)}}>✅ Aplicar</button>}
+                <button className='btn btn-secondary btn-sm' onClick={()=>setTab('auto')}>🗓️ Ver</button>
+                <button className='btn btn-icon btn-sm' onClick={()=>setAlertaIgnorado(a=>({...a,[r.id]:true}))}>✕</button>
               </div>
             </div>
           </div>
@@ -1123,20 +1115,19 @@ export default function Alimentacao({ nav }) {
       {/* ══ AUTO ══ */}
       {tab==='auto'&&(
         <div style={{display:'flex',flexDirection:'column',gap:10}}>
-          <div style={{fontSize:12,color:'#94a3b8',marginBottom:4}}>Provas nas próximas 3 semanas e planos de tratamento sugeridos.</div>
+          <div style={{fontSize:12,color:'#94a3b8',marginBottom:4}}>Provas nas próximas 3 semanas e planos sugeridos por categoria.</div>
           {provasFuturas.length===0
-            ? <div style={{textAlign:'center',color:'#475569',padding:32,fontSize:13}}>Sem provas registadas nas próximas 3 semanas</div>
-            : provasFuturas.map(r=>{
+            ?<div style={{textAlign:'center',color:'#475569',padding:32,fontSize:13}}>Sem provas nas próximas 3 semanas</div>
+            :provasFuturas.map(r=>{
                 const dias=Math.round((new Date(r.data_reg)-new Date())/86400000)
                 const ante=DIAS_ANTES[r.tipo]||5
                 const fase=dias<0?'recuperacao':dias<=ante?'pre-prova':'aguardar'
                 const mt=meteoProva[r.id]
-                const recNome=PLANO_REC[r.tipo]||'Pre-Competicao'
-                const planoSug=planos.find(p=>p.nome?.toLowerCase().includes(recNome.toLowerCase().slice(0,6)))
+                const planoSug=planos.find(p=>p.nome?.toLowerCase().includes((PLANO_REC[r.tipo]||'').toLowerCase().slice(0,6)))
                 const faseCor=fase==='pre-prova'?'#D4AF37':fase==='recuperacao'?'#2DD4A7':'#475569'
                 const faseLabel=fase==='pre-prova'?`⚡ Pré-prova (${dias}d)`:fase==='recuperacao'?'🔄 Recuperação':`⏳ Em ${dias} dias`
                 return (
-                  <div key={r.id} className="card card-p" style={{borderLeft:`3px solid ${faseCor}`}}>
+                  <div key={r.id} className='card card-p' style={{borderLeft:`3px solid ${faseCor}`}}>
                     <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:8}}>
                       <div>
                         <div style={{fontWeight:700,color:'#fff',marginBottom:2}}>{r.nome}</div>
@@ -1144,40 +1135,31 @@ export default function Alimentacao({ nav }) {
                       </div>
                       <span style={{fontSize:11,fontWeight:700,color:faseCor}}>{faseLabel}</span>
                     </div>
-                    {/* Janela de tratamento */}
                     <div style={{background:'rgba(255,255,255,.03)',borderRadius:8,padding:'8px 10px',marginBottom:8}}>
-                      <div style={{fontSize:11,fontWeight:600,color:'#94a3b8',marginBottom:4}}>📅 Janela de tratamento</div>
-                      <div style={{fontSize:11,color:'#cbd5e1'}}>
-                        Iniciar {ante} dias antes → {new Date(new Date(r.data_reg)-ante*86400000).toLocaleDateString('pt-PT')}
-                      </div>
+                      <div style={{fontSize:11,color:'#cbd5e1'}}>📅 Iniciar tratamento: {new Date(new Date(r.data_reg)-ante*86400000).toLocaleDateString('pt-PT')} ({ante} dias antes)</div>
                       {r.local_solta&&<div style={{fontSize:11,color:'#7A8699',marginTop:2}}>📍 Solta: {r.local_solta}</div>}
                     </div>
-                    {/* Meteo */}
                     {mt&&(
                       <div style={{background:'rgba(76,141,255,.06)',border:'1px solid rgba(76,141,255,.15)',borderRadius:8,padding:'8px 10px',marginBottom:8}}>
                         <div style={{fontSize:11,fontWeight:600,color:'#4C8DFF',marginBottom:4}}>🌤️ Previsão no dia da solta</div>
                         <div style={{display:'flex',gap:12,fontSize:11,color:'#94a3b8'}}>
-                          <span>🌡️ {mt.temp}°C</span>
-                          <span>💨 {mt.vento}km/h</span>
-                          <span>🌧️ {mt.prec}mm</span>
+                          <span>🌡️ {mt.temp}°C</span><span>💨 {mt.vento}km/h</span><span>🌧️ {mt.prec}mm</span>
                         </div>
-                        {mt.prec>5&&<div style={{fontSize:11,color:'#f87171',marginTop:4,fontWeight:600}}>⚠️ Chuva prevista — reforçar electrólitos e vitaminas B</div>}
+                        {mt.prec>5&&<div style={{fontSize:11,color:'#f87171',marginTop:4,fontWeight:600}}>⚠️ Chuva — reforçar electrólitos e vitaminas B</div>}
                         {mt.vento>40&&<div style={{fontSize:11,color:'#f87171',marginTop:4,fontWeight:600}}>⚠️ Vento forte — ponderar adiamento</div>}
-                        {mt.temp>30&&<div style={{fontSize:11,color:'#D4AF37',marginTop:4,fontWeight:600}}>☀️ Calor intenso — aumentar hidratação</div>}
+                        {mt.temp>30&&<div style={{fontSize:11,color:'#D4AF37',marginTop:4,fontWeight:600}}>☀️ Calor — aumentar hidratação</div>}
                       </div>
                     )}
-                    {/* Plano sugerido */}
-                    {planoSug?(
-                      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8}}>
-                        <div style={{fontSize:11,color:'#2DD4A7'}}>💊 Plano sugerido: <strong>{planoSug.nome}</strong></div>
-                        <div style={{display:'flex',gap:6}}>
-                          <button className="btn btn-secondary btn-sm" onClick={()=>setTab('planos')}>✏️ Ver/Editar</button>
-                          <button className="btn btn-primary btn-sm" onClick={()=>{setPlanoParaAplicar(planoSug);setModalAplicar(true)}}>✅ Aplicar</button>
+                    {planoSug
+                      ?<div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8}}>
+                          <div style={{fontSize:11,color:'#2DD4A7'}}>💊 Sugerido: <strong>{planoSug.nome}</strong></div>
+                          <div style={{display:'flex',gap:6}}>
+                            <button className='btn btn-secondary btn-sm' onClick={()=>setTab('planos')}>✏️ Editar</button>
+                            <button className='btn btn-primary btn-sm' onClick={()=>{setPlanoParaAplicar(planoSug);setModalAplicar(true)}}>✅ Aplicar</button>
+                          </div>
                         </div>
-                      </div>
-                    ):(
-                      <div style={{fontSize:11,color:'#7A8699'}}>Sem plano compatível — <span style={{color:'#4C8DFF',cursor:'pointer'}} onClick={()=>setTab('planos')}>criar plano</span></div>
-                    )}
+                      :<div style={{fontSize:11,color:'#7A8699'}}>Sem plano compatível — <span style={{color:'#4C8DFF',cursor:'pointer'}} onClick={()=>setTab('planos')}>criar plano</span></div>
+                    }
                   </div>
                 )
               })
@@ -1551,4 +1533,8 @@ function ItemPlanoRow({ item, idx, produtos, plano, updItem, delItem }) {
             {RACOES_COMERCIAIS.map(r=><option key={r} value={r}>{r}</option>)}
           </select>
         </div>
-        <div><div style={{ fontSize:10,color:'#7A8699',marginBottom:4 
+        <div><div style={{ fontSize:10,color:'#7A8699',marginBottom:4 }}>Voo (min)</div><input className="input" type="number" placeholder="Ex: 35" value={item.voo_min} onChange={e=>updItem(idx,'voo_min',e.target.value)} /></div>
+      </div>
+      <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:8 }}>
+        <div><div style={{ fontSize:10,color:'#7A8699',marginBottom:4 }}>Outros</div><input className="input" placeholder="banho, narinas…" value={item.outros} onChange={e=>updItem(idx,'outros',e.target.value)} /></div>
+        <div><div style={{ fontSize:10,color:'#7A8699',marginBottom:4 }}>Notas</div><input className="input" placeholder="Opcional" value={item.notas} onChange={e=
