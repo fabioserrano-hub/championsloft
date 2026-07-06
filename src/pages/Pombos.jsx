@@ -125,126 +125,139 @@ export default function Pombos({ nav, params }) {
       bg.addColorStop(0, '#050D1A'); bg.addColorStop(0.5, '#0B1830'); bg.addColorStop(1, '#0A1F3A')
       ctx.fillStyle = bg; ctx.fillRect(0, 0, S, S)
 
-      // barra dourada topo
-      const gTop = ctx.createLinearGradient(0, 0, S, 0)
-      gTop.addColorStop(0,'#7A6020'); gTop.addColorStop(0.3,'#D4AF37'); gTop.addColorStop(0.5,'#F5DFA0'); gTop.addColorStop(0.7,'#D4AF37'); gTop.addColorStop(1,'#7A6020')
-      ctx.fillStyle = gTop; ctx.fillRect(0, 0, S, 12)
+      // polyfill roundRect para Android
+      if (!ctx.roundRect) ctx.roundRect = function(x,y,w,h,r){this.moveTo(x+r,y);this.lineTo(x+w-r,y);this.arcTo(x+w,y,x+w,y+r,r);this.lineTo(x+w,y+h-r);this.arcTo(x+w,y+h,x+w-r,y+h,r);this.lineTo(x+r,y+h);this.arcTo(x,y+h,x,y+h-r,r);this.lineTo(x,y+r);this.arcTo(x,y,x+r,y,r);this.closePath()}
 
-      // foto
+      // barra dourada topo
+      const gTop = ctx.createLinearGradient(0,0,S,0)
+      gTop.addColorStop(0,'#7A6020');gTop.addColorStop(0.3,'#D4AF37');gTop.addColorStop(0.5,'#F5DFA0');gTop.addColorStop(0.7,'#D4AF37');gTop.addColorStop(1,'#7A6020')
+      ctx.fillStyle=gTop; ctx.fillRect(0,0,S,14)
+
+      // watermark diagonal
+      ctx.save(); ctx.globalAlpha=0.04; ctx.translate(S/2,S/2); ctx.rotate(-Math.PI/5)
+      ctx.font='bold 160px Georgia,serif'; ctx.fillStyle='#D4AF37'; ctx.textAlign='center'
+      ctx.fillText('FLY2WIN',0,0); ctx.restore()
+
+      // ─── FOTO: coluna esquerda, altura total ───────────────────────────────
+      const fotoW=400, fotoH=S-28
       if (selected.foto_url) {
         try {
-          const img = await new Promise((res, rej) => {
-            const i = new Image(); i.crossOrigin='anonymous'
-            i.onload=()=>res(i); i.onerror=rej
-            i.src = selected.foto_url
-          })
-          ctx.save()
-          ctx.beginPath()
-          ctx.roundRect(40, 40, 340, 380, 20)
-          ctx.clip()
-          ctx.drawImage(img, 40, 40, 340, 380)
-          ctx.restore()
-          // gradiente sobre foto
-          const fGrad = ctx.createLinearGradient(40, 200, 40, 420)
-          fGrad.addColorStop(0, 'rgba(5,13,26,0)'); fGrad.addColorStop(1, 'rgba(5,13,26,0.85)')
-          ctx.fillStyle = fGrad
-          ctx.fillRect(40, 40, 340, 380)
+          const img = await new Promise((res,rej)=>{const i=new Image();i.crossOrigin='anonymous';i.onload=()=>res(i);i.onerror=rej;i.src=selected.foto_url})
+          ctx.save(); ctx.beginPath(); ctx.roundRect(20,14,fotoW,fotoH,16); ctx.clip()
+          ctx.drawImage(img,20,14,fotoW,fotoH); ctx.restore()
+          // gradiente direita sobre foto
+          const fg=ctx.createLinearGradient(20,0,20+fotoW,0)
+          fg.addColorStop(0,'rgba(5,13,26,0)'); fg.addColorStop(0.7,'rgba(5,13,26,0)'); fg.addColorStop(1,'rgba(5,13,26,0.95)')
+          ctx.fillStyle=fg; ctx.fillRect(20,14,fotoW,fotoH)
+          // gradiente fundo sobre foto
+          const fg2=ctx.createLinearGradient(0,S-200,0,S)
+          fg2.addColorStop(0,'rgba(5,13,26,0)'); fg2.addColorStop(1,'rgba(5,13,26,0.9)')
+          ctx.fillStyle=fg2; ctx.fillRect(20,14,fotoW,fotoH)
         } catch {}
       } else {
-        ctx.fillStyle = '#101F40'
-        ctx.beginPath(); ctx.roundRect(40, 40, 340, 380, 20); ctx.fill()
-        ctx.font = '120px serif'; ctx.textAlign = 'center'
-        ctx.fillText(selected.emoji||'🐦', 210, 280)
+        ctx.fillStyle='#101F40'; ctx.beginPath(); ctx.roundRect(20,14,fotoW,fotoH,16); ctx.fill()
+        ctx.font='180px serif'; ctx.textAlign='center'; ctx.fillText(selected.emoji||'🐦',20+fotoW/2,S/2+60)
       }
+
+      // ─── CONTEÚDO: coluna direita ──────────────────────────────────────────
+      const rX=450, rW=S-rX-30
+      let y=80
 
       // nome
-      ctx.textAlign = 'left'
-      ctx.font = 'bold 72px Georgia, serif'
-      ctx.fillStyle = '#FFFFFF'
-      ctx.fillText(selected.nome||'', 420, 120)
+      ctx.textAlign='left'; ctx.font='bold 80px Georgia,serif'; ctx.fillStyle='#fff'
+      ctx.fillText((selected.nome||'').slice(0,14),rX,y); y+=55
 
       // anilha
-      ctx.font = '32px monospace'
-      ctx.fillStyle = '#D4AF37'
-      ctx.fillText(selected.anilha||'', 420, 170)
+      ctx.font='34px monospace'; ctx.fillStyle='#D4AF37'
+      ctx.fillText(selected.anilha||'',rX,y); y+=42
 
-      // info linha
-      const info = [selected.sexo==='M'?'Macho':'Femea', selected.cor, selected.pombal].filter(Boolean).join('  |  ')
-      ctx.font = '28px sans-serif'; ctx.fillStyle = '#94a3b8'
-      ctx.fillText(info, 420, 215)
+      // info
+      const anoNasc2=(()=>{const m=selected.anilha?.match(/-(\d{2})-/);if(!m)return null;const a=parseInt(m[1]);return a>50?1900+a:2000+a})()
+      const idade2=anoNasc2?new Date().getFullYear()-anoNasc2:null
+      const infoLinha=[selected.sexo==='M'?'Macho':'Femea',selected.cor,idade2?idade2+' anos':null].filter(Boolean).join(' · ')
+      ctx.font='28px sans-serif'; ctx.fillStyle='#94a3b8'
+      ctx.fillText(infoLinha,rX,y); y+=50
 
-      // especialidade badge
-      const esp = (selected.esp||[])[0]
-      if (esp) {
-        const ESP_LABELS = {velocidade:'Velocidade',meio_fundo:'Meio-Fundo',fundo:'Fundo',grande_fundo:'Grande Fundo'}
-        const ESP_COLS = {velocidade:'#F59E0B',meio_fundo:'#3B82F6',fundo:'#10B981',grande_fundo:'#8B5CF6'}
-        const lbl = ESP_LABELS[esp]||esp
-        ctx.font = 'bold 24px sans-serif'
-        const tw = ctx.measureText(lbl).width
-        ctx.strokeStyle = ESP_COLS[esp]||'#fff'; ctx.lineWidth = 2
-        ctx.beginPath(); ctx.roundRect(420, 235, tw+40, 44, 22); ctx.stroke()
-        ctx.fillStyle = (ESP_COLS[esp]||'#fff')+'33'
-        ctx.beginPath(); ctx.roundRect(420, 235, tw+40, 44, 22); ctx.fill()
-        ctx.fillStyle = ESP_COLS[esp]||'#fff'
-        ctx.fillText(lbl, 440, 265)
+      // badge especialidade
+      const esp=(selected.esp||[])[0]
+      if(esp){
+        const EC={velocidade:'#F59E0B',meio_fundo:'#3B82F6',fundo:'#10B981',grande_fundo:'#8B5CF6'}
+        const EL={velocidade:'Velocidade',meio_fundo:'Meio-Fundo',fundo:'Fundo',grande_fundo:'Grande Fundo'}
+        const lbl=EL[esp]||esp; const ec=EC[esp]||'#fff'
+        ctx.font='bold 26px sans-serif'; const tw=ctx.measureText(lbl).width
+        ctx.fillStyle=ec+'22'; ctx.beginPath(); ctx.roundRect(rX,y,tw+44,46,23); ctx.fill()
+        ctx.strokeStyle=ec; ctx.lineWidth=2; ctx.beginPath(); ctx.roundRect(rX,y,tw+44,46,23); ctx.stroke()
+        ctx.fillStyle=ec; ctx.fillText(lbl,rX+22,y+32); y+=66
       }
 
+      // separador
+      ctx.strokeStyle='rgba(212,175,55,0.3)'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(rX,y); ctx.lineTo(S-30,y); ctx.stroke(); y+=28
+
       // KPIs
-      const kpis = [
-        {v:(selected.percentil||0)+'%', l:'PERCENTIL', c:'#2DD4A7'},
-        {v:(selected.forma||50)+'%',    l:'FORMA',     c:'#4C8DFF'},
-        {v:String(selected.provas||0),  l:'PROVAS',    c:'#D4AF37'},
-      ]
-      const kpiY = 320, kpiW = 180, kpiH = 120, kpiX0 = 420
-      kpis.forEach((k,i) => {
-        const x = kpiX0 + i*(kpiW+16)
-        ctx.fillStyle = 'rgba(255,255,255,0.05)'
-        ctx.beginPath(); ctx.roundRect(x, kpiY, kpiW, kpiH, 12); ctx.fill()
-        ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.lineWidth = 1
-        ctx.beginPath(); ctx.roundRect(x, kpiY, kpiW, kpiH, 12); ctx.stroke()
-        ctx.font = 'bold 48px Georgia, serif'; ctx.fillStyle = k.c; ctx.textAlign = 'center'
-        ctx.fillText(k.v, x+kpiW/2, kpiY+66)
-        ctx.font = '22px sans-serif'; ctx.fillStyle = '#475569'
-        ctx.fillText(k.l, x+kpiW/2, kpiY+100)
+      const kpis=[{v:(selected.percentil||0)+'%',l:'PERCENTIL',c:'#2DD4A7'},{v:(selected.forma||50)+'%',l:'FORMA',c:'#4C8DFF'},{v:String(selected.provas||0),l:'PROVAS',c:'#D4AF37'}]
+      const kW=Math.floor((rW-20)/3), kH=130
+      kpis.forEach((k,i)=>{
+        const kx=rX+i*(kW+10)
+        ctx.fillStyle='rgba(255,255,255,0.05)'; ctx.beginPath(); ctx.roundRect(kx,y,kW,kH,12); ctx.fill()
+        ctx.strokeStyle='rgba(255,255,255,0.08)'; ctx.lineWidth=1; ctx.beginPath(); ctx.roundRect(kx,y,kW,kH,12); ctx.stroke()
+        ctx.font='bold 52px Georgia,serif'; ctx.fillStyle=k.c; ctx.textAlign='center'
+        ctx.fillText(k.v,kx+kW/2,y+74)
+        ctx.font='22px sans-serif'; ctx.fillStyle='#475569'; ctx.fillText(k.l,kx+kW/2,y+108)
       })
-      ctx.textAlign = 'left'
+      ctx.textAlign='left'; y+=kH+24
+
+      // separador
+      ctx.strokeStyle='rgba(212,175,55,0.3)'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(rX,y); ctx.lineTo(S-30,y); ctx.stroke(); y+=24
 
       // pedigree
-      const paiNome = pedigreeInfo?.pai?.nome || selected.pai || null
-      const maeNome = pedigreeInfo?.mae?.nome || selected.mae || null
-      if (paiNome || maeNome) {
-        ctx.fillStyle = 'rgba(255,255,255,0.04)'
-        ctx.beginPath(); ctx.roundRect(420, 460, 592, 120, 12); ctx.fill()
-        ctx.font = 'bold 22px sans-serif'; ctx.fillStyle = '#7A8699'
-        ctx.fillText('PEDIGREE', 445, 490)
-        if (paiNome) {
-          ctx.font = '22px sans-serif'; ctx.fillStyle = '#7A8699'; ctx.fillText('PAI', 445, 525)
-          ctx.font = 'bold 28px sans-serif'; ctx.fillStyle = '#fff'; ctx.fillText(paiNome, 500, 525)
-        }
-        if (maeNome) {
-          ctx.font = '22px sans-serif'; ctx.fillStyle = '#7A8699'; ctx.fillText('MAE', 715, 525)
-          ctx.font = 'bold 28px sans-serif'; ctx.fillStyle = '#fff'; ctx.fillText(maeNome, 770, 525)
-        }
-        if (pedigreeInfo?.pai?.anilha) { ctx.font='20px monospace'; ctx.fillStyle='#D4AF37'; ctx.fillText(pedigreeInfo.pai.anilha,500,555) }
-        if (pedigreeInfo?.mae?.anilha) { ctx.font='20px monospace'; ctx.fillStyle='#D4AF37'; ctx.fillText(pedigreeInfo.mae.anilha,770,555) }
+      const paiNome=pedigreeInfo?.pai?.nome||selected.pai||null
+      const maeNome=pedigreeInfo?.mae?.nome||selected.mae||null
+      if(paiNome||maeNome){
+        ctx.font='bold 22px sans-serif'; ctx.fillStyle='#7A8699'; ctx.fillText('PEDIGREE',rX,y); y+=32
+        const pedW=(rW-10)/2
+        ;[['PAI',paiNome,pedigreeInfo?.pai?.anilha],['MÃE',maeNome,pedigreeInfo?.mae?.anilha]].forEach(([lbl,nome,anilha],i)=>{
+          if(!nome) return
+          const px=rX+i*(pedW+10)
+          ctx.fillStyle='rgba(255,255,255,0.04)'; ctx.beginPath(); ctx.roundRect(px,y,pedW,70,10); ctx.fill()
+          ctx.font='20px sans-serif'; ctx.fillStyle='#475569'; ctx.fillText(lbl,px+12,y+22)
+          ctx.font='bold 24px sans-serif'; ctx.fillStyle='#fff'; ctx.fillText(nome.slice(0,14),px+12,y+46)
+          if(anilha){ctx.font='18px monospace'; ctx.fillStyle='#D4AF37'; ctx.fillText(anilha,px+12,y+64)}
+        })
+        y+=84
+      }
+
+      // últimas provas
+      if(historicoProvas.length>0){
+        ctx.font='bold 22px sans-serif'; ctx.fillStyle='#7A8699'; ctx.fillText('ÚLTIMAS PROVAS',rX,y); y+=30
+        historicoProvas.slice(0,3).forEach(r=>{
+          const pos=r.posicao?r.posicao+'.':'—'
+          const nome=(r.races?.nome||'Prova').slice(0,20)
+          const vel=r.velocidade?r.velocidade+'km/h':''
+          const pc=r.posicao===1?'#D4AF37':r.posicao<=3?'#F59E0B':'#94a3b8'
+          ctx.font='bold 26px sans-serif'; ctx.fillStyle=pc; ctx.fillText(pos,rX,y)
+          ctx.font='24px sans-serif'; ctx.fillStyle='#cbd5e1'; ctx.fillText(nome,rX+52,y)
+          ctx.font='22px sans-serif'; ctx.fillStyle='#2DD4A7'; ctx.textAlign='right'; ctx.fillText(vel,S-30,y)
+          ctx.textAlign='left'; y+=36
+        })
+        y+=10
       }
 
       // observações
-      if (selected.obs) {
-        ctx.font = 'italic 26px sans-serif'; ctx.fillStyle = '#7A8699'
-        const obsY = (paiNome||maeNome) ? 620 : 480
-        const obs = '"' + selected.obs.slice(0,60) + (selected.obs.length>60?'...':'"')
-        ctx.fillText(obs, 44, obsY)
+      if(selected.obs&&y<S-120){
+        ctx.font='italic 24px sans-serif'; ctx.fillStyle='#7A8699'
+        const obs='"'+selected.obs.slice(0,55)+(selected.obs.length>55?'…':'"')
+        ctx.fillText(obs,rX,y); y+=36
       }
 
       // branding rodapé
-      ctx.font = 'bold 36px Georgia, serif'; ctx.fillStyle = '#D4AF37'; ctx.textAlign = 'left'
-      ctx.fillText('FLY2WIN', 44, 1030)
-      ctx.font = '20px sans-serif'; ctx.fillStyle = '#334155'
-      ctx.fillText('fly2win.pt', S-180, 1030)
+      const bY=S-30
+      ctx.font='bold 38px Georgia,serif'; ctx.fillStyle='#D4AF37'; ctx.textAlign='left'
+      ctx.fillText('FLY2WIN',rX,bY)
+      ctx.font='22px sans-serif'; ctx.fillStyle='#334155'; ctx.textAlign='right'
+      ctx.fillText('fly2win.pt',S-30,bY)
 
       // barra dourada fundo
-      ctx.fillStyle = gTop; ctx.fillRect(0, S-12, S, 12)
+      ctx.fillStyle=gTop; ctx.fillRect(0,S-14,S,14)
 
       // download
       const link = document.createElement('a')
@@ -780,7 +793,7 @@ export default function Pombos({ nav, params }) {
               <button className="btn btn-secondary btn-sm" onClick={()=>{ close(); nav?.('saude',{prefillPomboId:selected.id}) }}>🏥 Saúde</button>
               <button className="btn btn-secondary btn-sm" onClick={()=>{ close(); nav?.('pedigree',{pomboId:selected.id}) }}>🌳 Pedigree</button>
               <button className="btn btn-secondary btn-sm" onClick={()=>gerarFichaPombo(selected, historicoProvas, pedigreeInfo)}>📄 PDF</button>
-              <button className="btn btn-secondary btn-sm" onClick={()=>{ setModal(null); setTimeout(()=>setModalCartao(true), 100) }}>🖼️ Redes</button>
+              <button className="btn btn-secondary btn-sm" onClick={()=>setModalCartao(true)}>🖼️ Redes</button>
               <div style={{ flex:1 }} />
               <button className="btn btn-secondary" onClick={close}>Fechar</button>
               <button className="btn btn-primary" onClick={()=>openEdit(selected)}>✏️ Editar</button>
