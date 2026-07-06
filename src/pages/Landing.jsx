@@ -114,7 +114,7 @@ export default function Landing({ onEntrar }) {
       {/* NAVBAR */}
       <nav style={{ position:'fixed', top:0, left:0, right:0, zIndex:300, height:58, display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 clamp(16px,5vw,56px)', background:navSolid?'rgba(2,5,9,.96)':'transparent', backdropFilter:navSolid?'blur(20px)':'none', borderBottom:navSolid?`1px solid ${T.ghost}30`:'none', transition:'all .4s' }}>
         <div style={{ display:'flex', alignItems:'center', gap:9 }}>
-          <img src="/logo.png" alt="Fly2Win" style={{ height:56, width:'auto', objectFit:'contain' }} />
+          <img src="/logo.png" alt="Fly2Win" style={{ height:76, width:'auto', objectFit:'contain' }} />
         </div>
         <div style={{ display:'flex', gap:6, alignItems:'center' }}>
           <button onClick={onEntrar} style={{ background:'none', border:'none', color:T.fog, fontSize:13, cursor:'pointer', fontFamily:'inherit', padding:'7px 12px' }}>Entrar</button>
@@ -147,7 +147,7 @@ export default function Landing({ onEntrar }) {
 
         {/* Logo hero */}
         <div style={{ opacity:heroIn?1:0, transform:heroIn?'none':'scale(.9)', transition:'all 1s ease', marginBottom:32 }}>
-          <img src="/logo.png" alt="Fly2Win" style={{ height:160, width:'auto', objectFit:'contain', filter:'drop-shadow(0 0 48px rgba(200,168,75,.5))' }} />
+          <img src="/logo.png" alt="Fly2Win" style={{ height:190, width:'auto', objectFit:'contain', filter:'drop-shadow(0 0 48px rgba(200,168,75,.5))' }} />
         </div>
 
         <div style={{ display:'inline-flex', alignItems:'center', gap:7, background:`${T.goldD}25`, border:`1px solid ${T.goldD}60`, borderRadius:99, padding:'5px 14px', marginBottom:28, opacity:heroIn?1:0, transform:heroIn?'none':'translateY(-10px)', transition:'all .8s ease .1s' }}>
