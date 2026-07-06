@@ -1537,4 +1537,32 @@ function ItemPlanoRow({ item, idx, produtos, plano, updItem, delItem }) {
       </div>
       <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:8 }}>
         <div><div style={{ fontSize:10,color:'#7A8699',marginBottom:4 }}>Outros</div><input className="input" placeholder="banho, narinas…" value={item.outros} onChange={e=>updItem(idx,'outros',e.target.value)} /></div>
-        <div><div style={{ fontSize:10,color:'#7A8699',marginBottom:4 }}>Notas</div><input className="input" placeholder="Opcional" value={item.notas} onChange={e=
+        <div><div style={{ fontSize:10,color:'#7A8699',marginBottom:4 }}>Notas</div><input className="input" placeholder="Opcional" value={item.notas} onChange={e=>updItem(idx,'notas',e.target.value)} /></div>
+      </div>
+    </div>
+  )
+}
+
+// ── modal override semanal ────────────────────────────────────────────────────
+function ModalOverride({ ovKey, valorAtual, campo, onGuardar, onFechar }) {
+  const [val, setVal] = useState(valorAtual||'')
+  return (
+    <Modal open={true} onClose={onFechar} title={`✱ Ajuste semanal — ${campo.label}`}
+      footer={<><button className="btn btn-secondary" onClick={()=>onGuardar(ovKey,'')}>Remover ajuste</button><button className="btn btn-secondary" onClick={onFechar}>Cancelar</button><button className="btn btn-primary" onClick={()=>onGuardar(ovKey,val)}>Guardar</button></>}>
+      <div style={{ fontSize:12,color:'#94a3b8',marginBottom:12 }}>Afecta apenas esta semana. O plano base não é alterado.</div>
+      {campo.key==='tipo'?(
+        <Field label={campo.label}>
+          <select className="input" value={val} onChange={e=>setVal(e.target.value)}>
+            <option value="">—</option>
+            {RACOES_COMERCIAIS.map(r=><option key={r} value={r}>{r}</option>)}
+          </select>
+        </Field>
+      ):(
+        <Field label={`${campo.label} (actual: ${valorAtual||'—'})`}>
+          <input className="input" type={campo.key==='gramas'||campo.key==='voo'?'number':'text'} value={val} onChange={e=>setVal(e.target.value)} autoFocus />
+        </Field>
+      )}
+    </Modal>
+  )
+}
+
