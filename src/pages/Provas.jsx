@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { db, supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { useIdioma } from '../hooks/useIdioma'
+import { GuiaAuto, BotaoGuia } from '../components/GuiaModulo'
 import { useToast, Spinner, Modal, EmptyState, Field, Badge } from '../components/ui'
 import { classificarPombo } from './Pombos'
 import { verificarConquistas } from '../components/Conquistas'
@@ -463,6 +464,7 @@ export default function Provas({ nav, params }) {
   return (
     <div>
       {/* ── header ── */}
+      <GuiaAuto modulo="provas"/>
       <div className="section-header">
         <div>
           <div className="section-title">Provas</div>
@@ -470,7 +472,7 @@ export default function Provas({ nav, params }) {
         </div>
         <div style={{ display:'flex', gap:6 }}>
           <button className="btn btn-secondary btn-sm" onClick={()=>setModalFPC(true)}>📥 FPC</button>
-          <button className="btn btn-primary" onClick={openNew}>＋ Nova Prova</button>
+          <BotaoGuia modulo="provas"/> <button className="btn btn-primary" onClick={openNew}>＋ Nova Prova</button>
         </div>
       </div>
 
