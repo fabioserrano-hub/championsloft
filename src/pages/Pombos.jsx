@@ -110,9 +110,9 @@ export default function Pombos({ nav, params }) {
   const [modalPartilha, setModalPartilha] = useState(false)
   const [pomboPartilha, setPomboPartilha] = useState(null)
   const [modalCartao, setModalCartao] = useState(false)
+  const [gerandoImg, setGerandoImg] = useState(false)
   const [modalMover, setModalMover] = useState(false)
   const [pombalDestino, setPombalDestino] = useState('')
-  const [gerandoImg, setGerandoImg] = useState(false)
 
   const gerarImagemRedes = async () => {
     if (!selected) return
@@ -516,7 +516,6 @@ export default function Pombos({ nav, params }) {
   // ── RENDER ────────────────────────────────────────────────────────────────
   return (
     <div>
-      <GuiaAuto modulo="pombos"/>
       <GuiaAuto modulo="pombos"/>
       <div className="section-header">
         <div><div className="section-title">Pombos</div><div className="section-sub">{efectivo.length} no efectivo · {externos.length} externos</div></div>
