@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { GuiaAuto, BotaoGuia } from '../components/GuiaModulo'
 import { db } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { useToast, Spinner, Modal, EmptyState, Field } from '../components/ui'
@@ -124,9 +125,10 @@ export default function Forum({ nav }) {
   // Vista: Lista de categorias
   if (vista === 'categorias') return (
     <div>
+      <GuiaAuto modulo="comunidade"/>
       <div className="section-header">
         <div><div className="section-title">💬 Fórum</div><div className="section-sub">Comunidade ChampionsLoft</div></div>
-        <button className="btn btn-primary" onClick={() => setModalNovo(true)}>＋ Novo Tópico</button>
+        <BotaoGuia modulo="comunidade"/> <button className="btn btn-primary" onClick={() => setModalNovo(true)}>＋ Novo Tópico</button>
       </div>
 
       {!tabelaOk && (
