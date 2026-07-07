@@ -210,6 +210,7 @@ export default function Meteorologia({ nav, params }) {
       <GuiaAuto modulo="meteo"/>
       <div className="section-header">
         <div><div className="section-title">Meteorologia</div><div className="section-sub">{tab==='local' ? (localNome||'Pesquise um local') : 'Rota da Prova'}</div></div>
+        <BotaoGuia modulo="meteo"/>
       </div>
 
       <div style={{ display:'flex', gap:4, background:'#101F40', borderRadius:8, padding:4, marginBottom:16 }}>
