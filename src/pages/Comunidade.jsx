@@ -478,7 +478,7 @@ export default function Comunidade({ nav }) {
       {/* TABS */}
       <div style={{display:'flex',gap:3,background:'#0A1628',borderRadius:10,padding:3,marginBottom:14,overflowX:'auto'}}>
         {[['feed','📰','Feed'],['explorar','🔍','Explorar'],['mapa','🗺️','Mapa'],['grupos','👥','Grupos'],['forum','💬','Fórum'],['desafios','🎯','Desafios'],['notifs','🔔',nNaoLidas?`(${nNaoLidas})`:'Notif.'],['ranking','🏆','Ranking']].map(([k,icon,l])=>(
-          <button key={k} onClick={()=>setTab(k)} style={{flex:'none',padding:'7px 10px',borderRadius:8,fontSize:10,fontWeight:600,cursor:'pointer',border:'none',fontFamily:'inherit',whiteSpace:'nowrap',background:tab===k?'linear-gradient(135deg,#1E5FD9,#1456C0)':'none',color:tab===k?'#fff':'#475569'}}>
+          <button key={k} onClick={()=>setTab(k)} style={{flex:'none',padding:'10px 14px',borderRadius:8,fontSize:11,fontWeight:600,cursor:'pointer',border:'none',fontFamily:'inherit',whiteSpace:'nowrap',background:tab===k?'linear-gradient(135deg,#1E5FD9,#1456C0)':'none',color:tab===k?'#fff':'#7A8699',display:'flex',flexDirection:'column',alignItems:'center',gap:2}}>
             <div>{icon}</div><div style={{fontSize:9}}>{l}</div>
           </button>
         ))}
@@ -849,7 +849,7 @@ export default function Comunidade({ nav }) {
           </div>
         </div>
         <button className="btn btn-secondary" style={{width:'100%',marginTop:12}} onClick={()=>{
-          const txt=`${nome} — LoftSocial / ChampionsLoft\n🐦 ${pombos.filter(p=>!p.estado_ext||p.estado_ext==='proprio').length} pombos · 🏆 ${provas.length} provas\nchampionsloft.app/p/${perfil?.slug||''}`
+          const txt=`${nome} — LoftSocial / Fly2Win\n🐦 ${pombos.filter(p=>!p.estado_ext||p.estado_ext==='proprio').length} pombos · 🏆 ${provas.length} provas\nchampionsloft.app/p/${perfil?.slug||''}`
           navigator.share?navigator.share({title:'LoftSocial',text:txt}):navigator.clipboard?.writeText(txt).then(()=>toast('Copiado!','ok'))
         }}>🔗 Partilhar cartão</button>
       </Modal>
