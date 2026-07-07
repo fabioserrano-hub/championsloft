@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { GuiaAuto, BotaoGuia } from '../components/GuiaModulo'
 import { supabase, db } from '../lib/supabase'
 import { useToast, Spinner, EmptyState } from '../components/ui'
 import { useIdioma } from '../hooks/useIdioma'
