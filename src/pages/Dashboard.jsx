@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase, db } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { useIdioma } from '../hooks/useIdioma'
+import { GuiaAuto, BotaoGuia } from '../components/GuiaModulo'
 import { useToast, Spinner } from '../components/ui'
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -391,12 +392,33 @@ export default function Dashboard({ nav }) {
         )}
       </div>
 
+      {/* ── Banner eclosões próximas ─────────────────────────────────────── */}
+      {(()=>{
+        const ecls = data.acasalamentos?.filter(a=>{
+          const d=a.data_eclosao_prev?Math.round((new Date(a.data_eclosao_prev)-new Date())/86400000):null
+          return d!==null&&d>=-1&&d<=4
+        })||[]
+        if(!ecls.length) return null
+        return (
+          <div style={{background:'rgba(45,212,167,.07)',border:'1px solid rgba(45,212,167,.2)',borderRadius:12,padding:'10px 14px',marginBottom:8,cursor:'pointer'}} onClick={()=>nav('reproducao')}>
+            <div style={{fontWeight:700,color:'#2DD4A7',marginBottom:4,fontSize:13}}>🐣 {ecls.length} eclosão(ões) prevista(s) esta semana</div>
+            {ecls.slice(0,2).map(a=>{
+              const d=Math.round((new Date(a.data_eclosao_prev)-new Date())/86400000)
+              return <div key={a.id} style={{fontSize:11,color:'#94a3b8'}}>{a.pai_nome} × {a.mae_nome} — {d<=0?'Hoje/ontem':`em ${d} dia(s)`}</div>
+            })}
+          </div>
+        )
+      })()}
+
       {/* ── KPIs ─────────────────────────────────────────────────────────────── */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:8 }}>
         <CardKPI icon="🐦" valor={data.totalPombos} label="Pombos" cor="#4C8DFF" onClick={() => nav('pombos')} sub={data.pombosComProblema.length > 0 ? `${data.pombosComProblema.length} c/ alerta` : 'activos'} />
         <CardKPI icon="🏆" valor={data.provasRecentes.length} label="Provas" cor="#D4AF37" onClick={() => nav('provas')} />
         <CardKPI icon="📊" valor={data.mediaPercentil + '%'} label="Percentil" cor="#2DD4A7" sub="top 5" />
         <CardKPI icon="🥇" valor={data.vitorias} label="Vitórias" cor="#A855F7" onClick={() => nav('provas')} />
+      <GuiaAuto modulo="dashboard"/>
+        <CardKPI icon="🏥" valor={data.pombosComProblema.length} label="Alertas Saúde" cor={data.pombosComProblema.length>0?'#f87171':'#2DD4A7'} onClick={() => nav('saude')} sub={data.pombosComProblema.length>0?'c/ problema':'todos aptos'} />
+        <CardKPI icon="💰" valor={(data.rec-data.dep).toFixed(0)+'€'} label="Saldo Mês" cor={(data.rec-data.dep)>=0?'#2DD4A7':'#f87171'} onClick={() => nav('financas')} sub={`${data.rec.toFixed(0)}€ rec.`} />
       </div>
 
       {/* ── PRÓXIMA PROVA ────────────────────────────────────────────────────── */}
@@ -501,13 +523,13 @@ export default function Dashboard({ nav }) {
                   <span style={{ fontSize:18, flexShrink:0 }}>{p.posicao_geral === 1 ? '🥇' : p.posicao_geral <= 3 ? '🏅' : '🕊️'}</span>
                   <div style={{ flex:1 }}>
                     <div style={{ fontSize:12, fontWeight:600, color:'#fff' }}>{p.nome}</div>
-                    <div style={{ fontSize:10, color:'#7A8699' }}>{p.dist || 0}km · {formatData(p.data_reg)}</div>
+                    <div style={{ fontSize:10, color:'#7A8699' }}>{p.dist || 0}km · {formatData(p.data_reg)}{p.tipo?' · '+p.tipo:''}</div>
                   </div>
                   <div style={{ textAlign:'right', flexShrink:0 }}>
                     {p.posicao_geral && p.n_pombos ? (
                       <>
-                        <div style={{ fontSize:12, fontWeight:700, color: p.posicao_geral === 1 ? '#D4AF37' : p.posicao_geral <= 3 ? '#b45309' : '#94a3b8' }}>{p.posicao_geral}º/{p.n_pombos}</div>
-                        {top && <div style={{ fontSize:9, color:'#475569' }}>top {top}%</div>}
+                        <div style={{ fontSize:13, fontWeight:900, fontFamily:"'Fraunces',serif", color: p.posicao_geral === 1 ? '#D4AF37' : p.posicao_geral <= 3 ? '#F59E0B' : '#94a3b8' }}>{p.posicao_geral}º</div>
+                        <div style={{ fontSize:10, fontWeight:700, color: top<=10?'#2DD4A7':top<=25?'#D4AF37':'#7A8699' }}>top {top}%</div>
                       </>
                     ) : <div style={{ fontSize:10, color:'#475569' }}>—</div>}
                   </div>
