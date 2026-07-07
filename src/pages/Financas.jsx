@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { GuiaAuto, BotaoGuia } from '../components/GuiaModulo'
 import { db, supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { useIdioma } from '../hooks/useIdioma'
@@ -224,9 +225,10 @@ export default function Financas({ nav }) {
 
   return (
     <div>
+      <GuiaAuto modulo="financas"/>
       <div className="section-header">
         <div><div className="section-title">Finanças</div><div className="section-sub">{lista.length} movimentos · {anoAtual}</div></div>
-        <button className="btn btn-primary" onClick={openNew}>＋ Novo</button>
+        <BotaoGuia modulo="financas"/> <button className="btn btn-primary" onClick={openNew}>＋ Novo</button>
       </div>
 
       {/* tabs */}
