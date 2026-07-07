@@ -213,12 +213,9 @@ export default function Analiticas({ nav }) {
     ['clube','🏛️ Clube'],
   ]
 
-      <GuiaAuto modulo="analiticas"/>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-        <div className="section-title">Analíticas</div>
-        <BotaoGuia modulo="analiticas"/>
-      </div>
   return (
+    <>
+      <GuiaAuto modulo="analiticas"/>
     <div>
       {/* Header */}
       <div style={{ background:'linear-gradient(135deg,#050D1A,#0B1830)', border:'1px solid rgba(76,141,255,.2)', borderRadius:14, padding:'14px 16px', marginBottom:14, position:'relative', overflow:'hidden' }}>
@@ -228,9 +225,9 @@ export default function Analiticas({ nav }) {
             <div style={{ fontSize:18, fontWeight:900, color:'#fff', fontFamily:"'Fraunces',serif" }}>📊 Analíticas</div>
             <div style={{ fontSize:11, color:'#7A8699', marginTop:2 }}>{efectivo.length} pombos · {provas.length} provas históricas</div>
           </div>
-          <select className="input" style={{ width:90 }} value={anoFiltro} onChange={e=>setAnoFiltro(Number(e.target.value))}>
+          <div style={{display:'flex',gap:6,alignItems:'center'}}><BotaoGuia modulo="analiticas"/><select className="input" style={{ width:90 }} value={anoFiltro} onChange={e=>setAnoFiltro(Number(e.target.value))}>
             {anos.map(a=><option key={a} value={a}>{a}</option>)}
-          </select>
+          </select></div>
         </div>
         <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:8, marginTop:12 }}>
           {[
@@ -611,5 +608,6 @@ export default function Analiticas({ nav }) {
         </div>
       )}
     </div>
+    </>
   )
 }
