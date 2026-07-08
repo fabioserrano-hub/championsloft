@@ -880,7 +880,7 @@ export default function Comunidade({ nav }) {
               </div>
               <div style={{fontSize:11,color:'#7A8699',marginBottom:12}}>50pts/badge · 30pts/desafio · 10pts/publicação · 2pts/like</div>
               {ranking.length===0?<EmptyState icon="🏆" title="Ranking vazio" desc="Publica resultados e conquista badges para entrar no ranking"/>
-                :<>
+                :<div>
                   {ranking.length>=3&&tabRanking==='geral'&&(
                     <div style={{display:'flex',justifyContent:'center',alignItems:'flex-end',gap:8,marginBottom:16,padding:'16px 8px 0'}}>
                       {[ranking[1],ranking[0],ranking[2]].map((r,i)=>{
