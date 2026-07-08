@@ -105,11 +105,15 @@ export default function Admin({ nav }) {
 
   return (
     <div>
+      <GuiaAuto modulo="admin"/>
       {/* Header premium */}
       <div style={{ background:'linear-gradient(135deg,#050D1A,#0B1830)', border:'1px solid rgba(212,175,55,.2)', borderRadius:14, padding:'14px 16px', marginBottom:14, position:'relative', overflow:'hidden' }}>
         <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background:'linear-gradient(90deg,#B8960C,#D4AF37,#B8960C)' }} />
-        <div style={{ fontSize:18, fontWeight:900, color:'#D4AF37', fontFamily:"'Fraunces',serif" }}>👑 Painel de Administração</div>
-        <div style={{ fontSize:11, color:'#7A8699', marginTop:2 }}>ChampionsLoft — acesso restrito</div>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+          <div style={{ fontSize:18, fontWeight:900, color:'#D4AF37', fontFamily:"'Fraunces',serif" }}>👑 Painel de Administração</div>
+          <BotaoGuia modulo="admin"/>
+        </div>
+        <div style={{ fontSize:11, color:'#7A8699', marginTop:2 }}>Fly2Win — acesso restrito</div>
       </div>
 
       {/* KPIs */}
