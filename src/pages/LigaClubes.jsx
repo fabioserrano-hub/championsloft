@@ -77,6 +77,8 @@ function DetalheLigaClubes({ liga, user, meusClubes, onVoltar, toast }) {
   if (!temAcesso) return <BloqueioPlano plano="elite" nav={nav} />
 
   return (
+    <>
+      <GuiaAuto modulo="ligas"/>
     <div>
       {/* Header */}
       <div style={{ background:`linear-gradient(135deg,#050D1A,#0B1830)`, border:`1px solid ${fase.cor}30`, borderRadius:14, padding:'14px 16px', marginBottom:14, position:'relative', overflow:'hidden' }}>
@@ -374,5 +376,6 @@ export default function LigaClubes({ nav }) {
         </div>
       )}
     </div>
+    </>
   )
 }
