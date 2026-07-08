@@ -270,6 +270,7 @@ export default function LigaClubes({ nav }) {
 
   return (
     <div>
+      <GuiaAuto modulo="ligaclubes"/>
       {/* Header */}
       <div style={{ background:'linear-gradient(135deg,#050D1A,#0B1830)', border:'1px solid rgba(212,175,55,.25)', borderRadius:14, padding:'14px 16px', marginBottom:14, position:'relative', overflow:'hidden' }}>
         <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background:'linear-gradient(90deg,#D4AF37,#f97316,#f87171)' }}/>
@@ -278,7 +279,10 @@ export default function LigaClubes({ nav }) {
             <div style={{ fontSize:18, fontWeight:900, color:'#fff', fontFamily:"'Fraunces',serif" }}>⚔️ Liga de Clubes</div>
             <div style={{ fontSize:11, color:'#7A8699', marginTop:2 }}>Modo Liga dos Campeões · {ligas.length} competição(ões)</div>
           </div>
-          <button className="btn btn-primary btn-sm" onClick={()=>temElite?setModal(true):nav('precos')}>{temElite?'+ Criar':'🔒 Elite'}</button>
+          <div style={{ display:'flex', gap:6, alignItems:'center' }}>
+            <BotaoGuia modulo="ligaclubes"/>
+            <button className="btn btn-primary btn-sm" onClick={()=>temElite?setModal(true):nav('precos')}>{temElite?'+ Criar':'🔒 Elite'}</button>
+          </div>
         </div>
       </div>
 
