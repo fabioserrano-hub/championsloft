@@ -5,7 +5,6 @@ import { useAuth } from '../hooks/useAuth'
 import { useIdioma } from '../hooks/useIdioma'
 import { useLicenca, BloqueioPlano } from '../hooks/useLicenca'
 import { useToast, Spinner, Modal, EmptyState, Badge, Field } from '../components/ui'
-import { GuiaAuto, BotaoGuia } from '../components/GuiaModulo'
 
 // ── constantes ────────────────────────────────────────────────────────────────
 const TIPOS_POST = ['Geral','Resultado','Treino','Conquista','Reprodução','Pedigree']
@@ -115,6 +114,9 @@ function BannerContextual({ mensagens, nav }) {
       </div>
       <button onClick={e=>{e.stopPropagation();setVisible(false)}} style={{position:'absolute',top:8,right:10,background:'none',border:'none',color:'#475569',cursor:'pointer',fontSize:14}}>✕</button>
     </div>
+  )
+}
+      </div>
   )
 }
 
