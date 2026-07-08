@@ -93,10 +93,14 @@ export default function Carteira({ nav }) {
 
   return (
     <div>
+      <GuiaAuto modulo="carteira"/>
       {/* Header */}
       <div style={{ background:'linear-gradient(135deg,#050D1A,#0B1830)', border:'1px solid rgba(212,175,55,.25)', borderRadius:14, padding:'16px', marginBottom:14, position:'relative', overflow:'hidden' }}>
         <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background:'linear-gradient(90deg,#D4AF37,#4C8DFF,#2DD4A7)' }}/>
-        <div style={{ fontSize:11, color:'#D4AF37', fontWeight:700, letterSpacing:'.1em', textTransform:'uppercase', marginBottom:6 }}>💎 Carteira CL</div>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
+          <div style={{ fontSize:11, color:'#D4AF37', fontWeight:700, letterSpacing:'.1em', textTransform:'uppercase' }}>💎 Carteira CL</div>
+          <BotaoGuia modulo="carteira"/>
+        </div>
         <div style={{ fontFamily:"'Fraunces',serif", fontSize:48, fontWeight:900, color:'#D4AF37', lineHeight:1 }}>
           {saldo.total}<span style={{ fontSize:16, color:'#7A8699', fontWeight:400 }}> créditos</span>
         </div>
