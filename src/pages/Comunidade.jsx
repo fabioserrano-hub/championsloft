@@ -116,9 +116,6 @@ function BannerContextual({ mensagens, nav }) {
     </div>
   )
 }
-      </div>
-  )
-}
 
 // ── ForumTab ──────────────────────────────────────────────────────────────────
 function ForumTab({ nome, nav }) {
