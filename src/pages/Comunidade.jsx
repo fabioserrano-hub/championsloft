@@ -94,6 +94,8 @@ function BannerContextual({ mensagens, nav }) {
   if(!visible||!mensagens.length) return null
   const m=mensagens[idx]
   return (
+    <>
+      <GuiaAuto modulo="comunidade"/>
     <div style={{background:`linear-gradient(135deg,${m.cor}12,${m.cor}06)`,border:`1px solid ${m.cor}25`,borderRadius:14,padding:'14px 16px',marginBottom:14,position:'relative',overflow:'hidden',cursor:m.acao?'pointer':'default'}}
       onClick={()=>m.acao&&nav?.(m.acao)}>
       <div style={{position:'absolute',top:0,left:0,right:0,height:2,background:m.cor,opacity:.5}}/>
@@ -941,6 +943,8 @@ export default function Comunidade({ nav }) {
         }
       </Modal>
     </div>
+    </>
   )
 }
+
 
