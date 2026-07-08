@@ -597,6 +597,7 @@ export default function Pedigree({ nav, params }) {
 
   return (
     <div id="pedigree-root">
+      <GuiaAuto modulo="pedigree"/>
       {/* ── Header premium ── */}
       <div style={{ background:`linear-gradient(135deg,#050D1A,#0B1830)`, border:`1px solid ${tema.primaria}33`, borderRadius:14, padding:'16px 18px', marginBottom:14, position:'relative', overflow:'hidden' }} id="pedigree-config-card">
         <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background:`linear-gradient(90deg,${tema.primariaEscura},${tema.primaria},${tema.primariaEscura})` }}/>
@@ -616,6 +617,7 @@ export default function Pedigree({ nav, params }) {
                   style={{ width:20, height:20, borderRadius:'50%', background:t.primaria, border:temaId===id?'2px solid #fff':'2px solid transparent', cursor:'pointer', padding:0, boxShadow:temaId===id?`0 0 8px ${t.primaria}`:'none', transition:'all .2s' }}/>
               ))}
             </div>
+            <BotaoGuia modulo="pedigree"/>
             {arvore && <button className="btn btn-primary btn-sm" onClick={gerarPDF}>📥 PDF</button>}
             {arvore && pomboPedigree?.id && (
               <BotaoQR
