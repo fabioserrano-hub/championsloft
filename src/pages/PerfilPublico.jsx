@@ -83,8 +83,16 @@ export default function PerfilPublico({ nav, params }) {
 
           {/* Perfil */}
           <div style={{ display:'flex', gap:16, alignItems:'flex-start', marginBottom:20 }}>
-            <div style={{ width:72, height:72, borderRadius:14, background:'linear-gradient(135deg,#101F40,#1B2D52)', border:'2px solid rgba(212,175,55,.3)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:30, flexShrink:0, overflow:'hidden' }}>
-              {perfil.avatar_url ? <img src={perfil.avatar_url} style={{ width:'100%', height:'100%', objectFit:'cover' }}/> : '👤'}
+            <div style={{ position:'relative', flexShrink:0 }}>
+              <div style={{ width:72, height:72, borderRadius:14, background:'linear-gradient(135deg,#101F40,#1B2D52)', border:'2px solid rgba(212,175,55,.3)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:30, overflow:'hidden' }}>
+                {perfil.foto_perfil_url ? <img src={perfil.foto_perfil_url} style={{ width:'100%', height:'100%', objectFit:'cover' }}/> : '👤'}
+              </div>
+              {/* Logo do criador — aparece no canto inferior direito */}
+              {perfil.logo_url && (
+                <div style={{ position:'absolute', bottom:-6, right:-6, width:28, height:28, borderRadius:8, background:'#050D1A', border:'2px solid rgba(212,175,55,.4)', overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                  <img src={perfil.logo_url} alt="Logo" style={{ width:'100%', height:'100%', objectFit:'contain' }}/>
+                </div>
+              )}
             </div>
             <div style={{ flex:1 }}>
               <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap', marginBottom:4 }}>
