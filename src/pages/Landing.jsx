@@ -322,10 +322,19 @@ export default function Landing({ onEntrar }) {
                     <div style={{ fontFamily:T.mono, fontSize:10, fontWeight:700, color:p.cor, letterSpacing:'.12em', textTransform:'uppercase', marginBottom:6 }}>{p.nome}</div>
                     <div style={{ fontSize:12, color:T.ghost, marginBottom:20 }}>{p.desc}</div>
                     <div style={{ marginBottom:4 }}>
-                      <span style={{ fontFamily:T.serif, fontSize:40, fontWeight:900, color:T.white, lineHeight:1 }}>{preco}€</span>
-                      <span style={{ fontSize:12, color:T.ghost }}>/mês</span>
+                      {periodo==='anual' ? (
+                        <>
+                          <span style={{ fontFamily:T.serif, fontSize:40, fontWeight:900, color:T.white, lineHeight:1 }}>{p.anual.toFixed(2)}€</span>
+                          <span style={{ fontSize:12, color:T.ghost }}>/ano</span>
+                          <div style={{ fontSize:11, color:'#2DD4A7', marginTop:3, fontWeight:600 }}>✓ 2 meses grátis incluídos · equivale a {preco}€/mês</div>
+                        </>
+                      ) : (
+                        <>
+                          <span style={{ fontFamily:T.serif, fontSize:40, fontWeight:900, color:T.white, lineHeight:1 }}>{preco}€</span>
+                          <span style={{ fontSize:12, color:T.ghost }}>/mês</span>
+                        </>
+                      )}
                     </div>
-                    {periodo==='anual'&&<div style={{ fontSize:11, color:T.ghost, marginBottom:4 }}>({p.anual.toFixed(2)}€/ano · 2 meses grátis)</div>}
                     <div style={{ fontFamily:T.mono, fontSize:10, color:p.cor, marginBottom:24 }}>☕ {dia}€ por dia</div>
                     <div style={{ display:'flex', flexDirection:'column', gap:8, marginBottom:24 }}>
                       {p.feats.map(f=>(
@@ -404,10 +413,19 @@ export default function Landing({ onEntrar }) {
                     <div style={{ position:'absolute', top:-10, right:16, background:`${T.gold}`, color:T.void, fontSize:10, fontWeight:800, padding:'2px 10px', borderRadius:99 }}>−{g.pct}%</div>
                     <div style={{ fontFamily:T.mono, fontSize:10, fontWeight:700, color:p.cor, letterSpacing:'.12em', textTransform:'uppercase', marginBottom:8 }}>{p.nome}</div>
                     <div style={{ marginBottom:4 }}>
-                      <span style={{ fontFamily:T.serif, fontSize:36, fontWeight:900, color:T.white }}>{preco}€</span>
-                      <span style={{ fontSize:12, color:T.ghost }}>/licença/mês</span>
+                      {periodo==='anual' ? (
+                        <>
+                          <span style={{ fontFamily:T.serif, fontSize:36, fontWeight:900, color:T.white }}>{gp.a.toFixed(2)}€</span>
+                          <span style={{ fontSize:12, color:T.ghost }}>/licença/ano</span>
+                          <div style={{ fontSize:11, color:'#2DD4A7', marginTop:3, fontWeight:600 }}>✓ 2 meses grátis incluídos · equiv. {preco}€/mês</div>
+                        </>
+                      ) : (
+                        <>
+                          <span style={{ fontFamily:T.serif, fontSize:36, fontWeight:900, color:T.white }}>{preco}€</span>
+                          <span style={{ fontSize:12, color:T.ghost }}>/licença/mês</span>
+                        </>
+                      )}
                     </div>
-                    {periodo==='anual'&&<div style={{ fontSize:11, color:T.ghost, marginBottom:4 }}>({gp.a.toFixed(2)}€/licença/ano)</div>}
                     <div style={{ fontFamily:T.mono, fontSize:10, color:p.cor, marginBottom:16 }}>☕ {dia}€ por licença/dia</div>
                     <div style={{ padding:'10px 12px', background:`${T.gold}10`, border:`1px solid ${T.goldD}30`, borderRadius:8, marginBottom:16 }}>
                       <div style={{ fontSize:10, color:T.ghost, marginBottom:2 }}>Para {g.label.split(' ')[0]} licenças ({periodo})</div>
