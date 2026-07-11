@@ -327,7 +327,7 @@ function WizardCriacaoLiga({ onCriar, onFechar, saving }) {
 }
 
 // ─── DETALHE DA LIGA ──────────────────────────────────
-function DetalheLiga({ liga, user, onVoltar, provas, toast }) {
+function DetalheLiga({ liga, user, onVoltar, provas, toast, temElite, temBase, nav }) {
   const [membros, setMembros] = useState([])
   const [resultados, setResultados] = useState([])
   const [loading, setLoading] = useState(true)
@@ -589,7 +589,7 @@ export default function Ligas({ nav }) {
     } catch(e) { toast(e.message?.includes('23505')?'Já está inscrito nesta liga':'Erro: '+e.message,'err') }
   }
 
-  if (ligaAberta) return <DetalheLiga liga={ligaAberta} user={user} onVoltar={() => {setLigaAberta(null); load()}} provas={provas} toast={toast}/>
+  if (ligaAberta) return <DetalheLiga liga={ligaAberta} user={user} onVoltar={() => {setLigaAberta(null); load()}} provas={provas} toast={toast} temElite={temElite} temBase={temBase} nav={nav}/>
 
   const minhasLigas = ligas.minhas || []
   const oficiaisLigas = ligas.oficiais || []
