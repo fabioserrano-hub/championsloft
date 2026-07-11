@@ -48,7 +48,7 @@ import Carteira from './pages/Carteira'
 import Exportacao from './pages/Exportacao'
 import PerfilPublico from './pages/PerfilPublico'
 import Onboarding from './components/Onboarding'
-import { IdiomaContext, useIdioma, IDIOMAS } from './hooks/useIdioma'
+import { IdiomaContext, useIdiomaState, useIdioma, IDIOMAS } from './hooks/useIdioma'
 import Perfil       from './pages/Perfil'
 import Documentos   from './pages/Documentos'
 import PaginaSucesso from './pages/PaginaSucesso'
@@ -132,7 +132,7 @@ function useSidebarCollapse() {
 }
 
 // ─── APP LAYOUT ───────────────────────────────────────
-function AppLayout({ onError }) {
+function AppLayout({ setIdioma }) {
   const [renderErro, setRenderErro] = useState(null)
   if (renderErro) return (
     <div style={{position:'fixed',inset:0,background:'#050D1A',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:12,padding:20,fontFamily:'sans-serif'}}>
@@ -319,7 +319,7 @@ const concluirOnboarding = () => { localStorage.setItem('cl_onboarding_done','1'
           </div>
           <div className="tb-right">
             {isAdmin && (
-              <select value={idioma} onChange={e=>{localStorage.setItem('cl_idioma',e.target.value);window.location.reload()}}
+              <select value={idioma} onChange={e=>setIdioma(e.target.value)}
                 style={{ background:'rgba(255,255,255,.06)',border:'1px solid var(--border)',borderRadius:8,padding:'5px 8px',cursor:'pointer',fontSize:11,fontWeight:700,color:'var(--text3)',fontFamily:'inherit',outline:'none' }}>
                 {IDIOMAS.map(l=><option key={l.code} value={l.code}>{l.label}</option>)}
               </select>
@@ -344,7 +344,12 @@ const concluirOnboarding = () => { localStorage.setItem('cl_onboarding_done','1'
             <button className="btn btn-icon" onClick={()=>setTema(t=>t==='dark'?'light':'dark')} style={{ fontSize:16 }}>
               {tema==='dark'?'☀️':'🌙'}
             </button>
-            <button className="btn btn-icon" onClick={()=>window.print()} style={{ fontSize:16 }}>🖨️</button>
+            <button className="btn btn-icon" onClick={()=>window.print()} title="Imprimir / Guardar PDF" style={{ fontSize:16 }}>🖨️</button>
+            <button className="btn btn-icon" onClick={()=>{
+              const info = {url:window.location.href, pagina:page, data:new Date().toISOString(), ua:navigator.userAgent.slice(0,100)}
+              const corpo = `Olá,\n\nEncontrei um erro na Fly2Win:\n\nDescrição: [DESCREVE O ERRO AQUI]\n\nInformação técnica:\n${JSON.stringify(info,null,2)}`
+              window.location.href = `mailto:suporte@fly2win.pt?subject=Erro na Fly2Win&body=${encodeURIComponent(corpo)}`
+            }} title="Reportar erro" style={{ fontSize:16 }}>🐛</button>
             <div className="tb-date" style={{ display:'flex',alignItems:'center',gap:10 }}>
               <button onClick={()=>nav('perfil')} style={{ display:'flex',alignItems:'center',gap:8,background:'none',border:'none',cursor:'pointer',padding:'4px 8px',borderRadius:8 }}
                 onMouseEnter={e=>e.currentTarget.style.background='rgba(76,141,255,.1)'}
@@ -370,7 +375,7 @@ const concluirOnboarding = () => { localStorage.setItem('cl_onboarding_done','1'
 }
 
 // ─── APP CONTENT ──────────────────────────────────────
-function AppContent() {
+function AppContent({ setIdioma }) {
   const { user, loading } = useAuth()
   const [mostrarLanding, setMostrarLanding] = useState(true)
   const [erroApp, setErroApp] = useState(null)
@@ -397,19 +402,22 @@ function AppContent() {
     </div>
   )
 
-  if (user) return <AppLayout onError={setErroApp} />
+  if (user) return <AppLayout onError={setErroApp} setIdioma={setIdioma} />
   if (mostrarLanding) return <Landing onEntrar={()=>setMostrarLanding(false)} />
   return <Login />
 }
 
 // ─── ROOT ─────────────────────────────────────────────
 export default function App() {
+  const { idioma, setIdioma } = useIdiomaState()
   return (
-    <ToastProvider>
-      <AuthProvider>
-        <AppContent />
-      </AuthProvider>
-      <CookieBanner/>
-    </ToastProvider>
+    <IdiomaContext.Provider value={idioma}>
+      <ToastProvider>
+        <AuthProvider>
+          <AppContent setIdioma={setIdioma} />
+        </AuthProvider>
+        <CookieBanner/>
+      </ToastProvider>
+    </IdiomaContext.Provider>
   )
 }
