@@ -90,13 +90,12 @@ export default function Mensagens({ nav, params }) {
         conteudo:texto.trim(), lida:false,
         reply_to:msgReply?.id||null, reply_texto:msgReply?.conteudo||null
       }
-      const { data } = await supabase.from('mensagens').insert(payload).select().single()
-      if (data) {
-        setMsgs(m=>[...m,data]); setTexto(''); setMsgReply(null)
-        await supabase.from('mensagens_conversas').update({updated_at:new Date().toISOString(),ultima_msg:texto.trim()}).eq('id',conversa.id)
-        setTimeout(()=>fimRef.current?.scrollIntoView({behavior:'smooth'}),50)
-      }
-    } catch(e) { toast('Erro: '+e.message,'err') }
+      const { data, error } = await supabase.from('mensagens').insert(payload).select().single()
+      if (error) throw error
+      setMsgs(m=>[...m, data||payload]); setTexto(''); setMsgReply(null)
+      await supabase.from('mensagens_conversas').update({updated_at:new Date().toISOString(),ultima_msg:texto.trim()}).eq('id',conversa.id)
+      setTimeout(()=>fimRef.current?.scrollIntoView({behavior:'smooth'}),50)
+    } catch(e) { toast('Erro ao enviar: '+e.message,'err') }
     finally { setEnviando(false) }
   }
 
