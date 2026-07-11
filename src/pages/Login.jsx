@@ -24,10 +24,16 @@ export default function Login() {
         if (!form.nome.trim()) { toast('Nome obrigatório','warn'); setLoading(false); return }
         if (!termosAceites) { toast('Deve aceitar os Termos e Política de Privacidade','warn'); setLoading(false); return }
         await signUp(form.email, form.password, { nome: form.nome })
+        // Tentar login imediato (funciona se confirmação de email estiver desactivada)
         try {
           await signIn(form.email, form.password)
-        } catch {
-          toast('Conta criada! Verifique o seu email para activar.','ok')
+        } catch(e) {
+          // Se falhar, é porque precisa de confirmar email
+          if (e.message?.includes('Email not confirmed') || e.message?.includes('not confirmed')) {
+            toast('Conta criada! Verifique o seu email para activar a conta.','ok')
+          } else {
+            toast('Conta criada com sucesso! Pode fazer login agora.','ok')
+          }
           setMode('login')
         }
       }
