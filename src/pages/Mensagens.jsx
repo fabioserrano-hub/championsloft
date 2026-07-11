@@ -94,6 +94,7 @@ export default function Mensagens({ nav, params }) {
       if (error) throw error
       setMsgs(m=>[...m, data||payload]); setTexto(''); setMsgReply(null)
       await supabase.from('mensagens_conversas').update({updated_at:new Date().toISOString(),ultima_msg:texto.trim()}).eq('id',conversa.id)
+      setConversas(cs=>cs.map(c=>c.id===conversa.id?{...c,ultima_msg:texto.trim(),updated_at:new Date().toISOString()}:c))
       setTimeout(()=>fimRef.current?.scrollIntoView({behavior:'smooth'}),50)
     } catch(e) { toast('Erro ao enviar: '+e.message,'err') }
     finally { setEnviando(false) }
