@@ -356,11 +356,13 @@ export const db = {
     const { data: existing } = await supabase.from('post_likes').select('id').eq('post_id', postId).eq('user_id', uid).maybeSingle()
     if (existing) {
       await supabase.from('post_likes').delete().eq('id', existing.id)
-      await supabase.from('posts').update({ likes_count: supabase.rpc('decrement', { x: 1 }) }).eq('id', postId)
+      const { data: p } = await supabase.from('posts').select('likes_count').eq('id', postId).single().catch(()=>({data:null}))
+      await supabase.from('posts').update({ likes_count: Math.max(0,(p?.likes_count||0)-1) }).eq('id', postId)
       return false
     } else {
       await supabase.from('post_likes').insert({ post_id: postId, user_id: uid })
-      await supabase.from('posts').update({ likes_count: supabase.rpc('increment', { x: 1 }) }).eq('id', postId)
+      const { data: p2 } = await supabase.from('posts').select('likes_count').eq('id', postId).single().catch(()=>({data:null}))
+      await supabase.from('posts').update({ likes_count: (p2?.likes_count||0)+1 }).eq('id', postId)
       return true
     }
   },
@@ -589,7 +591,8 @@ export const db = {
     const uid = await this.uid()
     const { data, error } = await supabase.from('forum_respostas').insert({ ...r, user_id: uid }).select().single()
     if (error) throw error
-    await supabase.from('forum_topicos').update({ respostas_count: supabase.rpc('increment', { x: 1 }) }).eq('id', r.topico_id).catch(() => {})
+    const { data: topico } = await supabase.from('forum_topicos').select('respostas_count').eq('id', r.topico_id).single().catch(()=>({data:null}))
+    await supabase.from('forum_topicos').update({ respostas_count: (topico?.respostas_count||0)+1 }).eq('id', r.topico_id).catch(() => {})
     return data
   },
 
