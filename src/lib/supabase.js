@@ -356,8 +356,8 @@ export const db = {
     const { data: existing } = await supabase.from('post_likes').select('id').eq('post_id', postId).eq('user_id', uid).maybeSingle()
     if (existing) {
       await supabase.from('post_likes').delete().eq('id', existing.id)
-      const { data: p } = await supabase.from('posts').select('likes_count').eq('id', postId).single().catch(()=>({data:null}))
-      await supabase.from('posts').update({ likes_count: Math.max(0,(p?.likes_count||0)-1) }).eq('id', postId)
+      const { data: p1 } = await supabase.from('posts').select('likes_count').eq('id', postId).single().catch(()=>({data:null}))
+      await supabase.from('posts').update({ likes_count: Math.max(0,(p1?.likes_count||0)-1) }).eq('id', postId)
       return false
     } else {
       await supabase.from('post_likes').insert({ post_id: postId, user_id: uid })
@@ -580,7 +580,8 @@ export const db = {
     if (error) throw error
   },
   async incrementForumViews(id) {
-    await supabase.rpc('increment_forum_views', { topico_id: id }).catch(() => {})
+    const { data: top } = await supabase.from('forum_topicos').select('views').eq('id', id).single().catch(()=>({data:null}))
+    await supabase.from('forum_topicos').update({ views: (top?.views||0)+1 }).eq('id', id).catch(() => {})
   },
   async getForumRespostas(topicoId) {
     const { data, error } = await supabase.from('forum_respostas').select('*').eq('topico_id', topicoId).order('created_at')
@@ -591,8 +592,8 @@ export const db = {
     const uid = await this.uid()
     const { data, error } = await supabase.from('forum_respostas').insert({ ...r, user_id: uid }).select().single()
     if (error) throw error
-    const { data: topico } = await supabase.from('forum_topicos').select('respostas_count').eq('id', r.topico_id).single().catch(()=>({data:null}))
-    await supabase.from('forum_topicos').update({ respostas_count: (topico?.respostas_count||0)+1 }).eq('id', r.topico_id).catch(() => {})
+    const { data: top } = await supabase.from('forum_topicos').select('respostas_count').eq('id', r.topico_id).single().catch(()=>({data:null}))
+    await supabase.from('forum_topicos').update({ respostas_count: (top?.respostas_count||0)+1 }).eq('id', r.topico_id).catch(() => {})
     return data
   },
 
