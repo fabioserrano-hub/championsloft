@@ -356,12 +356,12 @@ export const db = {
     const { data: existing } = await supabase.from('post_likes').select('id').eq('post_id', postId).eq('user_id', uid).maybeSingle()
     if (existing) {
       await supabase.from('post_likes').delete().eq('id', existing.id)
-      const { data: p1 } = await supabase.from('posts').select('likes_count').eq('id', postId).single().catch(()=>({data:null}))
-      await supabase.from('posts').update({ likes_count: Math.max(0,(p1?.likes_count||0)-1) }).eq('id', postId)
+      const { data: p } = await supabase.from('posts').select('likes_count').eq('id', postId).maybeSingle()
+      await supabase.from('posts').update({ likes_count: Math.max(0,(p?.likes_count||0)-1) }).eq('id', postId)
       return false
     } else {
       await supabase.from('post_likes').insert({ post_id: postId, user_id: uid })
-      const { data: p2 } = await supabase.from('posts').select('likes_count').eq('id', postId).single().catch(()=>({data:null}))
+      const { data: p2 } = await supabase.from('posts').select('likes_count').eq('id', postId).maybeSingle()
       await supabase.from('posts').update({ likes_count: (p2?.likes_count||0)+1 }).eq('id', postId)
       return true
     }
@@ -580,8 +580,8 @@ export const db = {
     if (error) throw error
   },
   async incrementForumViews(id) {
-    const { data: top } = await supabase.from('forum_topicos').select('views').eq('id', id).single().catch(()=>({data:null}))
-    await supabase.from('forum_topicos').update({ views: (top?.views||0)+1 }).eq('id', id).catch(() => {})
+    const { data: top } = await supabase.from('forum_topicos').select('views').eq('id', id).maybeSingle()
+    try { await supabase.from('forum_topicos').update({ views: (top?.views||0)+1 }).eq('id', id) } catch {}
   },
   async getForumRespostas(topicoId) {
     const { data, error } = await supabase.from('forum_respostas').select('*').eq('topico_id', topicoId).order('created_at')
@@ -592,8 +592,8 @@ export const db = {
     const uid = await this.uid()
     const { data, error } = await supabase.from('forum_respostas').insert({ ...r, user_id: uid }).select().single()
     if (error) throw error
-    const { data: top } = await supabase.from('forum_topicos').select('respostas_count').eq('id', r.topico_id).single().catch(()=>({data:null}))
-    await supabase.from('forum_topicos').update({ respostas_count: (top?.respostas_count||0)+1 }).eq('id', r.topico_id).catch(() => {})
+    const { data: topico } = await supabase.from('forum_topicos').select('respostas_count').eq('id', r.topico_id).maybeSingle()
+    try { await supabase.from('forum_topicos').update({ respostas_count: (topico?.respostas_count||0)+1 }).eq('id', r.topico_id) } catch {}
     return data
   },
 
@@ -660,6 +660,12 @@ export const db = {
   },
   async criarConversa(outroId, outroNome, outraFoto, meuNome, minhaFoto) {
     const uid = await this.uid()
+    // Verificar se já existe conversa entre os dois utilizadores
+    const { data: existente } = await supabase.from('mensagens_conversas')
+      .select('*')
+      .or(`and(user_a.eq.${uid},user_b.eq.${outroId}),and(user_a.eq.${outroId},user_b.eq.${uid})`)
+      .maybeSingle()
+    if (existente) return existente
     const { data, error } = await supabase.from('mensagens_conversas').insert({
       user_a: uid, user_b: outroId,
       nome_a: meuNome, nome_b: outroNome,
