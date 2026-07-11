@@ -132,7 +132,7 @@ function useSidebarCollapse() {
 }
 
 // ─── APP LAYOUT ───────────────────────────────────────
-function AppLayout({ setIdioma: _unused }) {
+function AppLayout({ setIdioma }) {
   const [renderErro, setRenderErro] = useState(null)
   if (renderErro) return (
     <div style={{position:'fixed',inset:0,background:'#050D1A',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:12,padding:20,fontFamily:'sans-serif'}}>
@@ -143,7 +143,7 @@ function AppLayout({ setIdioma: _unused }) {
   )
 
   const { user } = useAuth()
-  const { idioma, t, setIdioma } = useIdioma()
+  const { idioma, t } = useIdioma()
   const NAV = getNav(t)
   const { collapsed, toggle } = useSidebarCollapse()
   const isAdmin = true; const betaTester = false; const flags = {}
@@ -319,7 +319,7 @@ const concluirOnboarding = () => { localStorage.setItem('cl_onboarding_done','1'
           </div>
           <div className="tb-right">
             {isAdmin && (
-              <select value={idioma} onChange={e=>setIdioma(e.target.value)}
+              <select value={idioma} onChange={e=>{setIdioma(e.target.value);localStorage.setItem('cl_idioma',e.target.value);setTimeout(()=>window.location.reload(),100)}}
                 style={{ background:'rgba(255,255,255,.06)',border:'1px solid var(--border)',borderRadius:8,padding:'5px 8px',cursor:'pointer',fontSize:11,fontWeight:700,color:'var(--text3)',fontFamily:'inherit',outline:'none' }}>
                 {IDIOMAS.map(l=><option key={l.code} value={l.code}>{l.label}</option>)}
               </select>
@@ -406,7 +406,7 @@ function AppContent({ setIdioma }) {
 export default function App() {
   const { idioma, setIdioma } = useIdiomaState()
   return (
-    <IdiomaContext.Provider value={{ idioma, setIdioma }}>
+    <IdiomaContext.Provider value={idioma}>
       <ToastProvider>
         <AuthProvider>
           <AppContent setIdioma={setIdioma} />
