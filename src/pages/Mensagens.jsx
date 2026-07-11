@@ -113,7 +113,7 @@ export default function Mensagens({ nav, params }) {
       (c.user_a === uid && c.user_b === outroPerfil.user_id) ||
       (c.user_b === uid && c.user_a === outroPerfil.user_id)
     )
-    if (existente) { seleccionar(existente, outroPerfil); setNovaConversa(false); return }
+    if (existente) { seleccionar(existente, outroPerfil); setNovaConversa(false); if (isMobile) setVistaM('chat'); return }
     try {
       const { data, error } = await supabase.from('mensagens_conversas').insert({
         user_a: uid, user_b: outroPerfil.user_id,
@@ -123,6 +123,7 @@ export default function Mensagens({ nav, params }) {
       if (error) throw error
       setConversa({ ...data, outroNome: outroPerfil.nome, outraFoto: outroPerfil.foto_perfil_url, outroPerfil })
       setMsgs([]); setConversas(cs => [data, ...cs]); setNovaConversa(false)
+      if (isMobile) setVistaM('chat')
     } catch (e) { toast('Erro: ' + e.message, 'err') }
   }
 
@@ -243,6 +244,19 @@ export default function Mensagens({ nav, params }) {
   const naoLidas = conversas.filter(cv => !cv.arquivada && cv.ultima_msg &&
     !bloqueados.includes(cv.user_a === uid ? cv.user_b : cv.user_a)).length
 
+  // ── Detecção mobile ─────────────────────────────────────────────
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
+  useEffect(() => {
+    const fn = () => setIsMobile(window.innerWidth < 768)
+    window.addEventListener('resize', fn)
+    return () => window.removeEventListener('resize', fn)
+  }, [])
+
+  // Em mobile: vista = 'lista' | 'chat'
+  const [vistaM, setVistaM] = useState('lista')
+  const abrirChat = (cv, perfil) => { seleccionar(cv, perfil); if (isMobile) setVistaM('chat') }
+  const voltarLista = () => { setConversa(null); setVistaM('lista') }
+
   if (!temPro) return <BloqueioPlano plano="pro" nav={nav} />
 
   // ── Componentes auxiliares ───────────────────────────────────────
@@ -296,10 +310,15 @@ export default function Mensagens({ nav, params }) {
       </div>
 
       {/* Layout */}
-      <div style={{ display: 'flex', gap: 10, height: '68vh', minHeight: 420 }}>
+      <div style={{ display: 'flex', gap: isMobile ? 0 : 10, height: isMobile ? 'calc(100vh - 180px)' : '68vh', minHeight: 380 }}>
 
-        {/* ── Lista conversas ── */}
-        <div style={{ width: conversa ? '34%' : '100%', minWidth: conversa ? 190 : 'auto', display: novaConversa && conversa ? 'none' : 'flex', flexDirection: 'column', background: '#070F1D', borderRadius: 12, border: '1px solid #1B2D52', overflow: 'hidden' }}>
+        {/* ── Lista conversas — esconde em mobile quando chat aberto ── */}
+        <div style={{
+          width: isMobile ? '100%' : conversa ? '34%' : '100%',
+          minWidth: isMobile ? 'auto' : conversa ? 190 : 'auto',
+          display: isMobile ? (vistaM === 'lista' ? 'flex' : 'none') : (novaConversa && conversa ? 'none' : 'flex'),
+          flexDirection: 'column', background: '#070F1D', borderRadius: 12, border: '1px solid #1B2D52', overflow: 'hidden'
+        }}>
           {novaConversa ? (
             <>
               <div style={{ padding: '10px 12px', borderBottom: '1px solid #1B2D52', display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -340,7 +359,7 @@ export default function Mensagens({ nav, params }) {
                       const outraFoto = cv.user_a === uid ? cv.foto_b : cv.foto_a
                       const activa = conversa?.id === cv.id
                       return (
-                        <div key={cv.id} onClick={() => seleccionar(cv)}
+                        <div key={cv.id} onClick={() => abrirChat(cv)}
                           style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '11px 12px', cursor: 'pointer', background: activa ? 'rgba(76,141,255,.08)' : 'transparent', borderLeft: `3px solid ${activa ? '#4C8DFF' : 'transparent'}` }}
                           onMouseEnter={e => { if (!activa) e.currentTarget.style.background = 'rgba(255,255,255,.03)' }}
                           onMouseLeave={e => { if (!activa) e.currentTarget.style.background = activa ? 'rgba(76,141,255,.08)' : 'transparent' }}>
@@ -360,10 +379,14 @@ export default function Mensagens({ nav, params }) {
 
         {/* ── Chat ── */}
         {conversa && !novaConversa ? (
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#070F1D', borderRadius: 12, border: '1px solid #1B2D52', overflow: 'hidden' }}>
+          <div style={{ flex: 1, display: isMobile && vistaM !== 'chat' ? 'none' : 'flex', flexDirection: 'column', background: '#070F1D', borderRadius: 12, border: '1px solid #1B2D52', overflow: 'hidden' }}>
 
             {/* Header chat */}
             <div style={{ padding: '10px 14px', background: 'linear-gradient(135deg,#0B1830,#050D1A)', borderBottom: '1px solid #1B2D52', display: 'flex', gap: 10, alignItems: 'center' }}>
+              {/* Botão voltar — só mobile */}
+              {isMobile && (
+                <button onClick={voltarLista} style={{ background: 'none', border: 'none', color: '#4C8DFF', cursor: 'pointer', fontSize: 20, padding: '0 4px', flexShrink: 0 }}>←</button>
+              )}
               <Avatar foto={conversa.outraFoto} nome={conversa.outroNome} size={36} online verificado={conversa.outroPerfil?.verificado} />
               <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => setModalInfo(true)}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>{conversa.outroNome}</div>
