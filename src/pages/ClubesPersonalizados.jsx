@@ -318,7 +318,7 @@ function DetalheClubePersonalizado({ clube, user, onVoltar, toast, temPro, nav }
                 )
               })}
             </div>
-      ):(
+      ):tab==='membros'?(
         <div style={{display:'flex',flexDirection:'column',gap:8}}>
           {membros.map(m=>(
             <div key={m.id} style={{display:'flex',gap:12,alignItems:'center',padding:'12px 14px',background:'#0B1830',border:'1px solid #1B2D52',borderRadius:10}}>
