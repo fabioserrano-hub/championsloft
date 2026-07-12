@@ -13,7 +13,7 @@ const DURACOES = [['1','1 dia'],['3','3 dias'],['5','5 dias'],['7','7 dias'],['1
 const INCREMENTOS = [1,5,10,25,50,100]
 const ESPS_FILTRO = [['todos','Todos'],['velocidade','⚡ Vel.'],['meio_fundo','🎯 MF'],['fundo','🏔️ Fundo'],['grande_fundo','🌍 GF']]
 
-const EMPTY = { tipo_leilao:'pombo', pombo_id:'', nome:'', anilha:'', sexo:'M', cor:'', ano_nasc:'', esp:[], provas:0, percentil:0, leilao_min:'', leilao_reserva:'', descricao:'', foto_url:'', duracao:'3', leilao_silencioso:false, garantia_performance:false, garantia_percentil:'', garantia_provas:'', pai_id:'', mae_id:'', data_acasalamento_prev:'' }
+const EMPTY = { tipo_leilao:'pombo', pombo_id:'', nome:'', anilha:'', sexo:'M', cor:'', ano_nasc:'', esp:[], provas:0, percentil:0, leilao_min:'', leilao_reserva:'', descricao:'', foto_url:'', duracao:'3', leilao_silencioso:false, garantia_performance:false, garantia_percentil:'', garantia_provas:'', pai_id:'', mae_id:'', data_acasalamento_prev:'', estado_ninhada:'futura', n_ovos:'', data_postura:'' }
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 function anoDeAnilha(anilha) {
@@ -260,6 +260,9 @@ export default function Leiloes({ nav }) {
         pai_nome:pai?`${pai.nome} (${pai.anilha})`:null,
         mae_nome:mae?`${mae.nome} (${mae.anilha})`:null,
         data_acasalamento_prev:form.data_acasalamento_prev||null,
+        estado_ninhada:form.tipo_leilao==='descendente'?form.estado_ninhada:'futura',
+        n_ovos:form.n_ovos?parseInt(form.n_ovos):null,
+        data_postura:form.data_postura||null,
       })
       toast(form.tipo_leilao==='descendente'?'🥚 Leilão de descendente publicado!':'🔨 Leilão publicado!','ok')
       setModal(false); setForm(EMPTY); load()
@@ -340,6 +343,12 @@ export default function Leiloes({ nav }) {
               {!isDesc&&l.anilha&&<div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:'#2DD4A7',marginBottom:3}}>{l.anilha}</div>}
               {isDesc&&l.pai_nome&&<div style={{fontSize:11,color:'#7A8699',marginBottom:3}}>♂ {l.pai_nome} × ♀ {l.mae_nome}</div>}
               {isDesc&&l.data_acasalamento_prev&&<div style={{fontSize:10,color:'#2DD4A7',marginBottom:3}}>📅 Acasalamento prev.: {new Date(l.data_acasalamento_prev).toLocaleDateString('pt-PT')}</div>}
+              {isDesc&&l.estado_ninhada&&l.estado_ninhada!=='futura'&&(
+                <div style={{fontSize:10,fontWeight:700,color:l.estado_ninhada==='nascidos'?'#D4AF37':'#2DD4A7',marginBottom:3}}>
+                  {l.estado_ninhada==='ovos'?`🥚 Ovos a chocar${l.n_ovos?' · '+l.n_ovos+' ovo(s)':''}`:`🐣 Borrachinhos nascidos${l.n_ovos?' · '+l.n_ovos:''}` }
+                  {l.data_postura&&` · Postura: ${new Date(l.data_postura).toLocaleDateString('pt-PT')}`}
+                </div>
+              )}
               <div style={{display:'flex',gap:4,flexWrap:'wrap',marginBottom:4}}>
                 {(l.esp||[]).map(e=><span key={e} style={{fontSize:10,color:ESP_COR[e]||'#7A8699',background:`${ESP_COR[e]||'#7A8699'}15`,padding:'1px 6px',borderRadius:6,fontWeight:600}}>{ESP_ICON[e]||'🐦'} {e}</span>)}
               </div>
@@ -592,8 +601,52 @@ export default function Leiloes({ nav }) {
 
         {form.tipo_leilao==='descendente'&&(
           <div style={{display:'flex',flexDirection:'column',gap:12}}>
+
+            {/* Estado da ninhada */}
+            <div>
+              <div style={{fontSize:11,color:'#7A8699',fontWeight:600,marginBottom:8}}>📅 Estado da ninhada:</div>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6}}>
+                {[
+                  ['futura','📅','Ninhada futura','Casal ainda não acasalou'],
+                  ['ovos','🥚','Ovos a chocar','Ovos já postos'],
+                  ['nascidos','🐣','Borrachinhos','Já nasceram'],
+                ].map(([v,icon,titulo,desc])=>(
+                  <div key={v} onClick={()=>sf('estado_ninhada',v)}
+                    style={{padding:'10px 8px',borderRadius:8,border:`2px solid ${form.estado_ninhada===v?'#2DD4A7':'#1B2D52'}`,background:form.estado_ninhada===v?'rgba(45,212,167,.08)':'#101F40',cursor:'pointer',textAlign:'center'}}>
+                    <div style={{fontSize:20,marginBottom:4}}>{icon}</div>
+                    <div style={{fontSize:11,fontWeight:700,color:form.estado_ninhada===v?'#2DD4A7':'#fff'}}>{titulo}</div>
+                    <div style={{fontSize:9,color:'#475569',marginTop:2}}>{desc}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Datas contextuais por estado */}
+            {form.estado_ninhada==='futura'&&(
+              <Field label="📅 Data prevista de acasalamento">
+                <input className="input" type="date" value={form.data_acasalamento_prev} onChange={e=>sf('data_acasalamento_prev',e.target.value)}/>
+                <div style={{fontSize:10,color:'#475569',marginTop:2}}>Eclosão ~28 dias · Entrega ~45 dias após eclosão</div>
+              </Field>
+            )}
+            {form.estado_ninhada==='ovos'&&(
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+                <Field label="📅 Data de postura">
+                  <input className="input" type="date" value={form.data_postura} onChange={e=>sf('data_postura',e.target.value)}/>
+                </Field>
+                <Field label="🥚 Nº de ovos">
+                  <input className="input" type="number" min="1" max="2" value={form.n_ovos} onChange={e=>sf('n_ovos',e.target.value)} placeholder="1 ou 2"/>
+                </Field>
+              </div>
+            )}
+            {form.estado_ninhada==='nascidos'&&(
+              <Field label="🐣 Nº de borrachinhos">
+                <input className="input" type="number" min="1" max="2" value={form.n_ovos} onChange={e=>sf('n_ovos',e.target.value)} placeholder="1 ou 2"/>
+              </Field>
+            )}
+
+            {/* Seleção do par */}
             <div style={{padding:'10px 12px',background:'rgba(45,212,167,.06)',border:'1px solid rgba(45,212,167,.15)',borderRadius:8,fontSize:12,color:'#94a3b8',lineHeight:1.6}}>
-              🥚 O comprador reserva uma ninhada <strong style={{color:'#fff'}}>antes de nascer</strong>. Selecciona o par reprodutor — os dados genéticos e percentis são mostrados automaticamente ao comprador.
+              🧬 Selecciona o par reprodutor — os dados genéticos e percentis são mostrados automaticamente ao comprador.
             </div>
             <Field label="♂ Pai (Macho) *">
               <SelectorPombo pombos={pombos.filter(p=>p.sexo==='M')} value={form.pai_id} onChange={onSelectPai} placeholder="— Seleccionar macho —"/>
@@ -605,18 +658,30 @@ export default function Leiloes({ nav }) {
               const pai=pombos.find(x=>x.id===form.pai_id)
               const mae=pombos.find(x=>x.id===form.mae_id)
               const percMedio=Math.round(((pai?.percentil||0)+(mae?.percentil||0))/2)
+              const temPedigree = (pai?.pai||pai?.mae) && (mae?.pai||mae?.mae)
               return (
-                <div style={{padding:'10px 12px',background:'rgba(212,175,55,.06)',border:'1px solid rgba(212,175,55,.15)',borderRadius:8}}>
-                  <div style={{fontSize:11,fontWeight:600,color:'#D4AF37',marginBottom:6}}>🧬 Combinação Genética</div>
-                  <div style={{fontSize:11,color:'#94a3b8'}}>Percentil médio dos pais: <strong style={{color:'#2DD4A7'}}>{percMedio}%</strong></div>
-                  {pai?.esp&&<div style={{fontSize:11,color:'#94a3b8',marginTop:3}}>Especialidades: {(pai.esp||[]).map(e=>`${ESP_ICON[e]||'🐦'} ${e}`).join(', ')}</div>}
+                <div style={{padding:'12px',background:'rgba(212,175,55,.06)',border:'1px solid rgba(212,175,55,.15)',borderRadius:8}}>
+                  <div style={{fontSize:11,fontWeight:600,color:'#D4AF37',marginBottom:8}}>🧬 Combinação Genética</div>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:8}}>
+                    <div style={{textAlign:'center',padding:'8px',background:'rgba(0,0,0,.2)',borderRadius:6}}>
+                      <div style={{fontSize:10,color:'#475569',marginBottom:2}}>♂ {pai?.nome}</div>
+                      <div style={{fontSize:18,fontWeight:900,color:'#2DD4A7'}}>{pai?.percentil||0}%</div>
+                      <div style={{fontSize:9,color:'#475569'}}>{pai?.provas||0} provas</div>
+                    </div>
+                    <div style={{textAlign:'center',padding:'8px',background:'rgba(0,0,0,.2)',borderRadius:6}}>
+                      <div style={{fontSize:10,color:'#475569',marginBottom:2}}>♀ {mae?.nome}</div>
+                      <div style={{fontSize:18,fontWeight:900,color:'#2DD4A7'}}>{mae?.percentil||0}%</div>
+                      <div style={{fontSize:9,color:'#475569'}}>{mae?.provas||0} provas</div>
+                    </div>
+                  </div>
+                  <div style={{textAlign:'center',fontSize:12,color:'#94a3b8'}}>
+                    Percentil médio dos pais: <strong style={{color:'#D4AF37',fontSize:15}}>{percMedio}%</strong>
+                  </div>
+                  {!temPedigree&&<div style={{fontSize:10,color:'#475569',marginTop:6,textAlign:'center'}}>💡 Adiciona pedigree aos pombos para aumentar o valor percebido</div>}
+                  {pai?.esp&&<div style={{fontSize:10,color:'#94a3b8',marginTop:6}}>Especialidades: {(pai.esp||[]).map(e=>`${ESP_ICON[e]||'🐦'} ${e}`).join(', ')}</div>}
                 </div>
               )
             })()}
-            <Field label="📅 Data prevista de acasalamento">
-              <input className="input" type="date" value={form.data_acasalamento_prev} onChange={e=>sf('data_acasalamento_prev',e.target.value)}/>
-              <div style={{fontSize:10,color:'#475569',marginTop:2}}>Eclosão esperada ~28 dias após acasalamento. Entrega ~45 dias após eclosão.</div>
-            </Field>
             <div className="form-grid">
               <div className="col-2">
                 <Field label="Especialidades herdadas">
