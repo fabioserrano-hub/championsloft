@@ -429,15 +429,12 @@ function AppContent() {
 
 // ─── ROOT ─────────────────────────────────────────────
 export default function App() {
-  const { idioma, setIdioma } = useIdiomaState()
   return (
-    <IdiomaContext.Provider value={{ idioma, setIdioma }}>
-      <ToastProvider>
-        <AuthProvider>
-          <AppContent />
-        </AuthProvider>
-        <CookieBanner/>
-      </ToastProvider>
-    </IdiomaContext.Provider>
+    <ToastProvider>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+      <CookieBanner/>
+    </ToastProvider>
   )
 }
