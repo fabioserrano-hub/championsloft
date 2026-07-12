@@ -48,7 +48,7 @@ import Carteira from './pages/Carteira'
 import Exportacao from './pages/Exportacao'
 import PerfilPublico from './pages/PerfilPublico'
 import Onboarding from './components/Onboarding'
-import { IdiomaContext, useIdioma, useIdiomaState, IDIOMAS } from './hooks/useIdioma'
+import { IdiomaContext, useIdioma, IDIOMAS } from './hooks/useIdioma'
 import Perfil       from './pages/Perfil'
 import Documentos   from './pages/Documentos'
 import PaginaSucesso from './pages/PaginaSucesso'
@@ -58,54 +58,54 @@ import Privacidade  from './pages/Privacidade'
 // ─── NAV CONFIG ───────────────────────────────────────
 function getNav(t) {
   return [
-    { section: 'Principal', items: [
-      { id:'dashboard', icon:'🕊️', label:'Pombal Hoje' }, 
-      { id:'pombos',      icon:'🐦', label:'Pombos' },
-      { id:'pombais',     icon:'🏠', label:'Pombais' },
+    { section: t('principal'), items: [
+      { id:'dashboard',    icon:'🕊️', label:t('pombalHoje') },
+      { id:'pombos',       icon:'🐦', label:t('pombos') },
+      { id:'pombais',      icon:'🏠', label:t('pombais') },
     ]},
-    { section: 'Desporto', items: [
-      { id:'provas',      icon:'🏆', label:'Provas' },
-      { id:'treinos',     icon:'🎯', label:'Treinos' },
-      { id:'calendario',  icon:'📅', label:'Calendário' },
-      { id:'checklist',   icon:'✅', label:'Checklist' },
+    { section: t('desporto'), items: [
+      { id:'provas',       icon:'🏆', label:t('provas') },
+      { id:'treinos',      icon:'🎯', label:t('treinos') },
+      { id:'calendario',   icon:'📅', label:t('calendario') },
+      { id:'checklist',    icon:'✅', label:t('checklist') },
     ]},
-    { section: 'Gestão', items: [
-      { id:'saude',       icon:'🏥', label:'Saúde' },
-      { id:'reproducao',  icon:'🥚', label:'Reprodução' },
-      { id:'pedigree',    icon:'🌳', label:'Pedigree' },
-      { id:'casais',      icon:'🧬', label:'Casais IA' },
-      { id:'alimentacao', icon:'🌾', label:'Alimentação' },
-      { id:'financas',    icon:'💰', label:'Finanças' },
-      { id:'clubes',      icon:'🏛️', label:'Clubes' },
+    { section: t('gestao'), items: [
+      { id:'saude',        icon:'🏥', label:t('saude') },
+      { id:'reproducao',   icon:'🥚', label:t('reproducao') },
+      { id:'pedigree',     icon:'🌳', label:t('pedigree') },
+      { id:'casais',       icon:'🧬', label:t('casaisIA') },
+      { id:'alimentacao',  icon:'🌾', label:t('alimentacao') },
+      { id:'financas',     icon:'💰', label:t('financas') },
+      { id:'clubes',       icon:'🏛️', label:t('clubes') },
     ]},
-    { section: 'Análise', items: [
-      { id:'analiticas',  icon:'📊', label:'Analíticas' },
-      { id:'forma',       icon:'💪', label:'Rastreio Forma' },
-      { id:'epoca',       icon:'🏁', label:'Época' },
-      { id:'meteorologia',icon:'🌦️', label:'Meteorologia' },
+    { section: t('analise'), items: [
+      { id:'analiticas',   icon:'📊', label:t('analiticas') },
+      { id:'forma',        icon:'💪', label:t('rastreioForma') },
+      { id:'epoca',        icon:'🏁', label:t('epoca') },
+      { id:'meteorologia', icon:'🌦️', label:t('meteorologia') },
     ]},
-    { section: 'Social', items: [
-      { id:'comunidade',  icon:'🌐', label:'LoftSocial' },
-      { id:'mensagens',   icon:'💬', label:'Mensagens' },
-      { id:'clubes_pers', icon:'🎽', label:'Clubes & Equipes' },
-      { id:'forum',       icon:'💬', label:'Fórum' },
-      { id:'dicas',       icon:'💡', label:'Dicas' },
+    { section: t('social'), items: [
+      { id:'comunidade',   icon:'🌐', label:t('comunidade') },
+      { id:'mensagens',    icon:'💬', label:t('mensagens') },
+      { id:'clubes_pers',  icon:'🎽', label:t('clubesEquipes') },
+      { id:'forum',        icon:'💬', label:t('forum') },
+      { id:'dicas',        icon:'💡', label:t('dicas') },
     ]},
-    { section: 'Competição', items: [
-      { id:'ligas',       icon:'🏆', label:'Ligas' },
-      { id:'liga_clubes', icon:'⚔️', label:'Liga de Clubes' },
+    { section: t('competicao'), items: [
+      { id:'ligas',        icon:'🏆', label:t('ligas') },
+      { id:'liga_clubes',  icon:'⚔️', label:t('ligaClubes') },
     ]},
-    { section: 'Mercado', items: [
-      { id:'marketplace', icon:'🛒', label:'Marketplace' },
-      { id:'leiloes',     icon:'🔨', label:'Leilões' },
-      { id:'patrocinadores', icon:'🛍️', label:'Parceiros' },
+    { section: t('mercado'), items: [
+      { id:'marketplace',  icon:'🛒', label:t('marketplace') },
+      { id:'leiloes',      icon:'🔨', label:t('leiloes') },
+      { id:'patrocinadores',icon:'🛍️', label:t('parceiros') },
     ]},
-    { section: 'Sistema', items: [
-      { id:'precos',      icon:'💳', label:'Planos' },
-      { id:'admin',       icon:'👑', label:'Admin' },
-      { id:'carteira',    icon:'💎', label:'Carteira CL' },
-      { id:'conquistas',  icon:'🎖️', label:'Conquistas' },
-      { id:'perfil',      icon:'⚙️', label:'Perfil' },
+    { section: t('sistema'), items: [
+      { id:'precos',       icon:'💳', label:t('planos') },
+      { id:'admin',        icon:'👑', label:t('adminLabel') },
+      { id:'carteira',     icon:'💎', label:t('carteira') },
+      { id:'conquistas',   icon:'🎖️', label:t('conquistas') },
+      { id:'perfil',       icon:'⚙️', label:t('perfil') },
     ]},
   ]
 }
@@ -143,7 +143,7 @@ function AppLayout({ onError }) {
   )
 
   const { user } = useAuth()
-  const { idioma, t, setIdioma } = useIdioma()
+  const { idioma, t } = useIdioma()
   const NAV = getNav(t)
   const { collapsed, toggle } = useSidebarCollapse()
   const isAdmin = true; const betaTester = false; const flags = {}
@@ -341,8 +341,8 @@ const concluirOnboarding = () => { localStorage.setItem('cl_onboarding_done','1'
             <span className="tb-search-kbd">⌘K</span>
           </div>
           <div className="tb-right">
-            {isAdmin && (
-              <select value={idioma} onChange={e=>setIdioma(e.target.value)}
+            {true && (
+              <select value={idioma} onChange={e=>{localStorage.setItem('cl_idioma',e.target.value);window.location.reload()}}
                 style={{ background:'rgba(255,255,255,.06)',border:'1px solid var(--border)',borderRadius:8,padding:'5px 8px',cursor:'pointer',fontSize:11,fontWeight:700,color:'var(--text3)',fontFamily:'inherit',outline:'none' }}>
                 {IDIOMAS.map(l=><option key={l.code} value={l.code}>{l.label}</option>)}
               </select>
