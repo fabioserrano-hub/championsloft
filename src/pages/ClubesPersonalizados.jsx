@@ -190,6 +190,8 @@ function DetalheClubePersonalizado({ clube, user, onVoltar, toast, temPro, nav }
     } catch(e) { toast('Erro: '+e.message,'err') }
     finally { setCsvLoading(false) }
   }
+
+  const guardarResultado = async () => {
     if (!formRes.nome_prova.trim()) return toast('Nome da prova obrigatório','warn')
     setSavingRes(true)
     try {
