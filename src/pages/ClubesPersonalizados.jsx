@@ -501,7 +501,7 @@ function DetalheClubePersonalizado({ clube, user, onVoltar, toast, temPro, nav }
             </div>
           )}
         </div>
-      )}
+      ): <></>}
 
       {!euAdmin&&euMembro&&(
         <div style={{textAlign:'center',marginTop:20}}>
