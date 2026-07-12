@@ -31,13 +31,13 @@ function segundaFeira(data = new Date()) {
 
 const MODO_ICON = { agua: '💧', racao: '🌾', direto: '💊', outros: '🛁' }
 const ESP_COLOR = { velocidade: '#F59E0B', meio_fundo: '#3B82F6', fundo: '#10B981', geral: '#8B5CF6' }
-const ESP_LABEL = { velocidade: 'Velocidade', meio_fundo: 'Meio-Fundo', fundo: 'Fundo', geral: 'Geral' }
-const DIAS_PT = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado']
-const MESES_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
+const getEspLabel = (t) => ({ velocidade: t('velocidade'), meio_fundo: t('meioFundo'), fundo: t('fundo'), geral: t('geral') })
+const getDias = (t) => [t('domingo'),t('segunda'),t('terca'),t('quarta'),t('quinta'),t('sexta'),t('sabado')]
+const getMeses = (t) => [t('janeiro'),t('fevereiro'),t('marco'),t('abril'),t('maio'),t('junho'),t('julho'),t('agosto'),t('setembro'),t('outubro'),t('novembro'),t('dezembro')]
 
 function formatData(d) {
   const dt = new Date(d)
-  return dt.getDate() + ' ' + MESES_PT[dt.getMonth()]
+  return dt.getDate() + ' ' + getMeses(t)[dt.getMonth()]
 }
 
 // ── sub-componentes ───────────────────────────────────────────────────────────
@@ -78,9 +78,9 @@ export default function Dashboard({ nav }) {
   const nome = user?.user_metadata?.nome?.split(' ')[0] || 'Columbófilo'
   const agora = new Date()
   const h = agora.getHours()
-  const saudacao = h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite'
-  const diaSemana = DIAS_PT[agora.getDay()]
-  const dataHoje = agora.getDate() + ' de ' + MESES_PT[agora.getMonth()] + ' de ' + agora.getFullYear()
+  const saudacao = h < 12 ? t('bomDia') : h < 18 ? t('boaTarde') : t('boaNoite')
+  const diaSemana = getDias(t)[agora.getDay()]
+  const dataHoje = agora.getDate() + ' ' + t('de') + ' ' + getMeses(t)[agora.getMonth()] + ' ' + t('de') + ' ' + agora.getFullYear()
   const hojeKey = ['domingo','segunda','terca','quarta','quinta','sexta','sabado'][agora.getDay()]
 
   useEffect(() => {
@@ -338,7 +338,7 @@ export default function Dashboard({ nav }) {
                 <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
                   <div style={{ fontSize:14, fontWeight:700, color:'#fff' }}>{data.planoAtivo.nome}</div>
                   <div style={{ display:'inline-block', padding:'2px 8px', borderRadius:10, fontSize:10, fontWeight:700, background:`${ESP_COLOR[data.planoAtivo.especialidade] || '#8B5CF6'}22`, color:ESP_COLOR[data.planoAtivo.especialidade] || '#8B5CF6', border:`1px solid ${ESP_COLOR[data.planoAtivo.especialidade] || '#8B5CF6'}44` }}>
-                    {ESP_LABEL[data.planoAtivo.especialidade]}
+                    {getEspLabel(t)[data.planoAtivo.especialidade]}
                   </div>
                 </div>
               ) : (
@@ -348,7 +348,7 @@ export default function Dashboard({ nav }) {
             <div style={{ display:'flex', gap:6, alignItems:'center' }}>
               {data.planoAtivo && <div style={{ fontSize:11, color:'#7A8699' }}>👥 {data.nPombosPlano}</div>}
               <button onClick={() => nav('alimentacao')} style={{ background:'rgba(76,141,255,.1)', border:'1px solid rgba(76,141,255,.2)', borderRadius:8, padding:'5px 10px', cursor:'pointer', fontSize:11, color:'#4C8DFF', fontFamily:'inherit' }}>
-                {data.planoAtivo ? 'Ver tudo →' : 'Configurar →'}
+                {data.planoAtivo ? t('verTudo')+' →' : t('configurar')+' →'}
               </button>
             </div>
           </div>
@@ -404,7 +404,7 @@ export default function Dashboard({ nav }) {
             <div style={{fontWeight:700,color:'#2DD4A7',marginBottom:4,fontSize:13}}>🐣 {ecls.length} eclosão(ões) prevista(s) esta semana</div>
             {ecls.slice(0,2).map(a=>{
               const d=Math.round((new Date(a.data_eclosao_prev)-new Date())/86400000)
-              return <div key={a.id} style={{fontSize:11,color:'#94a3b8'}}>{a.pai_nome} × {a.mae_nome} — {d<=0?'Hoje/ontem':`em ${d} dia(s)`}</div>
+              return <div key={a.id} style={{fontSize:11,color:'#94a3b8'}}>{a.pai_nome} × {a.mae_nome} — {d<=0?t('hojeOntem'):`${t('em')} ${d} ${t('dias')}`}</div>
             })}
           </div>
         )
@@ -412,13 +412,13 @@ export default function Dashboard({ nav }) {
 
       {/* ── KPIs ─────────────────────────────────────────────────────────────── */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:8 }}>
-        <CardKPI icon="🐦" valor={data.totalPombos} label="Pombos" cor="#4C8DFF" onClick={() => nav('pombos')} sub={data.pombosComProblema.length > 0 ? `${data.pombosComProblema.length} c/ alerta` : 'activos'} />
-        <CardKPI icon="🏆" valor={data.provasRecentes.length} label="Provas" cor="#D4AF37" onClick={() => nav('provas')} />
-        <CardKPI icon="📊" valor={data.mediaPercentil + '%'} label="Percentil" cor="#2DD4A7" sub="top 5" />
-        <CardKPI icon="🥇" valor={data.vitorias} label="Vitórias" cor="#A855F7" onClick={() => nav('provas')} />
+        <CardKPI icon="🐦" valor={data.totalPombos} label={t('pombos')} cor="#4C8DFF" onClick={() => nav('pombos')} sub={data.pombosComProblema.length > 0 ? `${data.pombosComProblema.length} ${t('comAlerta')}` : t('activos')} />
+        <CardKPI icon="🏆" valor={data.provasRecentes.length} label={t('provas')} cor="#D4AF37" onClick={() => nav('provas')} />
+        <CardKPI icon="📊" valor={data.mediaPercentil + '%'} label={t('percentil')} cor="#2DD4A7" sub={t('top5')} />
+        <CardKPI icon="🥇" valor={data.vitorias} label={t('vitorias')} cor="#A855F7" onClick={() => nav('provas')} />
       <GuiaAuto modulo="dashboard"/>
-        <CardKPI icon="🏥" valor={data.pombosComProblema.length} label="Alertas Saúde" cor={data.pombosComProblema.length>0?'#f87171':'#2DD4A7'} onClick={() => nav('saude')} sub={data.pombosComProblema.length>0?'c/ problema':'todos aptos'} />
-        <CardKPI icon="💰" valor={(data.rec-data.dep).toFixed(0)+'€'} label="Saldo Mês" cor={(data.rec-data.dep)>=0?'#2DD4A7':'#f87171'} onClick={() => nav('financas')} sub={`${data.rec.toFixed(0)}€ rec.`} />
+        <CardKPI icon="🏥" valor={data.pombosComProblema.length} label={t('alertasSaude')} cor={data.pombosComProblema.length>0?'#f87171':'#2DD4A7'} onClick={() => nav('saude')} sub={data.pombosComProblema.length>0?t('comProblema'):t('todosAptos')} />
+        <CardKPI icon="💰" valor={(data.rec-data.dep).toFixed(0)+'€'} label={t('saldoMes')} cor={(data.rec-data.dep)>=0?'#2DD4A7':'#f87171'} onClick={() => nav('financas')} sub={`${data.rec.toFixed(0)}€ ${t('receita_abrev')}`} />
       </div>
 
       {/* ── PRÓXIMA PROVA ────────────────────────────────────────────────────── */}
@@ -436,12 +436,12 @@ export default function Dashboard({ nav }) {
               </div>
               <div style={{ textAlign:'right', flexShrink:0 }}>
                 <div style={{ fontFamily:"'Fraunces',serif", fontSize:28, fontWeight:900, color: data.diasParaProva <= 3 ? '#f87171' : data.diasParaProva <= 7 ? '#D4AF37' : '#fff', lineHeight:1 }}>{data.diasParaProva}</div>
-                <div style={{ fontSize:9, color:'#7A8699', textTransform:'uppercase', letterSpacing:.5 }}>{data.diasParaProva === 1 ? 'amanhã' : 'dias'}</div>
+                <div style={{ fontSize:9, color:'#7A8699', textTransform:'uppercase', letterSpacing:.5 }}>{data.diasParaProva === 1 ? t('amanha') : t('dias')}</div>
               </div>
             </div>
             {data.diasParaProva <= 7 && (
               <div style={{ marginTop:8, padding:'5px 10px', background:'rgba(212,175,55,.1)', borderRadius:6, fontSize:11, color:'#D4AF37', display:'inline-block' }}>
-                {data.diasParaProva <= 1 ? '🚨 Prova amanhã!' : data.diasParaProva <= 3 ? '⚡ Semana de prova — verificar plano de tratamento' : '📋 Preparação em curso'}
+                {data.diasParaProva <= 1 ? t('provaAmanha') : data.diasParaProva <= 3 ? t('semanaProva') : t('preparacaoEmCurso')}
               </div>
             )}
           </div>
@@ -452,9 +452,9 @@ export default function Dashboard({ nav }) {
       <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:8 }}>
         {[
           { icon:'🏆', label:'Registar\nChegada', page:'provas', cor:'#D4AF37' },
-          { icon:'🏥', label:'Reg.\nSaúde', page:'saude', cor:'#A855F7' },
-          { icon:'🌾', label:'Alim. &\nTratam.', page:'alimentacao', cor:'#2DD4A7' },
-          { icon:'✅', label:'Checklist', page:'checklist', cor:'#4C8DFF' },
+          { icon:'🏥', label:t('regSaude'), page:'saude', cor:'#A855F7' },
+          { icon:'🌾', label:t('alimentTratam'), page:'alimentacao', cor:'#2DD4A7' },
+          { icon:'✅', label:t('checklist'), page:'checklist', cor:'#4C8DFF' },
         ].map(({ icon, label, page, cor }) => (
           <button key={page} onClick={() => nav(page)} style={{ background:'#0B1830', border:`1px solid ${cor}25`, borderRadius:12, padding:'12px 6px', cursor:'pointer', textAlign:'center', fontFamily:'inherit', transition:'all .2s', position:'relative', overflow:'hidden' }}
             onMouseEnter={e=>{ e.currentTarget.style.borderColor=cor+'55'; e.currentTarget.style.background=`${cor}08` }}
@@ -469,7 +469,7 @@ export default function Dashboard({ nav }) {
       {/* ── CHECKLIST DO DIA ─────────────────────────────────────────────────── */}
       {data.checklistHoje.length > 0 && (
         <div style={{ background:'#0B1830', border:'1px solid #1B2D52', borderRadius:14, padding:'14px 16px' }}>
-          <SecaoTitulo icon="✅" titulo="Checklist do Dia" acao="Ver tudo →" onAcao={() => nav('checklist')} />
+          <SecaoTitulo icon="✅" titulo={t('checklistDia')} acao={t('verTudo')+' →'} onAcao={() => nav('checklist')} />
           {data.checklistHoje.map((c, i) => (
             <div key={c.id || i} style={{ display:'flex', gap:10, alignItems:'center', padding:'7px 0', borderBottom: i < data.checklistHoje.length - 1 ? '1px solid #1B2D52' : 'none' }}>
               <div style={{ width:16, height:16, borderRadius:4, border:'1px solid #1B2D52', flexShrink:0 }} />
@@ -487,7 +487,7 @@ export default function Dashboard({ nav }) {
         {/* top pombos */}
         {data.top5.length > 0 && (
           <div style={{ background:'#0B1830', border:'1px solid #1B2D52', borderRadius:14, padding:'14px 16px' }}>
-            <SecaoTitulo icon="⭐" titulo="Top Pombos" acao="Ver todos →" onAcao={() => nav('pombos')} />
+            <SecaoTitulo icon="⭐" titulo={t('topPombos')} acao={t('verTodos')+' →'} onAcao={() => nav('pombos')} />
             {data.top5.map((p, i) => {
               const medalha = i === 0 ? '#D4AF37' : i === 1 ? '#94a3b8' : i === 2 ? '#b45309' : '#334155'
               const pct = p.percentil || 0
@@ -515,7 +515,7 @@ export default function Dashboard({ nav }) {
         {/* últimas provas */}
         {data.provasRecentes.length > 0 && (
           <div style={{ background:'#0B1830', border:'1px solid #1B2D52', borderRadius:14, padding:'14px 16px' }}>
-            <SecaoTitulo icon="🏆" titulo="Últimas Provas" acao="Ver todas →" onAcao={() => nav('provas')} />
+            <SecaoTitulo icon="🏆" titulo={t('ultimasProvas')} acao={t('verTodas')+' →'} onAcao={() => nav('provas')} />
             {data.provasRecentes.map((p, i) => {
               const top = p.posicao_geral && p.n_pombos ? Math.round((p.posicao_geral / p.n_pombos) * 100) : null
               return (
@@ -557,12 +557,12 @@ export default function Dashboard({ nav }) {
       {/* ── ACESSO RÁPIDO AO RESTO ───────────────────────────────────────────── */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:8 }}>
         {[
-          { icon:'🧬', label:'Reprodução', page:'reproducao' },
-          { icon:'📈', label:'Analíticas', page:'analiticas' },
-          { icon:'🌦️', label:'Meteorologia', page:'meteorologia' },
-          { icon:'🏁', label:'Época', page:'epoca' },
-          { icon:'🤝', label:'Comunidade', page:'comunidade' },
-          { icon:'🛒', label:'Marketplace', page:'marketplace' },
+          { icon:'🧬', label:t('reproducao'), page:'reproducao' },
+          { icon:'📈', label:t('analiticas'), page:'analiticas' },
+          { icon:'🌦️', label:t('meteorologia'), page:'meteorologia' },
+          { icon:'🏁', label:t('epoca'), page:'epoca' },
+          { icon:'🤝', label:t('comunidade'), page:'comunidade' },
+          { icon:'🛒', label:t('marketplace'), page:'marketplace' },
         ].map(({ icon, label, page }) => (
           <button key={page} onClick={() => nav(page)} style={{ background:'#070F20', border:'1px solid #162040', borderRadius:10, padding:'10px 6px', cursor:'pointer', textAlign:'center', fontFamily:'inherit', transition:'background .2s' }}
             onMouseEnter={e=>e.currentTarget.style.background='#0B1830'}
