@@ -561,7 +561,7 @@ export default function Comunidade({ nav, params={} }) {
           })()}
           {post.foto_url&&(
             <div style={{marginBottom:12,borderRadius:10,overflow:'hidden',border:'1px solid rgba(255,255,255,.08)'}}>
-              <img src={post.foto_url} alt="" style={{width:'100%',maxHeight:280,objectFit:'cover',display:'block'}}
+              <img src={post.foto_url} alt=""
                 onClick={()=>window.open(post.foto_url,'_blank')}
                 style={{width:'100%',maxHeight:280,objectFit:'cover',display:'block',cursor:'pointer'}}/>
             </div>
