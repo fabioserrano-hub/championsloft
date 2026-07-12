@@ -35,7 +35,7 @@ const getEspLabel = (t) => ({ velocidade: t('velocidade'), meio_fundo: t('meioFu
 const getDias = (t) => [t('domingo'),t('segunda'),t('terca'),t('quarta'),t('quinta'),t('sexta'),t('sabado')]
 const getMeses = (t) => [t('janeiro'),t('fevereiro'),t('marco'),t('abril'),t('maio'),t('junho'),t('julho'),t('agosto'),t('setembro'),t('outubro'),t('novembro'),t('dezembro')]
 
-function formatData(d) {
+function formatData(d, t) {
   const dt = new Date(d)
   return dt.getDate() + ' ' + getMeses(t)[dt.getMonth()]
 }
@@ -431,7 +431,7 @@ export default function Dashboard({ nav }) {
               <div>
                 <div style={{ fontSize:15, fontWeight:700, color:'#fff' }}>{data.proximaProva.nome}</div>
                 <div style={{ fontSize:11, color:'#7A8699', marginTop:3 }}>
-                  {data.proximaProva.tipo || 'Prova'} · {data.proximaProva.dist || '—'}km · {formatData(data.proximaProva.data_reg)}
+                  {data.proximaProva.tipo || 'Prova'} · {data.proximaProva.dist || '—'}km · {formatData(data.proximaProva.data_reg, t)}
                 </div>
               </div>
               <div style={{ textAlign:'right', flexShrink:0 }}>
@@ -475,7 +475,7 @@ export default function Dashboard({ nav }) {
               <div style={{ width:16, height:16, borderRadius:4, border:'1px solid #1B2D52', flexShrink:0 }} />
               <div style={{ flex:1 }}>
                 <div style={{ fontSize:12, color:'#e2e8f0' }}>{c.titulo || c.descricao}</div>
-                {c.data_prevista && <div style={{ fontSize:10, color: c.data_prevista < agora.toISOString().slice(0,10) ? '#f87171' : '#475569' }}>📅 {formatData(c.data_prevista)}</div>}
+                {c.data_prevista && <div style={{ fontSize:10, color: c.data_prevista < agora.toISOString().slice(0,10) ? '#f87171' : '#475569' }}>📅 {formatData(c.data_prevista, t)}</div>}
               </div>
             </div>
           ))}
@@ -523,7 +523,7 @@ export default function Dashboard({ nav }) {
                   <span style={{ fontSize:18, flexShrink:0 }}>{p.posicao_geral === 1 ? '🥇' : p.posicao_geral <= 3 ? '🏅' : '🕊️'}</span>
                   <div style={{ flex:1 }}>
                     <div style={{ fontSize:12, fontWeight:600, color:'#fff' }}>{p.nome}</div>
-                    <div style={{ fontSize:10, color:'#7A8699' }}>{p.dist || 0}km · {formatData(p.data_reg)}{p.tipo?' · '+p.tipo:''}</div>
+                    <div style={{ fontSize:10, color:'#7A8699' }}>{p.dist || 0}km · {formatData(p.data_reg, t)}{p.tipo?' · '+p.tipo:''}</div>
                   </div>
                   <div style={{ textAlign:'right', flexShrink:0 }}>
                     {p.posicao_geral && p.n_pombos ? (
