@@ -71,3 +71,72 @@ export function useOnboarding() {
   }, [user])
   return { mostrar, concluir: () => setMostrar(false) }
 }
+
+// ─── Barra de progresso persistente ──────────────────────────
+const TAREFAS = [
+  { id:'perfil',      label:'Preencher perfil',           desc:'Nome, federação e localização',  icone:'👤', acao:'perfil',     check: async (uid) => { const { data } = await import('../lib/supabase').then(m=>m.supabase).then(s=>s.from('perfis').select('nome,localidade').eq('user_id',uid).maybeSingle()); return !!(data?.nome && data?.localidade) } },
+  { id:'foto_perfil', label:'Adicionar foto de perfil',   desc:'Foto ou logo do pombal',         icone:'📸', acao:'perfil',     check: async (uid) => { const { data } = await import('../lib/supabase').then(m=>m.supabase).then(s=>s.from('perfis').select('foto_perfil_url').eq('user_id',uid).maybeSingle()); return !!data?.foto_perfil_url } },
+  { id:'pombo',       label:'Adicionar primeiro pombo',   desc:'Regista um pombo no efectivo',   icone:'🐦', acao:'pombos',    check: async (uid) => { const { data } = await import('../lib/supabase').then(m=>m.supabase).then(s=>s.from('pigeons').select('id').eq('user_id',uid).limit(1)); return !!(data?.length) } },
+  { id:'prova',       label:'Registar primeira prova',    desc:'Adiciona resultados de uma prova', icone:'🏆', acao:'provas',   check: async (uid) => { const { data } = await import('../lib/supabase').then(m=>m.supabase).then(s=>s.from('races').select('id').eq('user_id',uid).limit(1)); return !!(data?.length) } },
+  { id:'pombal',      label:'Criar pombal',               desc:'Define o nome do pombal',        icone:'🏠', acao:'pombais',   check: async (uid) => { const { data } = await import('../lib/supabase').then(m=>m.supabase).then(s=>s.from('pombais').select('id').eq('user_id',uid).limit(1)); return !!(data?.length) } },
+  { id:'publico',     label:'Activar perfil público',     desc:'Aparece na comunidade',          icone:'🌐', acao:'perfil',    check: async (uid) => { const { data } = await import('../lib/supabase').then(m=>m.supabase).then(s=>s.from('perfis').select('perfil_publico').eq('user_id',uid).maybeSingle()); return !!data?.perfil_publico } },
+]
+
+export function BarraProgresso({ nav, uid }) {
+  const [tarefas, setTarefas] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [expandido, setExpandido] = useState(false)
+  const [oculto, setOculto] = useState(() => !!localStorage.getItem('cl_barra_oculta'))
+
+  useEffect(() => {
+    if (!uid || oculto) return
+    Promise.all(TAREFAS.map(async t => ({ ...t, feito: await t.check(uid).catch(()=>false) })))
+      .then(r => { setTarefas(r); setLoading(false) })
+  }, [uid, oculto])
+
+  if (oculto) return null
+  if (loading) return null
+
+  const feitas = tarefas.filter(t => t.feito).length
+  const pct = Math.round(feitas / tarefas.length * 100)
+  if (pct === 100) return null // ocultar quando completo
+
+  return (
+    <div style={{ background:'linear-gradient(135deg,#0B1830,#050D1A)', border:'1px solid rgba(212,175,55,.2)', borderRadius:14, padding:'14px 16px', marginBottom:12, position:'relative', overflow:'hidden' }}>
+      <div style={{ position:'absolute', top:0, left:0, height:3, width:`${pct}%`, background:'linear-gradient(90deg,#1E5FD9,#D4AF37)', transition:'width .5s', borderRadius:2 }} />
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: expandido ? 12 : 0 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          <span style={{ fontSize:20 }}>🚀</span>
+          <div>
+            <div style={{ fontSize:13, fontWeight:700, color:'#fff' }}>Pombal {pct}% configurado</div>
+            <div style={{ fontSize:11, color:'#7A8699' }}>{feitas} de {tarefas.length} tarefas concluídas</div>
+          </div>
+        </div>
+        <div style={{ display:'flex', gap:6, alignItems:'center' }}>
+          <button onClick={() => setExpandido(e => !e)}
+            style={{ background:'rgba(76,141,255,.1)', border:'1px solid rgba(76,141,255,.2)', borderRadius:8, padding:'4px 10px', fontSize:11, color:'#4C8DFF', cursor:'pointer', fontFamily:'inherit' }}>
+            {expandido ? 'Recolher ▲' : 'Ver tarefas ▼'}
+          </button>
+          <button onClick={() => { setOculto(true); localStorage.setItem('cl_barra_oculta','1') }}
+            style={{ background:'none', border:'none', color:'#475569', cursor:'pointer', fontSize:16, padding:'2px 4px' }}>✕</button>
+        </div>
+      </div>
+
+      {expandido && (
+        <div style={{ display:'flex', flexDirection:'column', gap:6, marginTop:4 }}>
+          {tarefas.map(t => (
+            <div key={t.id} onClick={() => !t.feito && nav?.(t.acao)}
+              style={{ display:'flex', gap:10, alignItems:'center', padding:'9px 12px', background: t.feito ? 'rgba(45,212,167,.06)' : 'rgba(255,255,255,.03)', borderRadius:9, border:`1px solid ${t.feito ? 'rgba(45,212,167,.2)' : 'rgba(255,255,255,.06)'}`, cursor: t.feito ? 'default' : 'pointer' }}>
+              <span style={{ fontSize:18, width:24, textAlign:'center' }}>{t.feito ? '✅' : t.icone}</span>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:12, fontWeight:600, color: t.feito ? '#2DD4A7' : '#fff', textDecoration: t.feito ? 'line-through' : 'none' }}>{t.label}</div>
+                <div style={{ fontSize:10, color:'#475569' }}>{t.desc}</div>
+              </div>
+              {!t.feito && <span style={{ fontSize:11, color:'#4C8DFF' }}>→</span>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
