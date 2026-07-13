@@ -60,14 +60,27 @@ function anilhaPlaceholder(anilha) {
 }
 
 // Componente placeholder de pombo sem foto
-function FotoPlaceholder({ anilha, sexo, size = '100%', fontSize }) {
+function FotoPlaceholder({ anilha, nome, sexo, size = '100%', fontSize }) {
   const digits = anilhaPlaceholder(anilha)
-  const cor = sexo === 'F' ? 'rgba(192,132,252,.15)' : 'rgba(76,141,255,.12)'
-  const corTexto = sexo === 'F' ? '#c084fc' : '#4C8DFF'
-  const fs = fontSize || (digits.length <= 3 ? 28 : digits.length <= 4 ? 24 : 20)
+  const isFemea = sexo === 'F'
+  const bg = isFemea
+    ? 'linear-gradient(135deg,#2D1B4E,#1a0d33)'
+    : 'linear-gradient(135deg,#0D1F4A,#050D1A)'
+  const corTexto = isFemea ? '#E9B8FF' : '#7EC8FF'
+  const corAspas = isFemea ? 'rgba(233,184,255,.4)' : 'rgba(126,200,255,.4)'
+
   return (
-    <div style={{ width:size, height:size, display:'flex', alignItems:'center', justifyContent:'center', background:cor, borderRadius:'inherit' }}>
-      <span style={{ fontFamily:"'Fraunces',serif", fontWeight:900, fontSize:fs, color:corTexto, letterSpacing:-1, userSelect:'none' }}>{digits}</span>
+    <div style={{ width:size, height:size, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', background:bg, borderRadius:'inherit', padding:'8px 4px', gap:2 }}>
+      {nome && (
+        <span style={{ fontFamily:"'Fraunces',serif", fontWeight:700, fontSize:11, color:corTexto, opacity:.7, textAlign:'center', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:'90%', lineHeight:1.2 }}>
+          {nome}
+        </span>
+      )}
+      <div style={{ display:'flex', alignItems:'center', gap:2 }}>
+        <span style={{ fontFamily:'serif', fontSize:nome?16:14, color:corAspas, lineHeight:1 }}>"</span>
+        <span style={{ fontFamily:"'Fraunces',serif", fontWeight:900, fontSize:nome ? (digits.length<=3?22:18) : (digits.length<=3?32:digits.length<=4?28:22), color:corTexto, letterSpacing:1, textShadow:`0 0 20px ${corTexto}60`, lineHeight:1 }}>{digits}</span>
+        <span style={{ fontFamily:'serif', fontSize:nome?16:14, color:corAspas, lineHeight:1 }}>"</span>
+      </div>
     </div>
   )
 }
@@ -456,7 +469,7 @@ export default function Pombos({ nav, params }) {
     return (
       <div className="pombo-card" onClick={() => openDetail(p)} style={c.prioridade <= 1 ? { borderColor: c.cor + '44' } : undefined}>
         <div className="pombo-photo" style={{ height:160, position:'relative' }}>
-          {p.foto_url ? <img src={p.foto_url} alt={p.nome} /> : <FotoPlaceholder anilha={p.anilha} sexo={p.sexo} fontSize={p.anilha?undefined:40}/>}
+          {p.foto_url ? <img src={p.foto_url} alt={p.nome} /> : <FotoPlaceholder anilha={p.anilha} nome={p.nome} sexo={p.sexo}/>}
           <div style={{ position:'absolute', top:6, right:6, background:'rgba(0,0,0,.6)', borderRadius:6, padding:'2px 6px', fontSize:11, fontWeight:700, color:'#fff' }}>{p.sexo === 'M' ? '♂' : '♀'}</div>
           {espPrincipal && <div style={{ position:'absolute', top:6, left:6, background:`${ESP_COR[espPrincipal]}22`, border:`1px solid ${ESP_COR[espPrincipal]}66`, borderRadius:6, padding:'2px 6px', fontSize:10, fontWeight:700, color:ESP_COR[espPrincipal] }}>{ESP_ICON[espPrincipal]}</div>}
           {p.estado_ext && p.estado_ext !== 'proprio' && <div style={{ position:'absolute', bottom:6, left:6, background:'rgba(0,0,0,.7)', borderRadius:6, padding:'2px 6px', fontSize:10, fontWeight:700, color:'#D4AF37' }}>{p.estado_ext.toUpperCase()}</div>}
@@ -639,7 +652,7 @@ export default function Pombos({ nav, params }) {
                 {pomboPartilha.foto_url
                   ? <img src={pomboPartilha.foto_url} alt={pomboPartilha.nome}
                       style={{ position:'absolute', top:0, left:0, width:'100%', height:'100%', objectFit:'cover', objectPosition:'center' }}/>
-                  : <FotoPlaceholder anilha={pomboPartilha.anilha} sexo={pomboPartilha.sexo} fontSize={48}/>
+                  : <FotoPlaceholder anilha={pomboPartilha.anilha} nome={pomboPartilha.nome} sexo={pomboPartilha.sexo}/>
                 }
                 <div style={{ position:'absolute', bottom:0, left:0, right:0, height:'40%', background:'linear-gradient(to top, rgba(0,0,0,0.6), transparent)', pointerEvents:'none' }} />
                 {(pomboPartilha.esp||[])[0]&&(
@@ -717,7 +730,7 @@ export default function Pombos({ nav, params }) {
                   <div style={{width:88,height:88,borderRadius:12,overflow:'hidden',flexShrink:0,background:'#101F40',border:'2px solid rgba(212,175,55,.3)'}}>
                     {selected.foto_url
                       ?<img src={selected.foto_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}} crossOrigin="anonymous"/>
-                      :<FotoPlaceholder anilha={selected.anilha} sexo={selected.sexo} fontSize={32}/>
+                      :<FotoPlaceholder anilha={selected.anilha} nome={selected.nome} sexo={selected.sexo}/>
                     }
                   </div>
                   <div style={{flex:1,minWidth:0}}>
@@ -775,7 +788,7 @@ export default function Pombos({ nav, params }) {
         <div className="form-grid">
           <div className="col-2" style={{ display:'flex', alignItems:'center', gap:16 }}>
             <div style={{ width:72, height:72, borderRadius:14, border:'2px dashed #243860', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden', cursor:'pointer', flexShrink:0 }} onClick={()=>document.getElementById('photo-up').click()}>
-              {photoPreview?<img src={photoPreview} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />:<FotoPlaceholder anilha={form.anilha} sexo={form.sexo} fontSize={24}/>}
+              {photoPreview?<img src={photoPreview} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />:<FotoPlaceholder anilha={form.anilha} nome={form.nome} sexo={form.sexo}/>}
             </div>
             <div>
               <input type="file" id="photo-up" accept="image/*" style={{ display:'none' }} onChange={e=>{ const f=e.target.files[0]; if(f){setPhotoFile(f);setPhotoPreview(URL.createObjectURL(f))} }} />
