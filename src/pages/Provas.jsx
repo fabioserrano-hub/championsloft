@@ -481,7 +481,7 @@ export default function Provas({ nav, params }) {
       : (
         <>
           {/* ── stats rápidos ── */}
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:8, marginBottom:16 }}>
+          <div style={{ display:'grid', gridTemplateColumns:isMobile?'repeat(2,1fr)':'repeat(4,1fr)', gap:8, marginBottom:16 }}>
             {[
               { icon:'🏁', v:provasPassadas.length, l:'Provas', cor:'#4C8DFF' },
               { icon:'🥇', v:vitorias, l:'Vitórias', cor:'#D4AF37' },
@@ -508,7 +508,7 @@ export default function Provas({ nav, params }) {
           {/* ── filtros + toggle vista ── */}
           <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:12, alignItems:'center' }}>
             {[['todas','Todas'],['passadas','Passadas'],['futuras','Futuras']].map(([v,l])=>(
-              <button key={v} onClick={()=>setFiltroProvas(v)} style={{ padding:'6px 12px', borderRadius:20, fontSize:12, fontWeight:500, cursor:'pointer', border:'none', fontFamily:'inherit', background:filtroProvas===v?'#1E5FD9':'#101F40', color:filtroProvas===v?'#fff':'#94a3b8' }}>{l}</button>
+              <button key={v} onClick={()=>setFiltroProvas(v)} style={{ flex:'none', padding:'10px 16px', borderRadius:10, fontSize:13, fontWeight:filtroProvas===v?700:500, cursor:'pointer', fontFamily:'inherit', border:filtroProvas===v?'none':'1px solid rgba(255,255,255,.08)', background:filtroProvas===v?'linear-gradient(135deg,#1E5FD9,#1456C0)':'rgba(255,255,255,.05)', color:filtroProvas===v?'#fff':'#cbd5e1', minHeight:40, transition:'all .15s' }}>{l}</button>
             ))}
             <select value={filtroTipo} onChange={e=>setFiltroTipo(e.target.value)} className="input" style={{ maxWidth:160, fontSize:12, padding:'5px 10px', borderRadius:20 }}>
               <option value="todos">Todos os tipos</option>
@@ -616,7 +616,7 @@ export default function Provas({ nav, params }) {
           )}
 
           {/* KPIs */}
-          <div style={{ display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8,marginBottom:16 }}>
+          <div style={{ display:'grid',gridTemplateColumns:isMobile?'repeat(2,1fr)':'repeat(4,1fr)',gap:8,marginBottom:16 }}>
             {[
               {v:selected.dist+'km',l:'Distância',cor:'#4C8DFF'},
               {v:resultados.length,l:'Encestados',cor:'#D4AF37'},
@@ -688,7 +688,7 @@ export default function Provas({ nav, params }) {
                   return(
                     <div key={d} style={{ border:isDia?'1px solid rgba(212,175,55,.3)':'1px solid #1B2D52',borderRadius:8,padding:'8px 10px',background:isDia?'rgba(212,175,55,.04)':'transparent',marginBottom:6 }}>
                       <div style={{ fontSize:11,fontWeight:700,color:isDia?'#D4AF37':'#94a3b8',marginBottom:6 }}>{isDia?'🏁 ':''}{new Date(d).toLocaleDateString('pt-PT',{weekday:'short',day:'2-digit',month:'2-digit'})}{isDia?' (dia da prova)':''}</div>
-                      <div style={{ display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8,textAlign:'center' }}>
+                      <div style={{ display:'grid',gridTemplateColumns:isMobile?'repeat(2,1fr)':'repeat(4,1fr)',gap:8,textAlign:'center' }}>
                         {[8,11,14,17].map(h=>{
                           const idx=meteo.hourly.time.findIndex(t=>t===`${d}T${String(h).padStart(2,'0')}:00`)
                           if(idx<0) return null
