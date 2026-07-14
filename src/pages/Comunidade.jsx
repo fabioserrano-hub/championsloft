@@ -684,7 +684,7 @@ export default function Comunidade({ nav, params={} }) {
       {/* TABS */}
       <div style={{display:'flex',gap:3,background:'#0A1628',borderRadius:10,padding:3,marginBottom:14,overflowX:'auto'}}>
         {[['feed','📰','Feed'],['explorar','🔍','Explorar'],['mapa','🗺️','Mapa'],['grupos','👥','Grupos'],['forum','💬','Fórum'],['desafios','🎯','Desafios'],['notifs','🔔',nNaoLidas?`(${nNaoLidas})`:'Notif.'],['ranking','🏆','Ranking']].map(([k,icon,l])=>(
-          <button key={k} onClick={()=>setTab(k)} style={{flex:'1',minWidth:56,padding:'10px 6px',borderRadius:10,cursor:'pointer',border:'none',fontFamily:'inherit',background:tab===v?'linear-gradient(135deg,#1E5FD9,#1456C0)':'rgba(255,255,255,.04)',color:tab===v?'#fff':'#cbd5e1',display:'flex',flexDirection:'column',alignItems:'center',gap:3}}>
+          <button key={k} onClick={()=>setTab(k)} style={{flex:'1',minWidth:56,padding:'10px 6px',borderRadius:10,cursor:'pointer',border:'none',fontFamily:'inherit',background:tab===k?'linear-gradient(135deg,#1E5FD9,#1456C0)':'rgba(255,255,255,.04)',color:tab===k?'#fff':'#cbd5e1',display:'flex',flexDirection:'column',alignItems:'center',gap:3}}>
             <div>{icon}</div><div style={{fontSize:9}}>{l}</div>
           </button>
         ))}
