@@ -71,6 +71,13 @@ export default function Provas({ nav, params }) {
   const { t } = useIdioma()
 
   const [provas, setProvas]         = useState([])
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
+  useEffect(() => {
+    const fn = () => setIsMobile(window.innerWidth < 768)
+    window.addEventListener('resize', fn)
+    return () => window.removeEventListener('resize', fn)
+  }, [])
+
   const [pombos, setPombos]         = useState([])
   const [perfil, setPerfil]         = useState(null)
   const [loading, setLoading]       = useState(true)
