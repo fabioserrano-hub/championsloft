@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { useLicenca, BloqueioPlano } from '../hooks/useLicenca'
-import { useToast, Spinner, Modal, EmptyState, Field, Badge } from '../components/ui'
+import { useToast, TabBar, Spinner, Modal, EmptyState, Field, Badge } from '../components/ui'
 import { useIdioma } from '../hooks/useIdioma'
 import { GuiaAuto, BotaoGuia } from '../components/GuiaModulo'
 
@@ -310,11 +310,7 @@ export default function Clubes({ nav }) {
       )}
 
       {/* Tabs */}
-      <div style={{ display:'flex', gap:3, background:'#0A1628', borderRadius:10, padding:3, marginBottom:14, overflowX:'auto' }}>
-        {[['dashboard','📊 Dashboard'],['socios','👥 Sócios'],['quotas','💰 Quotas'],['financas','📈 Finanças'],['comunicados','📢 Comunicados'],['reunioes','🗳️ Reuniões']].map(([k,l])=>(
-          <button key={k} onClick={()=>setTab(k)} style={{ flex:'none', padding:'7px 10px', borderRadius:8, fontSize:10, fontWeight:600, cursor:'pointer', border:'none', fontFamily:'inherit', whiteSpace:'nowrap', background:tab===k?'linear-gradient(135deg,#1E5FD9,#1456C0)':'none', color:tab===k?'#fff':'#475569' }}>{l}</button>
-        ))}
-      </div>
+      <TabBar tabs={[['dashboard','📊 Dashboard'],['socios','👥 Sócios'],['quotas','💰 Quotas'],['financas','📈 Finanças'],['comunicados','📢 Comunicados'],['reunioes','🗳️ Reuniões']]} active={tab} onChange={setTab}/>
 
       {/* ── DASHBOARD ─────────────────────────────────────────────────────── */}
       {tab==='dashboard'&&(
