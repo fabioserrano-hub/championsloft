@@ -121,7 +121,7 @@ export default function Marketplace({ nav }) {
       {/* Tabs */}
       <div style={{ display:'flex', gap:3, background:'#0A1628', borderRadius:10, padding:3, marginBottom:14 }}>
         {[['explorar','🔍 Explorar'],['meus','📋 Os meus anúncios']].map(([t,l])=>(
-          <button key={t} onClick={()=>setTab(t)} style={{ flex:'none', padding:'10px 18px', borderRadius:10, fontSize:13, fontWeight:tab===k?700:500, cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap', border:tab===k?'none':'1px solid rgba(255,255,255,.08)', background:tab===k?'linear-gradient(135deg,#1E5FD9,#1456C0)':'rgba(255,255,255,.05)', color:tab===k?'#fff':'#cbd5e1', boxShadow:tab===k?'0 2px 8px rgba(0,0,0,.3)':'none', transform:tab===k?'translateY(-1px)':'none', transition:'all .15s', minHeight:40 }}>{l}</button>
+          <button key={t} onClick={()=>setTab(t)} style={{ flex:'none', padding:'10px 18px', borderRadius:10, fontSize:13, fontWeight:tab===t?700:500, cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap', border:tab===t?'none':'1px solid rgba(255,255,255,.08)', background:tab===t?'linear-gradient(135deg,#1E5FD9,#1456C0)':'rgba(255,255,255,.05)', color:tab===t?'#fff':'#cbd5e1', boxShadow:tab===t?'0 2px 8px rgba(0,0,0,.3)':'none', transform:tab===t?'translateY(-1px)':'none', transition:'all .15s', minHeight:40 }}>{l}</button>
         ))}
       </div>
 
