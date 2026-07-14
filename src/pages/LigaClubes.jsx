@@ -126,7 +126,7 @@ function DetalheLigaClubes({ liga, user, meusClubes, onVoltar, toast, temElite, 
       {/* Tabs */}
       <div style={{ display:'flex', gap:3, background:'#0A1628', borderRadius:10, padding:3, marginBottom:14, overflowX:'auto' }}>
         {[['classificacao','📊 Class.'],['grupos','⚔️ Grupos'],['confrontos','🔥 Confrontos'],['jornadas','📅 Jornadas']].map(([t,l])=>(
-          <button key={t} onClick={()=>setTab(t)} style={{ flex:1, padding:'8px', borderRadius:8, fontSize:11, fontWeight:600, cursor:'pointer', border:'none', fontFamily:'inherit', whiteSpace:'nowrap', background:tab===t?`linear-gradient(135deg,#D4AF37,#B8960C)`:'none', color:tab===t?'#050D1A':'#475569' }}>{l}</button>
+          <button key={t} onClick={()=>setTab(t)} style={{ flex:'none', padding:'10px 18px', borderRadius:10, fontSize:13, fontWeight:tab===k?700:500, cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap', border:tab===k?'none':'1px solid rgba(255,255,255,.08)', background:tab===k?'linear-gradient(135deg,#1E5FD9,#1456C0)':'rgba(255,255,255,.05)', color:tab===k?'#fff':'#cbd5e1', boxShadow:tab===k?'0 2px 8px rgba(0,0,0,.3)':'none', transform:tab===k?'translateY(-1px)':'none', transition:'all .15s', minHeight:40 }}>{l}</button>
         ))}
       </div>
 
