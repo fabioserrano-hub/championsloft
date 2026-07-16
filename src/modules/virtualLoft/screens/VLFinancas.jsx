@@ -17,16 +17,28 @@ const CATEGORIAS = {
 }
 
 export default function VLFinancas({ carreira, onVoltar, onGuardar, idioma = 'pt' }) {
+  // Ler sempre do localStorage para ter dados mais recentes
+  const [carreiraLocal, setCarreiraLocal] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('vl_carreira')) || carreira } catch { return carreira }
+  })
+  const c = carreiraLocal
+
+  const salvarLocal = (dados) => {
+    try { localStorage.setItem('vl_carreira', JSON.stringify(dados)) } catch {}
+    setCarreiraLocal({ ...dados })
+    onGuardar?.(dados)
+  }
+
   const [tab, setTab] = useState('resumo')
   const [form, setForm] = useState({ tipo:'receita', valor:'', categoria:'', desc:'' })
   const [msg, setMsg] = useState(null)
 
-  const movimentos = carreira.movimentos || []
+  const movimentos = c.movimentos || []
   const cats = CATEGORIAS[idioma] || CATEGORIAS.pt
 
   const totalReceitas = movimentos.filter(m => m.tipo === 'receita').reduce((s,m) => s + m.valor, 0)
   const totalDespesas = movimentos.filter(m => m.tipo === 'despesa').reduce((s,m) => s + m.valor, 0)
-  const saldo = carreira.orcamento
+  const saldo = c.orcamento
 
   const adicionarMovimento = () => {
     if (!form.valor || isNaN(form.valor) || Number(form.valor) <= 0) {
@@ -35,10 +47,10 @@ export default function VLFinancas({ carreira, onVoltar, onGuardar, idioma = 'pt
       return
     }
     const valor = Number(form.valor)
-    const novo = { id: `mov_${Date.now()}`, tipo: form.tipo, valor, categoria: form.categoria || (idioma==='en'?'Other':idioma==='es'?'Otro':'Outro'), desc: form.desc, semana: carreira.semana, epoca: carreira.epoca, data: new Date().toISOString() }
+    const novo = { id: `mov_${Date.now()}`, tipo: form.tipo, valor, categoria: form.categoria || (idioma==='en'?'Other':idioma==='es'?'Otro':'Outro'), desc: form.desc, semana: c.semana, epoca: c.epoca, data: new Date().toISOString() }
     const novosMovimentos = [...movimentos, novo]
     const novoOrcamento = form.tipo === 'receita' ? saldo + valor : saldo - valor
-    onGuardar?.({ ...carreira, movimentos: novosMovimentos, orcamento: Math.max(0, novoOrcamento) })
+    onGuardar?.({ ...c, movimentos: novosMovimentos, orcamento: Math.max(0, novoOrcamento) })
     setForm({ tipo:'receita', valor:'', categoria:'', desc:'' })
     setMsg({ tipo:'ok', texto: idioma==='en'?'Movement added!':idioma==='es'?'¡Movimiento añadido!':'Movimento adicionado!' })
     setTimeout(() => setMsg(null), 2000)
@@ -46,7 +58,7 @@ export default function VLFinancas({ carreira, onVoltar, onGuardar, idioma = 'pt
   }
 
   // Salários do staff
-  const salarioMensal = (carreira.staff || []).reduce((s,m) => s + (m.salario || 0), 0)
+  const salarioMensal = (c.staff || []).reduce((s,m) => s + (m.salario || 0), 0)
 
   return (
     <div style={{ minHeight:'100vh', background:'#030812', color:'#fff', fontFamily:'inherit' }}>
@@ -55,7 +67,7 @@ export default function VLFinancas({ carreira, onVoltar, onGuardar, idioma = 'pt
           <button onClick={onVoltar} style={{ background:'rgba(255,255,255,.06)', border:'none', borderRadius:8, width:32, height:32, color:'#7A8699', cursor:'pointer', fontSize:16 }}>←</button>
           <div>
             <div style={{ fontSize:16, fontWeight:800 }}>💰 {idioma==='en'?'Finances':idioma==='es'?'Finanzas':'Finanças'}</div>
-            <div style={{ fontSize:10, color:'#7A8699' }}>{idioma==='en'?'Season':idioma==='es'?'Temporada':'Época'} {carreira.epoca}</div>
+            <div style={{ fontSize:10, color:'#7A8699' }}>{idioma==='en'?'Season':idioma==='es'?'Temporada':'Época'} {c.epoca}</div>
           </div>
         </div>
         <div style={{ display:'flex', gap:6 }}>
