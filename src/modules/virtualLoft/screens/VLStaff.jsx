@@ -51,12 +51,24 @@ function corNivel(n) {
 }
 
 export default function VLStaff({ carreira, onVoltar, onGuardar, idioma = 'pt' }) {
+  // Ler sempre do localStorage para ter dados mais recentes
+  const [carreiraLocal, setCarreiraLocal] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('vl_carreira')) || carreira } catch { return carreira }
+  })
+  const c = carreiraLocal
+
+  const salvarLocal = (dados) => {
+    try { localStorage.setItem('vl_carreira', JSON.stringify(dados)) } catch {}
+    setCarreiraLocal({ ...dados })
+    onGuardar?.(dados)
+  }
+
   const tipos = TIPOS_STAFF[idioma] || TIPOS_STAFF.pt
   const [tipoSel, setTipoSel] = useState(null)
   const [candidatos, setCandidatos] = useState({})
   const [msg, setMsg] = useState(null)
 
-  const staffAtual = carreira.staff || []
+  const staffAtual = c.staff || []
   const salarioTotal = staffAtual.reduce((s, m) => s + (m.salario || 0), 0)
 
   const pesquisarCandidatos = (tipo) => {
@@ -68,7 +80,7 @@ export default function VLStaff({ carreira, onVoltar, onGuardar, idioma = 'pt' }
   }
 
   const contratar = (membro) => {
-    if (carreira.orcamento < membro.salario * 12) {
+    if (c.orcamento < membro.salario * 12) {
       setMsg({ tipo:'erro', texto: idioma==='en'?'Not enough budget for annual salary!':idioma==='es'?'¡Presupuesto insuficiente para salario anual!':'Orçamento insuficiente para salário anual!' })
       setTimeout(() => setMsg(null), 2500)
       return
@@ -83,9 +95,9 @@ export default function VLStaff({ carreira, onVoltar, onGuardar, idioma = 'pt' }
     const novaCarreira = {
       ...carreira,
       staff: novoStaff,
-      orcamento: carreira.orcamento - membro.salario * 3, // paga 3 meses adiantado
+      orcamento: c.orcamento - membro.salario * 3, // paga 3 meses adiantado
     }
-    onGuardar?.(novaCarreira)
+    salvarLocal(novaCarreira)
     setMsg({ tipo:'ok', texto: `${membro.nome} ${idioma==='en'?'hired!':idioma==='es'?'contratado!':'contratado!'}` })
     setTimeout(() => setMsg(null), 2500)
     setTipoSel(null)
@@ -93,7 +105,7 @@ export default function VLStaff({ carreira, onVoltar, onGuardar, idioma = 'pt' }
 
   const despedir = (membro) => {
     const novoStaff = staffAtual.filter(s => s.id !== membro.id)
-    onGuardar?.({ ...carreira, staff: novoStaff })
+    onGuardar?.({ ...c, staff: novoStaff })
     setMsg({ tipo:'info', texto: `${membro.nome} ${idioma==='en'?'dismissed':idioma==='es'?'despedido':'despedido'}` })
     setTimeout(() => setMsg(null), 2000)
   }
@@ -107,7 +119,7 @@ export default function VLStaff({ carreira, onVoltar, onGuardar, idioma = 'pt' }
           <button onClick={onVoltar} style={{ background:'rgba(255,255,255,.06)', border:'none', borderRadius:8, width:32, height:32, color:'#7A8699', cursor:'pointer', fontSize:16 }}>←</button>
           <div>
             <div style={{ fontSize:16, fontWeight:800 }}>👥 Staff</div>
-            <div style={{ fontSize:10, color:'#7A8699' }}>{staffAtual.length} {idioma==='en'?'hired':idioma==='es'?'contratados':'contratados'} · {salarioTotal.toLocaleString()}€/{idioma==='en'?'mo':idioma==='es'?'mes':'mês'} · {carreira.orcamento.toLocaleString()}€</div>
+            <div style={{ fontSize:10, color:'#7A8699' }}>{staffAtual.length} {idioma==='en'?'hired':idioma==='es'?'contratados':'contratados'} · {salarioTotal.toLocaleString()}€/{idioma==='en'?'mo':idioma==='es'?'mes':'mês'} · {c.orcamento.toLocaleString()}€</div>
           </div>
         </div>
       </div>
