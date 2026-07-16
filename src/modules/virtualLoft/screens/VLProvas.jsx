@@ -1,236 +1,162 @@
-// src/modules/virtualLoft/screens/VLProvas.jsx
+// src/modules/virtualLoft/screens/VLProvas.jsx — Premium
 import { useState, useEffect, useRef } from 'react'
 
-// ── Motor de simulação ────────────────────────────────────────────────────────
-function simularProva(pombos, prova, carreira) {
-  const resultados = []
-  const totalConcorrentes = 20 + Math.floor(Math.random() * 80)
+const T={bg:'#050A14',surface:'#0D1829',surface2:'#1A2A45',gold:'#C9A84C',blue:'#4FC3F7',text:'#E8EDF5',muted:'#6B7A99',success:'#2DD4A7',danger:'#F87171',purple:'#A855F7'}
+function lerLS(){try{return JSON.parse(localStorage.getItem('vl_carreira'))}catch{return null}}
+function gravarLS(d){try{localStorage.setItem('vl_carreira',JSON.stringify(d))}catch{}}
+function GoldLine(){return <div style={{position:'absolute',top:0,left:0,right:0,height:1,background:'linear-gradient(90deg,transparent,#C9A84C,transparent)',opacity:.7}}/>}
 
-  // Calcular score de cada pombo
-  pombos.forEach(p => {
-    const attrs = p.atributos
-    // Score base pelos atributos relevantes para o tipo de prova
-    const scoreVelocidade = (attrs.velocidade * 0.4 + attrs.instinto * 0.3 + attrs.coragem * 0.3)
-    const scoreResistencia = (attrs.resistencia * 0.4 + attrs.forca * 0.3 + attrs.recuperacao * 0.3)
-    const scoreOrientacao = (attrs.orientacao * 0.5 + attrs.inteligencia * 0.5)
+const PROVAS=[
+  {id:'p1',nome:'Local - Santarém',   dist:80,  tipo:'velocidade',  semana:3,  nivel:'local',         premio:100},
+  {id:'p2',nome:'Local - Setúbal',    dist:120, tipo:'velocidade',  semana:5,  nivel:'local',         premio:150},
+  {id:'p3',nome:'Distrital - Évora',  dist:200, tipo:'velocidade',  semana:8,  nivel:'distrital',     premio:300},
+  {id:'p4',nome:'Distrital - Beja',   dist:250, tipo:'meio_fundo',  semana:11, nivel:'distrital',     premio:400},
+  {id:'p5',nome:'Regional - Badajoz', dist:350, tipo:'meio_fundo',  semana:15, nivel:'regional',      premio:600},
+  {id:'p6',nome:'Regional - Mérida',  dist:420, tipo:'meio_fundo',  semana:18, nivel:'regional',      premio:800},
+  {id:'p7',nome:'Nacional - Salamanca',dist:510,tipo:'fundo',       semana:22, nivel:'nacional',      premio:1500},
+  {id:'p8',nome:'Nacional - Valladolid',dist:650,tipo:'fundo',      semana:26, nivel:'nacional',      premio:2000},
+  {id:'p9',nome:'Internacional - Barcelona',dist:850,tipo:'grande_fundo',semana:30,nivel:'internacional',premio:5000},
+  {id:'p10',nome:'Grande Prova - Pau',dist:1100,tipo:'grande_fundo',semana:35, nivel:'internacional', premio:10000},
+]
 
-    let scoreBase
-    if (prova.tipo === 'velocidade')   scoreBase = scoreVelocidade * 0.5 + scoreOrientacao * 0.3 + scoreResistencia * 0.2
-    else if (prova.tipo === 'meio_fundo') scoreBase = scoreResistencia * 0.4 + scoreOrientacao * 0.35 + scoreVelocidade * 0.25
-    else if (prova.tipo === 'fundo')   scoreBase = scoreResistencia * 0.5 + scoreOrientacao * 0.35 + scoreVelocidade * 0.15
-    else                               scoreBase = scoreResistencia * 0.55 + scoreOrientacao * 0.4 + scoreVelocidade * 0.05
+const COR_NIVEL={local:T.muted,distrital:T.blue,regional:T.success,nacional:T.gold,internacional:T.purple}
+const TIPO_LABEL={velocidade:'Velocidade',meio_fundo:'Meio-Fundo',fundo:'Fundo',grande_fundo:'Grande Fundo'}
 
-    // Factores aleatórios (forma do dia, meteo, sorte)
-    const forma = 0.85 + Math.random() * 0.3
-    const sorte = 0.9 + Math.random() * 0.2
-    const scoreFinal = scoreBase * forma * sorte
+function simularProva(pombos,prova){
+  const total=20+Math.floor(Math.random()*80)
+  const res=[]
+  const nomesAdv=['Relâmpago','Trovão','Furacão','Astro','Cometa','Atlas','Zeus','Orion','Vega','Sirius','Falcão','Titan','Brisa','Névoa','Aurora']
+  const pombaisAdv=['Pombal da Serra','Pombal Elite','Pombal Campeão','Pombal Norte','Pombal Real','Pombal Dourado']
 
-    // Velocidade em m/min
-    const velBase = prova.tipo === 'velocidade' ? 1400 : prova.tipo === 'meio_fundo' ? 1300 : 1200
-    const velocidade = Math.round(velBase * (scoreFinal / 100) * (0.9 + Math.random() * 0.2))
-    const tempoMinutos = Math.round((prova.distancia * 1000) / velocidade)
-
-    resultados.push({ pombo: p, score: scoreFinal, velocidade, tempo: tempoMinutos })
+  pombos.forEach(p=>{
+    const a=p.atributos||{}
+    let score
+    if(prova.tipo==='velocidade') score=(a.velocidade||50)*.4+(a.instinto||50)*.3+(a.coragem||50)*.3
+    else if(prova.tipo==='meio_fundo') score=(a.resistencia||50)*.4+(a.orientacao||50)*.35+(a.velocidade||50)*.25
+    else score=(a.resistencia||50)*.5+(a.orientacao||50)*.35+(a.velocidade||50)*.15
+    const scoreFinal=score*(0.85+Math.random()*.3)
+    const velBase=prova.tipo==='velocidade'?1400:1300
+    const velocidade=Math.round(velBase*(scoreFinal/100)*(0.9+Math.random()*.2))
+    res.push({pombo:p,score:scoreFinal,velocidade,tempo:Math.round((prova.dist*1000)/velocidade)})
   })
 
-  // Gerar adversários IA com nomes reais
-  const nomesIA = ['Pombal da Serra','Pombal Elite','Pombal Campeão','Pombal Norte','Pombal Real','Pombal Dourado','Pombal Veloz','Pombal Águia','Pombal Sul','Pombal Ibérico']
-  const nomesP = ['Relâmpago','Trovão','Furacão','Astro','Cometa','Atlas','Zeus','Orion','Vega','Sirius','Falcão','Titan']
-  for (let i = 0; i < totalConcorrentes - pombos.length; i++) {
-    const nivelAdv = 35 + Math.random() * 45
-    const velBase = prova.tipo === 'velocidade' ? 1400 : 1300
-    const velocidade = Math.round(velBase * (nivelAdv / 100) * (0.9 + Math.random() * 0.2))
-    const pombalNome = nomesIA[i % nomesIA.length]
-    const pomboNome = nomesP[Math.floor(Math.random()*nomesP.length)]
-    resultados.push({ pombo: null, score: nivelAdv, velocidade, tempo: Math.round((prova.distancia * 1000) / velocidade), nome: `${pomboNome}`, pombalNome })
+  for(let i=0;i<total-pombos.length;i++){
+    const n=35+Math.random()*45
+    const velBase=prova.tipo==='velocidade'?1400:1300
+    const velocidade=Math.round(velBase*(n/100)*(0.9+Math.random()*.2))
+    res.push({pombo:null,score:n,velocidade,tempo:Math.round((prova.dist*1000)/velocidade),nome:nomesAdv[Math.floor(Math.random()*nomesAdv.length)],pombalNome:pombaisAdv[Math.floor(Math.random()*pombaisAdv.length)]})
   }
 
-  // Ordenar por velocidade
-  resultados.sort((a, b) => b.velocidade - a.velocidade)
-
-  // Calcular posições e percentis
-  return resultados.map((r, i) => ({
-    ...r,
-    posicao: i + 1,
-    total: resultados.length,
-    percentil: Math.round(((resultados.length - i) / resultados.length) * 100),
-  }))
+  res.sort((a,b)=>b.velocidade-a.velocidade)
+  return res.map((r,i)=>({...r,posicao:i+1,total:res.length,percentil:Math.round(((res.length-i)/res.length)*100)}))
 }
 
-function gerarEventos(idioma) {
-  const eventos = {
-    pt: [
-      '🦅 Ataque de falcão!',
-      '⛈️ Tempestade inesperada',
-      '🌫️ Neblina densa na zona de chegada',
-      '💨 Vento forte contra',
-      '☀️ Condições perfeitas de voo',
-      '🧭 Desorientação temporária',
-      '💪 Esforço final surpreendente',
-      '🐦 Pombo lidera o grupo',
-    ],
-    en: [
-      '🦅 Falcon attack!',
-      '⛈️ Unexpected storm',
-      '🌫️ Dense fog near the finish',
-      '💨 Strong headwind',
-      '☀️ Perfect flying conditions',
-      '🧭 Temporary disorientation',
-      '💪 Surprising final push',
-      '🐦 Pigeon leads the group',
-    ],
-    es: [
-      '🦅 ¡Ataque de halcón!',
-      '⛈️ Tormenta inesperada',
-      '🌫️ Niebla densa en la llegada',
-      '💨 Viento fuerte en contra',
-      '☀️ Condiciones perfectas de vuelo',
-      '🧭 Desorientación temporal',
-      '💪 Esfuerzo final sorprendente',
-      '🐦 La paloma lidera el grupo',
-    ],
-  }
-  const lista = eventos[idioma] || eventos.pt
-  const n = 2 + Math.floor(Math.random() * 3)
-  const shuffled = [...lista].sort(() => Math.random() - 0.5)
-  return shuffled.slice(0, n)
+function EVENTOS_PROVA(){
+  return ['🦅 Ataque de falcão!','⛈️ Tempestade no percurso!','💨 Vento forte contra','☀️ Condições perfeitas!','🧭 Desorientação temporária','💪 Esforço final surpreendente!','🐦 Lidera o grupo!']
 }
 
-// ── Componente de simulação visual ────────────────────────────────────────────
-function SimulacaoVisual({ prova, resultados, pombosParticipantes, onFechar, idioma }) {
-  const [fase, setFase] = useState('inicio') // inicio → voo → chegada → resultado
-  const [progresso, setProgresso] = useState(0)
-  const [eventos, setEventos] = useState([])
-  const [eventoAtual, setEventoAtual] = useState(null)
-  const [chegadas, setChegadas] = useState([])
-  const intervalo = useRef(null)
+function SimulacaoVisual({prova,resultados,pombosParticipantes,onFechar}){
+  const [fase,setFase]=useState('inicio')
+  const [prog,setProg]=useState(0)
+  const [eventoAtual,setEventoAtual]=useState(null)
+  const [chegadas,setChegadas]=useState([])
+  const ref=useRef(null)
+  const meusPombos=resultados.filter(r=>r.pombo)
 
-  const eventosProva = gerarEventos(idioma)
-
-  useEffect(() => {
-    // Fase 1: Início
-    setTimeout(() => setFase('voo'), 1500)
-
-    // Fase 2: Voo — progresso e eventos
-    let prog = 0
-    let eventoIdx = 0
-    intervalo.current = setInterval(() => {
-      prog += 2
-      setProgresso(prog)
-
-      // Mostrar eventos aleatórios
-      if (prog === 20 || prog === 50 || prog === 75) {
-        const ev = eventosProva[eventoIdx]
-        if (ev) { setEventoAtual(ev); setTimeout(() => setEventoAtual(null), 2500); eventoIdx++ }
+  useEffect(()=>{
+    setTimeout(()=>setFase('voo'),1200)
+    let p=0,evIdx=0
+    const evs=EVENTOS_PROVA()
+    ref.current=setInterval(()=>{
+      p+=2;setProg(p)
+      if([20,50,75].includes(p)&&evs[evIdx]){setEventoAtual(evs[evIdx]);setTimeout(()=>setEventoAtual(null),2500);evIdx++}
+      if(p>=100){
+        clearInterval(ref.current);setFase('chegada')
+        const sorted=[...resultados].sort((a,b)=>a.posicao-b.posicao)
+        sorted.slice(0,15).forEach((r,i)=>setTimeout(()=>setChegadas(prev=>[...prev,r]),i*250))
+        setTimeout(()=>setFase('resultado'),sorted.length*250+1000)
       }
+    },70)
+    return()=>clearInterval(ref.current)
+  },[])
 
-      if (prog >= 100) {
-        clearInterval(intervalo.current)
-        setFase('chegada')
-        // Simular chegadas progressivas
-        const resOrdenados = [...resultados].sort((a,b) => a.posicao - b.posicao)
-        resOrdenados.forEach((r, i) => {
-          setTimeout(() => {
-            setChegadas(prev => [...prev, r])
-            if (i === resOrdenados.length - 1) setTimeout(() => setFase('resultado'), 1500)
-          }, i * 300)
-        })
-      }
-    }, 80)
-
-    return () => clearInterval(intervalo.current)
-  }, [])
-
-  const meusPombos = resultados.filter(r => r.pombo)
-
-  return (
-    <div style={{ position:'fixed', inset:0, background:'#030812', zIndex:2000, display:'flex', flexDirection:'column', fontFamily:'inherit' }}>
-
+  return(
+    <div style={{position:'fixed',inset:0,background:T.bg,zIndex:2000,display:'flex',flexDirection:'column',fontFamily:"'Inter',system-ui,sans-serif"}}>
       {/* Header */}
-      <div style={{ padding:'14px 16px', borderBottom:'1px solid rgba(255,255,255,.06)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+      <div style={{padding:'14px 16px',borderBottom:`1px solid ${T.surface2}`,display:'flex',justifyContent:'space-between',alignItems:'center',background:T.surface,position:'relative'}}>
+        <GoldLine/>
         <div>
-          <div style={{ fontSize:14, fontWeight:800, color:'#fff' }}>{prova.nome}</div>
-          <div style={{ fontSize:10, color:'#7A8699' }}>{prova.tipo} · {prova.distancia}km · {resultados.length} {idioma==='en'?'pigeons':idioma==='es'?'palomas':'pombos'}</div>
+          <div style={{fontSize:14,fontWeight:800,color:T.text}}>{prova.nome}</div>
+          <div style={{fontSize:10,color:T.muted}}>{TIPO_LABEL[prova.tipo]} · {prova.dist}km · {resultados.length} pombos</div>
         </div>
-        {fase === 'resultado' && (
-          <button onClick={onFechar} style={{ background:'rgba(255,255,255,.08)', border:'none', borderRadius:8, padding:'6px 12px', color:'#fff', fontSize:12, cursor:'pointer', fontFamily:'inherit' }}>
-            {idioma==='en'?'Close':idioma==='es'?'Cerrar':'Fechar'} ✕
-          </button>
-        )}
+        {fase==='resultado'&&<button onClick={onFechar} style={{background:T.surface2,border:'none',borderRadius:8,padding:'6px 12px',color:T.text,fontSize:11,cursor:'pointer',fontFamily:'inherit'}}>Fechar ✕</button>}
       </div>
 
-      <div style={{ flex:1, overflow:'auto', padding:'16px' }}>
-
-        {/* FASE: INÍCIO */}
-        {fase === 'inicio' && (
-          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', minHeight:300, gap:16 }}>
-            <div style={{ fontSize:48 }}>🚀</div>
-            <div style={{ fontSize:20, fontWeight:800, color:'#D4AF37', textAlign:'center' }}>
-              {idioma==='en'?'Race Starting!':idioma==='es'?'¡Carrera comenzando!':'Prova a Começar!'}
-            </div>
-            <div style={{ fontSize:13, color:'#7A8699' }}>
-              {pombosParticipantes.length} {idioma==='en'?'pigeons ready':idioma==='es'?'palomas listas':'pombos prontos'}
-            </div>
+      <div style={{flex:1,overflow:'auto',padding:'16px'}}>
+        {/* INÍCIO */}
+        {fase==='inicio'&&(
+          <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',minHeight:300,gap:16}}>
+            <div style={{fontSize:56,filter:'drop-shadow(0 0 20px rgba(201,168,76,.5))'}}>🚀</div>
+            <div style={{fontFamily:"'Fraunces',serif",fontSize:22,fontWeight:900,color:T.gold,textAlign:'center'}}>Prova a Começar!</div>
+            <div style={{fontSize:12,color:T.muted}}>{pombosParticipantes.length} pombos prontos</div>
           </div>
         )}
 
-        {/* FASE: VOO */}
-        {(fase === 'voo' || fase === 'chegada') && (
-          <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
-            {/* Barra de progresso */}
-            <div style={{ background:'linear-gradient(135deg,#050D1A,#0B1830)', border:'1px solid rgba(255,255,255,.06)', borderRadius:14, padding:'16px', position:'relative', overflow:'hidden' }}>
-              <div style={{ position:'absolute', top:0, left:0, bottom:0, width:`${progresso}%`, background:'linear-gradient(90deg,rgba(76,141,255,.1),rgba(212,175,55,.1))', transition:'width .1s' }}/>
-              <div style={{ position:'relative' }}>
-                <div style={{ display:'flex', justifyContent:'space-between', marginBottom:8 }}>
-                  <div style={{ fontSize:11, color:'#7A8699' }}>📍 {idioma==='en'?'Release point':idioma==='es'?'Punto de suelta':'Ponto de solta'}</div>
-                  <div style={{ fontSize:11, color:'#D4AF37', fontWeight:700 }}>{idioma==='en'?'Finish':idioma==='es'?'Meta':'Chegada'} 🏁</div>
+        {/* VOO */}
+        {(fase==='voo'||fase==='chegada')&&(
+          <div style={{display:'flex',flexDirection:'column',gap:14}}>
+            {/* Track de progresso */}
+            <div style={{background:T.surface,border:`1px solid ${T.surface2}`,borderRadius:14,padding:'16px',position:'relative',overflow:'hidden'}}>
+              <GoldLine/>
+              <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}>
+                <span style={{fontSize:9,color:T.muted,fontWeight:600,letterSpacing:1}}>SOLTA</span>
+                <span style={{fontSize:9,color:T.gold,fontWeight:700,letterSpacing:1}}>CHEGADA 🏁</span>
+              </div>
+              <div style={{height:8,background:'rgba(255,255,255,.05)',borderRadius:4,overflow:'hidden',marginBottom:10,position:'relative'}}>
+                <div style={{height:'100%',width:`${prog}%`,background:`linear-gradient(90deg,${T.purple},${T.gold})`,borderRadius:4,transition:'width .1s',position:'relative'}}>
+                  <div style={{position:'absolute',right:0,top:'50%',transform:'translateY(-50%)',fontSize:14}}>🐦</div>
                 </div>
-                <div style={{ height:8, background:'rgba(255,255,255,.06)', borderRadius:4, overflow:'hidden', marginBottom:8 }}>
-                  <div style={{ height:'100%', width:`${progresso}%`, background:'linear-gradient(90deg,#4C8DFF,#D4AF37)', borderRadius:4, transition:'width .1s' }}/>
+              </div>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                <div style={{display:'flex',gap:3,flexWrap:'wrap'}}>
+                  {pombosParticipantes.map(p=><span key={p.id} style={{fontSize:13}} title={p.nome}>🐦</span>)}
                 </div>
-                <div style={{ display:'flex', justifyContent:'space-between' }}>
-                  <div style={{ fontSize:10, color:'#475569' }}>{prova.distancia}km</div>
-                  <div style={{ fontSize:12, fontWeight:700, color:'#D4AF37' }}>{progresso}%</div>
-                </div>
-
-                {/* Pombos em voo */}
-                <div style={{ marginTop:12, display:'flex', gap:4, flexWrap:'wrap' }}>
-                  {pombosParticipantes.map((p,i) => (
-                    <div key={p.id} style={{ fontSize:16, filter: progresso < 100 ? 'none' : 'grayscale(0)', transition:'all .5s' }}
-                      title={p.nome}>🐦</div>
-                  ))}
-                </div>
+                <span style={{fontFamily:"'Fraunces',serif",fontSize:16,fontWeight:900,color:T.gold}}>{prog}%</span>
               </div>
             </div>
 
-            {/* Evento actual */}
-            {eventoAtual && (
-              <div style={{ padding:'12px 16px', background:'rgba(212,175,55,.1)', border:'1px solid rgba(212,175,55,.3)', borderRadius:12, fontSize:14, fontWeight:700, color:'#D4AF37', textAlign:'center', animation:'pulse 1s infinite' }}>
+            {/* Evento */}
+            {eventoAtual&&(
+              <div style={{padding:'12px 16px',background:'rgba(201,168,76,.1)',border:'1px solid rgba(201,168,76,.3)',borderRadius:10,fontSize:13,fontWeight:700,color:T.gold,textAlign:'center',position:'relative',overflow:'hidden'}}>
+                <GoldLine/>
                 {eventoAtual}
               </div>
             )}
 
-            {/* Chegadas progressivas */}
-            {chegadas.length > 0 && (
-              <div>
-                <div style={{ fontSize:9, color:'#2DD4A7', fontWeight:700, letterSpacing:1.5, marginBottom:8 }}>
-                  🏁 {idioma==='en'?'ARRIVALS':idioma==='es'?'LLEGADAS':'CHEGADAS'}
+            {/* Chegadas */}
+            {chegadas.length>0&&(
+              <div style={{background:T.surface,border:`1px solid ${T.surface2}`,borderRadius:12,overflow:'hidden',position:'relative'}}>
+                <GoldLine/>
+                <div style={{padding:'10px 14px',borderBottom:`1px solid ${T.surface2}`}}>
+                  <span style={{fontSize:8,color:T.success,fontWeight:700,letterSpacing:1.5}}>🏁 CHEGADAS</span>
                 </div>
-                {chegadas.slice(0, 10).map((r, i) => {
-                  const isMeu = !!r.pombo
-                  return (
-                    <div key={i} style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 12px', background: isMeu ? 'rgba(212,175,55,.08)' : 'rgba(255,255,255,.02)', border:`1px solid ${isMeu ? 'rgba(212,175,55,.2)' : 'rgba(255,255,255,.04)'}`, borderRadius:8, marginBottom:4 }}>
-                      <div style={{ width:28, height:28, borderRadius:6, background: r.posicao <= 3 ? ['#D4AF37','#94a3b8','#b45309'][r.posicao-1]+'30' : 'rgba(255,255,255,.05)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:900, color: r.posicao <= 3 ? ['#D4AF37','#94a3b8','#b45309'][r.posicao-1] : '#475569' }}>
-                        {r.posicao}º
+                {chegadas.slice(0,8).map((r,i)=>{
+                  const isMeu=!!r.pombo
+                  return(
+                    <div key={i} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 14px',background:isMeu?'rgba(201,168,76,.06)':'transparent',borderBottom:`1px solid ${T.surface2}`}}>
+                      <div style={{width:28,height:28,borderRadius:6,background:r.posicao<=3?`${[T.gold,'rgba(148,163,184,.2)','rgba(180,83,9,.2)'][r.posicao-1]}`:`${T.surface2}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:900,color:r.posicao<=3?[T.gold,'#94a3b8','#b45309'][r.posicao-1]:T.muted}}>
+                        {r.posicao}
                       </div>
-                      <div style={{ flex:1 }}>
-                        <div style={{ fontSize:12, fontWeight: isMeu ? 700 : 400, color: isMeu ? '#D4AF37' : '#cbd5e1' }}>
-                          {isMeu ? `🐦 ${r.pombo.nome}` : `${r.nome || 'Adversário'}`}
+                      <div style={{flex:1}}>
+                        <div style={{fontSize:11,fontWeight:isMeu?700:400,color:isMeu?T.gold:T.text}}>
+                          {isMeu?`🐦 ${r.pombo.nome}`:`${r.nome||'Adversário'}`}
                         </div>
-                        {!isMeu && r.pombalNome && <div style={{ fontSize:9, color:'#2a3a5a' }}>{r.pombalNome}</div>}
-                        <div style={{ fontSize:10, color:'#475569' }}>{r.velocidade} m/min</div>
+                        {!isMeu&&r.pombalNome&&<div style={{fontSize:9,color:T.muted}}>{r.pombalNome}</div>}
                       </div>
-                      {isMeu && <div style={{ fontSize:11, fontWeight:700, color:'#2DD4A7' }}>Top {100-r.percentil}%</div>}
+                      <div style={{textAlign:'right'}}>
+                        <div style={{fontSize:10,color:T.muted,fontVariantNumeric:'tabular-nums'}}>{r.velocidade} m/min</div>
+                        {isMeu&&<div style={{fontSize:9,color:T.success,fontWeight:700}}>P{r.percentil}%</div>}
+                      </div>
                     </div>
                   )
                 })}
@@ -239,40 +165,39 @@ function SimulacaoVisual({ prova, resultados, pombosParticipantes, onFechar, idi
           </div>
         )}
 
-        {/* FASE: RESULTADO FINAL */}
-        {fase === 'resultado' && (
-          <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
-            <div style={{ textAlign:'center', padding:'20px 0' }}>
-              <div style={{ fontSize:40, marginBottom:8 }}>🏆</div>
-              <div style={{ fontSize:20, fontWeight:800, color:'#D4AF37' }}>
-                {idioma==='en'?'Race Complete!':idioma==='es'?'¡Carrera completada!':'Prova Concluída!'}
-              </div>
+        {/* RESULTADO */}
+        {fase==='resultado'&&(
+          <div style={{display:'flex',flexDirection:'column',gap:14}}>
+            <div style={{textAlign:'center',padding:'20px 0'}}>
+              <div style={{fontSize:48,marginBottom:8,filter:'drop-shadow(0 0 20px rgba(201,168,76,.6))'}}>🏆</div>
+              <div style={{fontFamily:"'Fraunces',serif",fontSize:22,fontWeight:900,color:T.gold}}>Prova Concluída!</div>
             </div>
-
-            {meusPombos.map(r => (
-              <div key={r.pombo.id} style={{ padding:'16px', background: r.posicao <= 3 ? 'rgba(212,175,55,.08)' : 'rgba(255,255,255,.03)', border:`2px solid ${r.posicao <= 3 ? '#D4AF37' : 'rgba(255,255,255,.08)'}`, borderRadius:14 }}>
-                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
+            {meusPombos.map(r=>(
+              <div key={r.pombo.id} style={{background:T.surface,border:`2px solid ${r.posicao<=3?T.gold:T.surface2}`,borderRadius:14,padding:'16px',position:'relative',overflow:'hidden'}}>
+                {r.posicao<=3&&<GoldLine/>}
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
                   <div>
-                    <div style={{ fontSize:16, fontWeight:800, color:'#fff' }}>{r.pombo.nome}</div>
-                    <div style={{ fontSize:11, color:'#7A8699' }}>{r.pombo.especialidade}</div>
+                    <div style={{fontSize:16,fontWeight:800,color:T.text}}>{r.pombo.nome}</div>
+                    <div style={{fontSize:10,color:T.muted}}>{r.pombo.especialidade}</div>
                   </div>
-                  <div style={{ textAlign:'center', background: r.posicao <= 3 ? 'rgba(212,175,55,.15)' : 'rgba(255,255,255,.06)', borderRadius:10, padding:'8px 14px' }}>
-                    <div style={{ fontFamily:"'Fraunces',serif", fontSize:24, fontWeight:900, color: r.posicao <= 3 ? '#D4AF37' : '#fff' }}>{r.posicao}º</div>
-                    <div style={{ fontSize:9, color:'#7A8699' }}>/{r.total}</div>
+                  <div style={{textAlign:'center',background:r.posicao<=3?'rgba(201,168,76,.15)':T.surface2,borderRadius:10,padding:'8px 14px'}}>
+                    <div style={{fontFamily:"'Fraunces',serif",fontSize:26,fontWeight:900,color:r.posicao<=3?T.gold:T.text,lineHeight:1}}>{r.posicao}º</div>
+                    <div style={{fontSize:9,color:T.muted}}>/{r.total}</div>
                   </div>
                 </div>
-                <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:8, textAlign:'center' }}>
+                <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8,textAlign:'center'}}>
                   {[
-                    { label: idioma==='en'?'Speed':idioma==='es'?'Velocidad':'Velocidade', valor:`${r.velocidade} m/min`, cor:'#4C8DFF' },
-                    { label: idioma==='en'?'Percentile':idioma==='es'?'Percentil':'Percentil', valor:`${r.percentil}%`, cor:'#2DD4A7' },
-                    { label: idioma==='en'?'Time':idioma==='es'?'Tiempo':'Tempo', valor:`${Math.floor(r.tempo/60)}h${r.tempo%60}m`, cor:'#D4AF37' },
-                  ].map((s,i) => (
-                    <div key={i} style={{ padding:'8px', background:'rgba(255,255,255,.03)', borderRadius:8 }}>
-                      <div style={{ fontSize:13, fontWeight:700, color:s.cor }}>{s.valor}</div>
-                      <div style={{ fontSize:9, color:'#475569' }}>{s.label}</div>
+                    {label:'Velocidade',valor:`${r.velocidade} m/min`,cor:T.blue},
+                    {label:'Percentil',valor:`${r.percentil}%`,cor:T.success},
+                    {label:'Tempo',valor:`${Math.floor(r.tempo/60)}h${r.tempo%60}m`,cor:T.gold},
+                  ].map((s,i)=>(
+                    <div key={i} style={{padding:'8px',background:T.surface2,borderRadius:8}}>
+                      <div style={{fontSize:13,fontWeight:700,color:s.cor,fontVariantNumeric:'tabular-nums'}}>{s.valor}</div>
+                      <div style={{fontSize:8,color:T.muted,marginTop:2}}>{s.label.toUpperCase()}</div>
                     </div>
                   ))}
                 </div>
+                {r.posicao===1&&<div style={{marginTop:10,padding:'8px',background:'rgba(201,168,76,.1)',border:'1px solid rgba(201,168,76,.2)',borderRadius:8,textAlign:'center',fontSize:11,color:T.gold,fontWeight:700}}>🥇 VITÓRIA! +{prova.premio.toLocaleString()}€</div>}
               </div>
             ))}
           </div>
@@ -282,208 +207,151 @@ function SimulacaoVisual({ prova, resultados, pombosParticipantes, onFechar, idi
   )
 }
 
-// ── Componente principal ──────────────────────────────────────────────────────
-const PROVAS_CALENDARIO = [
-  { id:'p1', nome:'Prova Local - Santarém',      distancia:80,  tipo:'velocidade',   semana:3,  nivel:'local',         premio:100 },
-  { id:'p2', nome:'Prova Local - Setúbal',       distancia:120, tipo:'velocidade',   semana:5,  nivel:'local',         premio:150 },
-  { id:'p3', nome:'Distrital - Évora',            distancia:200, tipo:'velocidade',   semana:8,  nivel:'distrital',     premio:300 },
-  { id:'p4', nome:'Distrital - Beja',             distancia:250, tipo:'meio_fundo',   semana:11, nivel:'distrital',     premio:400 },
-  { id:'p5', nome:'Regional - Badajoz',           distancia:350, tipo:'meio_fundo',   semana:15, nivel:'regional',      premio:600 },
-  { id:'p6', nome:'Regional - Mérida',            distancia:420, tipo:'meio_fundo',   semana:18, nivel:'regional',      premio:800 },
-  { id:'p7', nome:'Nacional - Salamanca',         distancia:510, tipo:'fundo',        semana:22, nivel:'nacional',      premio:1500 },
-  { id:'p8', nome:'Nacional - Valladolid',        distancia:650, tipo:'fundo',        semana:26, nivel:'nacional',      premio:2000 },
-  { id:'p9', nome:'Internacional - Barcelona',    distancia:850, tipo:'grande_fundo',  semana:30, nivel:'internacional', premio:5000 },
-  { id:'p10',nome:'Grande Prova - Pau',           distancia:1100,tipo:'grande_fundo',  semana:35, nivel:'internacional', premio:10000 },
-]
+export default function VLProvas({carreira,onVoltar,onGuardar}){
+  const [carreiraLocal,setCarreiraLocal]=useState(()=>lerLS()||carreira)
+  const c=carreiraLocal
+  const salvarLocal=(d)=>{gravarLS(d);setCarreiraLocal({...d});onGuardar?.(d)}
+  const idioma='pt'
 
-const COR_NIVEL = { local:'#7A8699', distrital:'#4C8DFF', regional:'#2DD4A7', nacional:'#D4AF37', internacional:'#A855F7' }
+  const [tab,setTab]=useState('calendario')
+  const [provaAtiva,setProvaAtiva]=useState(null)
+  const [pombosSelec,setPombosSelec]=useState([])
+  const [simulando,setSimulando]=useState(false)
+  const [resultados,setResultados]=useState(null)
+  const [historico,setHistorico]=useState(c.historico_provas||[])
 
-export default function VLProvas({ carreira, onVoltar, onGuardar, idioma = 'pt' }) {
-  // Ler sempre do localStorage para ter dados mais recentes
-  const [carreiraLocal, setCarreiraLocal] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('vl_carreira')) || carreira } catch { return carreira }
-  })
-  const c = carreiraLocal
+  const togglePombo=(p)=>setPombosSelec(prev=>prev.find(x=>x.id===p.id)?prev.filter(x=>x.id!==p.id):prev.length<10?[...prev,p]:prev)
 
-  const salvarLocal = (dados) => {
-    try { localStorage.setItem('vl_carreira', JSON.stringify(dados)) } catch {}
-    setCarreiraLocal({ ...dados })
-    onGuardar?.(dados)
+  const iniciarProva=()=>{
+    if(!pombosSelec.length||!provaAtiva)return
+    const res=simularProva(pombosSelec,provaAtiva)
+    setResultados(res);setSimulando(true)
   }
 
-  const [tab, setTab] = useState('calendario')
-  const [provaAtiva, setProvaAtiva] = useState(null)
-  const [pombosSelec, setPombosSelec] = useState([])
-  const [simulando, setSimulando] = useState(false)
-  const [resultados, setResultados] = useState(null)
-  const [historico, setHistorico] = useState(c.historico_provas || [])
-
-  const provasDisponiveis = PROVAS_CALENDARIO.filter(p => p.semana >= c.semana)
-  const provasPassadas = PROVAS_CALENDARIO.filter(p => p.semana < c.semana)
-
-  const togglePombo = (pombo) => {
-    setPombosSelec(prev =>
-      prev.find(p => p.id === pombo.id)
-        ? prev.filter(p => p.id !== pombo.id)
-        : prev.length < 10 ? [...prev, pombo] : prev
-    )
-  }
-
-  const iniciarProva = () => {
-    if (pombosSelec.length === 0) return
-    const res = simularProva(pombosSelec, provaAtiva, carreira)
-    setResultados(res)
-    setSimulando(true)
-  }
-
-  const fecharSimulacao = () => {
-    // Guardar resultados no histórico
-    const novosResultados = pombosSelec.map(p => {
-      const r = resultados.find(r => r.pombo?.id === p.id)
-      return { provaId: provaAtiva.id, provaNome: provaAtiva.nome, pomboId: p.id, pomboNome: p.nome, posicao: r?.posicao, total: r?.total, percentil: r?.percentil, velocidade: r?.velocidade, semana: c.semana }
+  const fecharSimulacao=()=>{
+    const novosRes=pombosSelec.map(p=>{
+      const r=resultados.find(r=>r.pombo?.id===p.id)
+      return{provaId:provaAtiva.id,provaNome:provaAtiva.nome,pomboId:p.id,pomboNome:p.nome,posicao:r?.posicao,total:r?.total,percentil:r?.percentil,velocidade:r?.velocidade,semana:c.semana}
     })
-    const novoHistorico = [...historico, ...novosResultados]
-    setHistorico(novoHistorico)
-
-    // Actualizar pombos com resultados
-    const novosPombos = c.pombos.map(p => {
-      const r = resultados.find(r => r.pombo?.id === p.id)
-      if (!r) return p
-      return { ...p, provas: (p.provas || 0) + 1, vitorias: (p.vitorias || 0) + (r.posicao === 1 ? 1 : 0), percentil_medio: Math.round(((p.percentil_medio || 0) * (p.provas || 0) + r.percentil) / ((p.provas || 0) + 1)) }
+    const novoHist=[...historico,...novosRes]
+    setHistorico(novoHist)
+    const novosPombos=(c.pombos||[]).map(p=>{
+      const r=resultados.find(r=>r.pombo?.id===p.id)
+      if(!r)return p
+      return{...p,provas:(p.provas||0)+1,vitorias:(p.vitorias||0)+(r.posicao===1?1:0),percentil_medio:Math.round(((p.percentil_medio||0)*(p.provas||0)+r.percentil)/((p.provas||0)+1))}
     })
-
-    // Avançar semana
-    const premio = pombosSelec.some(p => resultados.find(r => r.pombo?.id === p.id && r.posicao <= 3)) ? provaAtiva.premio : 0
-    onGuardar?.({ ...c, pombos: novosPombos, historico_provas: novoHistorico, semana: c.semana + 1, orcamento: c.orcamento + premio })
-
-    setSimulando(false)
-    setResultados(null)
-    setProvaAtiva(null)
-    setPombosSelec([])
-    setTab('historico')
+    const premio=pombosSelec.some(p=>resultados.find(r=>r.pombo?.id===p.id&&r.posicao<=3))?provaAtiva.premio:0
+    salvarLocal({...c,pombos:novosPombos,historico_provas:novoHist,orcamento:(c.orcamento||0)+premio})
+    setSimulando(false);setResultados(null);setProvaAtiva(null);setPombosSelec([]);setTab('historico')
   }
 
-  const tipoLabel = { velocidade: idioma==='en'?'Sprint':idioma==='es'?'Velocidad':'Velocidade', meio_fundo: idioma==='en'?'Mid-Distance':idioma==='es'?'Medio Fondo':'Meio-Fundo', fundo: idioma==='en'?'Long Distance':idioma==='es'?'Fondo':'Fundo', grande_fundo: idioma==='en'?'Ultra Long':idioma==='es'?'Gran Fondo':'Grande Fundo' }
+  return(
+    <div style={{minHeight:'100vh',background:T.bg,color:T.text,fontFamily:"'Inter',system-ui,sans-serif"}}>
+      {simulando&&resultados&&<SimulacaoVisual prova={provaAtiva} resultados={resultados} pombosParticipantes={pombosSelec} onFechar={fecharSimulacao}/>}
 
-  return (
-    <div style={{ minHeight:'100vh', background:'#030812', color:'#fff', fontFamily:'inherit' }}>
-
-      {simulando && resultados && (
-        <SimulacaoVisual prova={provaAtiva} resultados={resultados} pombosParticipantes={pombosSelec} onFechar={fecharSimulacao} idioma={idioma} />
-      )}
-
-      <div style={{ background:'linear-gradient(180deg,#050D1A,#030812)', borderBottom:'1px solid rgba(255,255,255,.05)', padding:'14px 16px' }}>
-        <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:12 }}>
-          <button onClick={onVoltar} style={{ background:'rgba(255,255,255,.06)', border:'none', borderRadius:8, width:32, height:32, color:'#7A8699', cursor:'pointer', fontSize:16 }}>←</button>
+      <div style={{background:`linear-gradient(180deg,${T.surface},${T.bg})`,borderBottom:`1px solid ${T.surface2}`,padding:'14px 16px',position:'relative'}}>
+        <GoldLine/>
+        <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12}}>
+          <button onClick={onVoltar} style={{background:T.surface,border:`1px solid ${T.surface2}`,borderRadius:8,width:32,height:32,color:T.muted,cursor:'pointer',fontSize:16}}>←</button>
           <div>
-            <div style={{ fontSize:16, fontWeight:800 }}>🏆 {idioma==='en'?'Races':idioma==='es'?'Carreras':'Provas'}</div>
-            <div style={{ fontSize:10, color:'#7A8699' }}>{idioma==='en'?'Season':idioma==='es'?'Temporada':'Época'} {c.epoca} · {idioma==='en'?'Week':idioma==='es'?'Semana':'Semana'} {c.semana}</div>
+            <div style={{fontSize:16,fontWeight:800}}>🏆 Provas</div>
+            <div style={{fontSize:9,color:T.muted}}>Época {c.epoca||1} · Semana {c.semana||1}</div>
           </div>
         </div>
-        <div style={{ display:'flex', gap:6 }}>
-          {[['calendario', idioma==='en'?'Calendar':idioma==='es'?'Calendario':'Calendário'], ['inscrever', idioma==='en'?'Enter Race':idioma==='es'?'Inscribir':'Inscrever'], ['historico', idioma==='en'?'History':idioma==='es'?'Historial':'Historial']].map(([id,label]) => (
-            <button key={id} onClick={() => setTab(id)}
-              style={{ flex:'none', padding:'8px 14px', borderRadius:8, border: tab===id?'none':'1px solid rgba(255,255,255,.08)', background: tab===id?'linear-gradient(135deg,#1E5FD9,#1456C0)':'rgba(255,255,255,.04)', color: tab===id?'#fff':'#cbd5e1', fontSize:12, fontWeight: tab===id?700:500, cursor:'pointer', fontFamily:'inherit', minHeight:36 }}>
+        <div style={{display:'flex',gap:6}}>
+          {[['calendario','Calendário'],['inscrever','Inscrever'],['historico','Historial']].map(([id,label])=>(
+            <button key={id} onClick={()=>setTab(id)}
+              style={{flex:'none',padding:'8px 14px',borderRadius:8,border:tab===id?'none':`1px solid ${T.surface2}`,background:tab===id?`linear-gradient(135deg,${T.purple}44,${T.purple}22)`:'transparent',color:tab===id?T.purple:T.muted,fontSize:11,fontWeight:tab===id?700:400,cursor:'pointer',fontFamily:'inherit',minHeight:34}}>
               {label}
             </button>
           ))}
         </div>
       </div>
 
-      <div style={{ padding:'12px 16px' }}>
+      <div style={{padding:'12px 16px',display:'flex',flexDirection:'column',gap:8}}>
 
         {/* CALENDÁRIO */}
-        {tab === 'calendario' && (
-          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-            {PROVAS_CALENDARIO.map(p => {
-              const passada = p.semana < c.semana
-              const proxima = p.semana === c.semana
-              const cor = COR_NIVEL[p.nivel] || '#7A8699'
-              return (
-                <div key={p.id} style={{ padding:'12px 14px', background: proxima ? `${cor}10` : passada ? 'rgba(255,255,255,.01)' : 'rgba(255,255,255,.03)', border:`1px solid ${proxima ? cor+'40' : passada ? 'rgba(255,255,255,.04)' : 'rgba(255,255,255,.06)'}`, borderRadius:10, opacity: passada ? .5 : 1, position:'relative', overflow:'hidden' }}>
-                  {proxima && <div style={{ position:'absolute', top:0, left:0, right:0, height:2, background:cor }}/>}
-                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
-                    <div style={{ flex:1 }}>
-                      <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:4 }}>
-                        <span style={{ fontSize:9, fontWeight:700, color:cor, background:`${cor}15`, padding:'2px 6px', borderRadius:4, letterSpacing:.5 }}>{p.nivel.toUpperCase()}</span>
-                        {proxima && <span style={{ fontSize:9, fontWeight:700, color:'#D4AF37', background:'rgba(212,175,55,.15)', padding:'2px 6px', borderRadius:4 }}>ESTA SEMANA</span>}
-                        {passada && <span style={{ fontSize:9, color:'#475569' }}>✓</span>}
-                      </div>
-                      <div style={{ fontSize:13, fontWeight:700, color: passada ? '#475569' : '#fff', marginBottom:2 }}>{p.nome}</div>
-                      <div style={{ fontSize:10, color:'#475569' }}>{tipoLabel[p.tipo]} · {p.distancia}km · 🏅 {p.premio.toLocaleString()}€</div>
-                    </div>
-                    <div style={{ textAlign:'center', minWidth:44 }}>
-                      <div style={{ fontSize:16, fontWeight:900, color: proxima ? cor : passada ? '#2a3a5a' : '#475569', fontFamily:"'Fraunces',serif" }}>{p.semana}</div>
-                      <div style={{ fontSize:8, color:'#475569' }}>SEM.</div>
-                    </div>
+        {tab==='calendario'&&PROVAS.map(p=>{
+          const passada=p.semana<(c.semana||1)
+          const proxima=p.semana===(c.semana||1)
+          const cor=COR_NIVEL[p.nivel]||T.muted
+          return(
+            <div key={p.id} style={{padding:'12px 14px',background:proxima?`${T.purple}0A`:T.surface,border:`1px solid ${proxima?T.purple:T.surface2}`,borderRadius:10,opacity:passada?.5:1,position:'relative',overflow:'hidden'}}>
+              {proxima&&<GoldLine/>}
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
+                <div style={{flex:1}}>
+                  <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:4}}>
+                    <span style={{fontSize:9,fontWeight:700,color:cor,background:`${cor}15`,padding:'2px 6px',borderRadius:4,letterSpacing:.5}}>{p.nivel.toUpperCase()}</span>
+                    {proxima&&<span style={{fontSize:9,fontWeight:700,color:T.gold,background:'rgba(201,168,76,.15)',padding:'2px 6px',borderRadius:4}}>ESTA SEMANA</span>}
+                    {passada&&<span style={{fontSize:9,color:T.success}}>✓</span>}
                   </div>
-                  {proxima && (
-                    <button onClick={() => { setProvaAtiva(p); setTab('inscrever') }}
-                      style={{ marginTop:8, width:'100%', padding:'8px', borderRadius:8, border:'none', background:'linear-gradient(135deg,#A855F7,#7C3AED)', color:'#fff', fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
-                      🏆 {idioma==='en'?'Enter this race':idioma==='es'?'Inscribirse':'Inscrever agora'}
-                    </button>
-                  )}
+                  <div style={{fontSize:13,fontWeight:700,color:passada?T.muted:T.text,marginBottom:2}}>{p.nome}</div>
+                  <div style={{fontSize:10,color:T.muted}}>{TIPO_LABEL[p.tipo]} · {p.dist}km · 🏅 {p.premio.toLocaleString()}€</div>
                 </div>
-              )
-            })}
-          </div>
-        )}
+                <div style={{textAlign:'center',minWidth:44}}>
+                  <div style={{fontFamily:"'Fraunces',serif",fontSize:18,fontWeight:900,color:proxima?T.purple:passada?T.surface2:T.muted}}>{p.semana}</div>
+                  <div style={{fontSize:8,color:T.muted}}>SEM.</div>
+                </div>
+              </div>
+              {proxima&&(
+                <button onClick={()=>{setProvaAtiva(p);setTab('inscrever')}}
+                  style={{marginTop:8,width:'100%',padding:'8px',borderRadius:8,border:'none',background:`linear-gradient(135deg,${T.purple},#7C3AED)`,color:'#fff',fontSize:11,fontWeight:700,cursor:'pointer',fontFamily:'inherit'}}>
+                  🏆 Inscrever agora
+                </button>
+              )}
+            </div>
+          )
+        })}
 
         {/* INSCREVER */}
-        {tab === 'inscrever' && (
-          <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-            {!provaAtiva ? (
+        {tab==='inscrever'&&(
+          <div style={{display:'flex',flexDirection:'column',gap:12}}>
+            {!provaAtiva?(
               <div>
-                <div style={{ fontSize:11, color:'#7A8699', marginBottom:10 }}>
-                  {idioma==='en'?'Select a race:':idioma==='es'?'Selecciona una carrera:':'Selecciona uma prova:'}
-                </div>
-                {provasDisponiveis.slice(0,3).map(p => (
-                  <div key={p.id} onClick={() => setProvaAtiva(p)}
-                    style={{ padding:'12px 14px', background:'rgba(255,255,255,.03)', border:'1px solid rgba(255,255,255,.06)', borderRadius:10, marginBottom:6, cursor:'pointer' }}>
-                    <div style={{ fontSize:13, fontWeight:700 }}>{p.nome}</div>
-                    <div style={{ fontSize:10, color:'#7A8699' }}>{tipoLabel[p.tipo]} · {p.distancia}km · Semana {p.semana}</div>
+                <div style={{fontSize:10,color:T.muted,marginBottom:8}}>Selecciona uma prova:</div>
+                {PROVAS.filter(p=>p.semana>=(c.semana||1)).slice(0,3).map(p=>(
+                  <div key={p.id} onClick={()=>setProvaAtiva(p)}
+                    style={{padding:'12px 14px',background:T.surface,border:`1px solid ${T.surface2}`,borderRadius:10,marginBottom:6,cursor:'pointer',position:'relative',overflow:'hidden'}}>
+                    <GoldLine/>
+                    <div style={{fontSize:13,fontWeight:700,color:T.text}}>{p.nome}</div>
+                    <div style={{fontSize:10,color:T.muted}}>{TIPO_LABEL[p.tipo]} · {p.dist}km · Sem. {p.semana}</div>
                   </div>
                 ))}
               </div>
-            ) : (
-              <div>
-                <div style={{ padding:'12px 14px', background:'rgba(168,85,247,.08)', border:'1px solid rgba(168,85,247,.2)', borderRadius:10, marginBottom:12 }}>
-                  <div style={{ fontSize:14, fontWeight:800, color:'#A855F7' }}>{provaAtiva.nome}</div>
-                  <div style={{ fontSize:11, color:'#7A8699', marginTop:2 }}>{tipoLabel[provaAtiva.tipo]} · {provaAtiva.distancia}km · 🏅 {provaAtiva.premio.toLocaleString()}€</div>
+            ):(
+              <div style={{display:'flex',flexDirection:'column',gap:12}}>
+                <div style={{padding:'12px 14px',background:`${T.purple}0A`,border:`1px solid ${T.purple}40`,borderRadius:10,position:'relative',overflow:'hidden'}}>
+                  <GoldLine/>
+                  <div style={{fontSize:14,fontWeight:800,color:T.purple}}>{provaAtiva.nome}</div>
+                  <div style={{fontSize:10,color:T.muted,marginTop:2}}>{TIPO_LABEL[provaAtiva.tipo]} · {provaAtiva.dist}km · 🏅 {provaAtiva.premio.toLocaleString()}€</div>
                 </div>
-
-                <div style={{ fontSize:11, color:'#7A8699', marginBottom:8 }}>
-                  {idioma==='en'?`Select pigeons (${pombosSelec.length}/10 selected):`:idioma==='es'?`Selecciona palomas (${pombosSelec.length}/10 seleccionadas):`:idioma==='pt'?`Selecciona pombos (${pombosSelec.length}/10 seleccionados):`:''}
-                </div>
-
-                <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:8, marginBottom:12 }}>
-                  {c.pombos.filter(p => p.estado === 'activo').map(p => {
-                    const sel = pombosSelec.find(s => s.id === p.id)
-                    const cor = p.sexo === 'F' ? '#c084fc' : '#4C8DFF'
-                    return (
-                      <div key={p.id} onClick={() => togglePombo(p)}
-                        style={{ padding:'10px 12px', background: sel ? `${cor}15` : 'rgba(255,255,255,.02)', border:`1.5px solid ${sel ? cor : 'rgba(255,255,255,.06)'}`, borderRadius:10, cursor:'pointer', transition:'all .15s' }}>
-                        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                          <div style={{ fontSize:12, fontWeight:700, color: sel ? cor : '#fff' }}>{p.nome}</div>
-                          {sel && <div style={{ width:16, height:16, borderRadius:'50%', background:cor, display:'flex', alignItems:'center', justifyContent:'center', fontSize:9, color:'#fff', fontWeight:700 }}>✓</div>}
+                <div style={{fontSize:10,color:T.muted}}>Selecciona pombos ({pombosSelec.length}/10):</div>
+                <div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:8}}>
+                  {(c.pombos||[]).filter(p=>p.estado==='activo').map(p=>{
+                    const sel=pombosSelec.find(x=>x.id===p.id)
+                    const cor=p.sexo==='F'?'#C084FC':T.blue
+                    return(
+                      <div key={p.id} onClick={()=>togglePombo(p)}
+                        style={{padding:'10px 12px',background:sel?`${cor}10`:T.surface,border:`1.5px solid ${sel?cor:T.surface2}`,borderRadius:10,cursor:'pointer',transition:'all .15s',position:'relative',overflow:'hidden'}}>
+                        {sel&&<GoldLine/>}
+                        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                          <div style={{fontSize:12,fontWeight:700,color:sel?cor:T.text}}>{p.nome}</div>
+                          {sel&&<div style={{width:16,height:16,borderRadius:'50%',background:cor,display:'flex',alignItems:'center',justifyContent:'center',fontSize:8,color:'#fff',fontWeight:700}}>✓</div>}
                         </div>
-                        <div style={{ fontSize:10, color:'#475569', marginTop:2 }}>{p.especialidade}</div>
-                        <div style={{ display:'flex', gap:2, marginTop:4 }}>
-                          {Array.from({length:5}).map((_,i)=><div key={i} style={{ width:6,height:6,borderRadius:1,background:i<p.rating?'#D4AF37':'rgba(255,255,255,.08)' }}/>)}
+                        <div style={{fontSize:9,color:T.muted,marginTop:2}}>{p.especialidade}</div>
+                        <div style={{display:'flex',gap:1,marginTop:4}}>
+                          {Array.from({length:5}).map((_,i)=><div key={i} style={{fontSize:7,color:i<p.rating?T.gold:'rgba(255,255,255,.08)'}}>{i<p.rating?'★':'☆'}</div>)}
                         </div>
                       </div>
                     )
                   })}
                 </div>
-
-                <div style={{ display:'flex', gap:8 }}>
-                  <button onClick={() => { setProvaAtiva(null); setPombosSelec([]) }}
-                    style={{ flex:1, padding:'12px', borderRadius:10, border:'1px solid rgba(255,255,255,.08)', background:'transparent', color:'#7A8699', fontSize:13, cursor:'pointer', fontFamily:'inherit' }}>
-                    {idioma==='en'?'Cancel':idioma==='es'?'Cancelar':'Cancelar'}
-                  </button>
-                  <button onClick={iniciarProva} disabled={pombosSelec.length === 0}
-                    style={{ flex:2, padding:'12px', borderRadius:10, border:'none', background: pombosSelec.length > 0 ? 'linear-gradient(135deg,#A855F7,#7C3AED)' : 'rgba(255,255,255,.06)', color: pombosSelec.length > 0 ? '#fff' : '#475569', fontSize:13, fontWeight:700, cursor: pombosSelec.length > 0 ? 'pointer' : 'default', fontFamily:'inherit' }}>
-                    🚀 {idioma==='en'?'Start Race!':idioma==='es'?'¡Iniciar Carrera!':'Iniciar Prova!'}
+                <div style={{display:'flex',gap:8}}>
+                  <button onClick={()=>{setProvaAtiva(null);setPombosSelec([])}}
+                    style={{flex:1,padding:'11px',borderRadius:10,border:`1px solid ${T.surface2}`,background:'transparent',color:T.muted,fontSize:12,cursor:'pointer',fontFamily:'inherit'}}>Cancelar</button>
+                  <button onClick={iniciarProva} disabled={!pombosSelec.length}
+                    style={{flex:2,padding:'11px',borderRadius:10,border:'none',background:pombosSelec.length?`linear-gradient(135deg,${T.purple},#7C3AED)`:`${T.surface2}`,color:pombosSelec.length?'#fff':T.muted,fontSize:12,fontWeight:700,cursor:pombosSelec.length?'pointer':'default',fontFamily:'inherit'}}>
+                    🚀 Iniciar Prova!
                   </button>
                 </div>
               </div>
@@ -491,31 +359,26 @@ export default function VLProvas({ carreira, onVoltar, onGuardar, idioma = 'pt' 
           </div>
         )}
 
-        {/* HISTÓRICO */}
-        {tab === 'historico' && (
-          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-            {historico.length === 0 ? (
-              <div style={{ textAlign:'center', padding:'40px 20px' }}>
-                <div style={{ fontSize:40, marginBottom:12 }}>📋</div>
-                <div style={{ fontSize:14, color:'#475569', fontWeight:600 }}>
-                  {idioma==='en'?'No races yet':idioma==='es'?'Sin carreras aún':'Sem provas ainda'}
-                </div>
+        {/* HISTORIAL */}
+        {tab==='historico'&&(
+          historico.length===0?(
+            <div style={{textAlign:'center',padding:'40px 20px'}}>
+              <div style={{fontSize:40,marginBottom:12}}>📋</div>
+              <div style={{fontSize:13,color:T.muted}}>Sem provas ainda</div>
+            </div>
+          ):[...historico].reverse().map((r,i)=>(
+            <div key={i} style={{padding:'10px 14px',background:T.surface,border:`1px solid ${r.posicao<=3?T.gold:T.surface2}`,borderRadius:10,position:'relative',overflow:'hidden'}}>
+              {r.posicao<=3&&<GoldLine/>}
+              <div style={{display:'flex',justifyContent:'space-between',marginBottom:3}}>
+                <div style={{fontSize:12,fontWeight:700,color:T.text}}>{r.provaNome}</div>
+                <div style={{fontSize:13,fontWeight:800,color:r.posicao<=3?T.gold:T.muted}}>{r.posicao}º/{r.total}</div>
               </div>
-            ) : (
-              [...historico].reverse().map((r, i) => (
-                <div key={i} style={{ padding:'12px 14px', background:'rgba(255,255,255,.02)', border:'1px solid rgba(255,255,255,.05)', borderRadius:10 }}>
-                  <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
-                    <div style={{ fontSize:12, fontWeight:700, color:'#fff' }}>{r.provaNome}</div>
-                    <div style={{ fontSize:11, fontWeight:700, color: r.posicao <= 3 ? '#D4AF37' : '#7A8699' }}>{r.posicao}º/{r.total}</div>
-                  </div>
-                  <div style={{ display:'flex', justifyContent:'space-between' }}>
-                    <div style={{ fontSize:10, color:'#7A8699' }}>🐦 {r.pomboNome}</div>
-                    <div style={{ fontSize:10, color:'#2DD4A7' }}>P{r.percentil}%</div>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
+              <div style={{display:'flex',justifyContent:'space-between'}}>
+                <div style={{fontSize:10,color:T.muted}}>🐦 {r.pomboNome} · Sem.{r.semana}</div>
+                <div style={{fontSize:10,color:T.success,fontWeight:700}}>P{r.percentil}%</div>
+              </div>
+            </div>
+          ))
         )}
       </div>
     </div>
