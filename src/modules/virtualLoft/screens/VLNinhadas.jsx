@@ -2,6 +2,11 @@
 import { useState } from 'react'
 import { cruzamento, gerarPombo, NOMES, PERSONALIDADES } from '../engine/genetics'
 
+const T={bg:'#050A14',surface:'#0D1829',surface2:'#1A2A45',gold:'#C9A84C',blue:'#4FC3F7',text:'#E8EDF5',muted:'#6B7A99',success:'#2DD4A7',danger:'#F87171',purple:'#A855F7'}
+function lerLS(){try{return JSON.parse(localStorage.getItem('vl_carreira'))}catch{return null}}
+function gravarLS(d){try{localStorage.setItem('vl_carreira',JSON.stringify(d))}catch{}}
+function GoldLine(){return <div style={{position:'absolute',top:0,left:0,right:0,height:1,background:'linear-gradient(90deg,transparent,#C9A84C,transparent)',opacity:.7}}/>}
+
 function gerarAnilha(ano = 2025) {
   return `VL-${ano}-${String(Math.floor(Math.random()*99999)).padStart(5,'0')}`
 }
@@ -14,14 +19,14 @@ function PomboMini({ pombo, selecionado, onClick, idioma }) {
   const isFemea = pombo.sexo === 'F'
   const cor = isFemea ? '#c084fc' : '#4C8DFF'
   return (
-    <div onClick={onClick} style={{ padding:'10px 12px', background: selecionado?`${cor}15`:'rgba(255,255,255,.02)', border:`1.5px solid ${selecionado?cor:'rgba(255,255,255,.06)'}`, borderRadius:10, cursor:'pointer', transition:'all .15s' }}>
+    <div onClick={onClick} style={{ padding:'10px 12px', background: selecionado?`${cor}15`:T.surface, border:`1.5px solid ${selecionado?cor:'rgba(255,255,255,.06)'}`, borderRadius:10, cursor:'pointer', transition:'all .15s' }}>
       <div style={{ display:'flex', alignItems:'center', gap:8 }}>
         <div style={{ width:32, height:32, borderRadius:8, background:`${cor}15`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:900, color:cor, fontFamily:"'Fraunces',serif" }}>
           {pombo.anilha?.slice(-3)}
         </div>
         <div style={{ flex:1 }}>
           <div style={{ fontSize:12, fontWeight:700, color: selecionado?cor:'#fff' }}>{pombo.nome}</div>
-          <div style={{ fontSize:10, color:'#475569' }}>{pombo.sexo==='M'?'♂':'♀'} · {pombo.especialidade}</div>
+          <div style={{ fontSize:10, color:T.muted }}>{pombo.sexo==='M'?'♂':'♀'} · {pombo.especialidade}</div>
         </div>
         <div style={{ display:'flex', gap:1 }}>
           {Array.from({length:5}).map((_,i)=><div key={i} style={{ fontSize:7, color:i<pombo.rating?'#D4AF37':'rgba(255,255,255,.1)' }}>★</div>)}
@@ -32,7 +37,7 @@ function PomboMini({ pombo, selecionado, onClick, idioma }) {
         {['velocidade','resistencia','orientacao'].map(a=>(
           <div key={a} style={{ textAlign:'center' }}>
             <div style={{ fontSize:11, fontWeight:700, color:corAttr(pombo.atributos[a]) }}>{pombo.atributos[a]}</div>
-            <div style={{ fontSize:8, color:'#475569' }}>{a.slice(0,3).toUpperCase()}</div>
+            <div style={{ fontSize:8, color:T.muted }}>{a.slice(0,3).toUpperCase()}</div>
           </div>
         ))}
       </div>
@@ -74,8 +79,8 @@ function PrevisaoGentica({ pai, mae, idioma }) {
       <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
         {previsao.map(p => (
           <div key={p.attr} style={{ display:'flex', alignItems:'center', gap:8 }}>
-            <div style={{ width:70, fontSize:9, color:'#7A8699' }}>{names[p.attr]}</div>
-            <div style={{ flex:1, height:4, background:'rgba(255,255,255,.06)', borderRadius:2, position:'relative' }}>
+            <div style={{ width:70, fontSize:9, color:T.muted }}>{names[p.attr]}</div>
+            <div style={{ flex:1, height:4, background:T.surface, borderRadius:2, position:'relative' }}>
               <div style={{ position:'absolute', left:`${(p.min/99)*100}%`, right:`${((99-p.max)/99)*100}%`, height:'100%', background:'rgba(168,85,247,.4)', borderRadius:2 }}/>
               <div style={{ position:'absolute', left:`${(p.med/99)*100}%`, transform:'translateX(-50%)', width:6, height:6, borderRadius:'50%', background:'#A855F7', top:-1 }}/>
             </div>
@@ -84,11 +89,11 @@ function PrevisaoGentica({ pai, mae, idioma }) {
         ))}
       </div>
       <div style={{ marginTop:10, display:'flex', justifyContent:'space-between', fontSize:10 }}>
-        <span style={{ color:'#7A8699' }}>
+        <span style={{ color:T.muted }}>
           {idioma==='en'?'Exceptional chance':idioma==='es'?'Prob. excepcional':'Chance excepcional'}:
           <span style={{ color: chanceExcepcional==='Alta'?'#D4AF37':chanceExcepcional==='Média'?'#4C8DFF':'#7A8699', fontWeight:700, marginLeft:4 }}>{chanceExcepcional}</span>
         </span>
-        <span style={{ color:'#7A8699' }}>
+        <span style={{ color:T.muted }}>
           {idioma==='en'?'Potential':idioma==='es'?'Potencial':'Potencial'}: <span style={{ color:'#A855F7', fontWeight:700 }}>{potencialMedio}/100</span>
         </span>
       </div>
@@ -216,13 +221,13 @@ export default function VLNinhadas({ carreira, onVoltar, onGuardar, idioma = 'pt
   const borrachinhos = (c.pombos||[]).filter(p => ['ovo','borrachinho','ninhego','jovem'].includes(p.estado) || p.fase === 'nascido')
 
   return (
-    <div style={{ minHeight:'100vh', background:'#030812', color:'#fff', fontFamily:'inherit' }}>
+    <div style={{ minHeight:'100vh', background:T.bg, color:T.text, fontFamily:"'Inter',system-ui,sans-serif" }}>
       <div style={{ background:'linear-gradient(180deg,#050D1A,#030812)', borderBottom:'1px solid rgba(255,255,255,.05)', padding:'14px 16px' }}>
         <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:12 }}>
-          <button onClick={onVoltar} style={{ background:'rgba(255,255,255,.06)', border:'none', borderRadius:8, width:32, height:32, color:'#7A8699', cursor:'pointer', fontSize:16 }}>←</button>
+          <button onClick={onVoltar} style={{ background:T.surface, border:'none', borderRadius:8, width:32, height:32, color:T.muted, cursor:'pointer', fontSize:16 }}>←</button>
           <div>
             <div style={{ fontSize:16, fontWeight:800 }}>🥚 {idioma==='en'?'Breeding':idioma==='es'?'Reproducción':'Ninhadas'}</div>
-            <div style={{ fontSize:10, color:'#7A8699' }}>{ninhadas.length} {idioma==='en'?'litters':idioma==='es'?'nidadas':'ninhadas'} · {borrachinhos.length} {idioma==='en'?'chicks':idioma==='es'?'polluelos':'borrachinhos'}</div>
+            <div style={{ fontSize:10, color:T.muted }}>{ninhadas.length} {idioma==='en'?'litters':idioma==='es'?'nidadas':'ninhadas'} · {borrachinhos.length} {idioma==='en'?'chicks':idioma==='es'?'polluelos':'borrachinhos'}</div>
           </div>
         </div>
         <div style={{ display:'flex', gap:6 }}>
@@ -230,7 +235,7 @@ export default function VLNinhadas({ carreira, onVoltar, onGuardar, idioma = 'pt
             ['ninhadas',idioma==='en'?'Litters':idioma==='es'?'Nidadas':'Ninhadas'],
             ['jovens',idioma==='en'?'Chicks':idioma==='es'?'Polluelos':'Borrachinhos']].map(([id,label])=>(
             <button key={id} onClick={()=>setTab(id)}
-              style={{ flex:'none', padding:'8px 14px', borderRadius:8, border:tab===id?'none':'1px solid rgba(255,255,255,.08)', background:tab===id?'linear-gradient(135deg,#A855F7,#7C3AED)':'rgba(255,255,255,.04)', color:tab===id?'#fff':'#cbd5e1', fontSize:12, fontWeight:tab===id?700:500, cursor:'pointer', fontFamily:'inherit', minHeight:36 }}>
+              style={{ flex:'none', padding:'8px 14px', borderRadius:8, border:tab===id?'none':'1px solid rgba(255,255,255,.08)', background:tab===id?'linear-gradient(135deg,#A855F7,#7C3AED)':'rgba(255,255,255,.04)', color:tab===id?'#fff':'#cbd5e1', fontSize:12, fontWeight:tab===id?700:500, cursor:'pointer', fontFamily:"'Inter',system-ui,sans-serif", minHeight:36 }}>
               {label}{id==='jovens'&&borrachinhos.length>0?` (${borrachinhos.length})`:''}
             </button>
           ))}
@@ -250,12 +255,12 @@ export default function VLNinhadas({ carreira, onVoltar, onGuardar, idioma = 'pt
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
             {/* Seleccionar Pai */}
             <div>
-              <div style={{ fontSize:9, color:'#4C8DFF', fontWeight:700, letterSpacing:1.5, marginBottom:8 }}>
+              <div style={{ fontSize:9, color:T.blue, fontWeight:700, letterSpacing:1.5, marginBottom:8 }}>
                 ♂ {idioma==='en'?'SELECT FATHER':idioma==='es'?'SELECCIONAR PADRE':'SELECCIONAR PAI'}
               </div>
               <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
                 {machos.length===0 ? (
-                  <div style={{ fontSize:11, color:'#475569', padding:'10px' }}>{idioma==='en'?'No male pigeons':idioma==='es'?'Sin palomas macho':'Sem pombos machos'}</div>
+                  <div style={{ fontSize:11, color:T.muted, padding:'10px' }}>{idioma==='en'?'No male pigeons':idioma==='es'?'Sin palomas macho':'Sem pombos machos'}</div>
                 ) : machos.map(p => (
                   <PomboMini key={p.id} pombo={p} selecionado={paiSel?.id===p.id} onClick={()=>setPaiSel(paiSel?.id===p.id?null:p)} idioma={idioma} />
                 ))}
@@ -269,7 +274,7 @@ export default function VLNinhadas({ carreira, onVoltar, onGuardar, idioma = 'pt
               </div>
               <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
                 {femeas.length===0 ? (
-                  <div style={{ fontSize:11, color:'#475569', padding:'10px' }}>{idioma==='en'?'No female pigeons':idioma==='es'?'Sin palomas hembra':'Sem pombas fêmeas'}</div>
+                  <div style={{ fontSize:11, color:T.muted, padding:'10px' }}>{idioma==='en'?'No female pigeons':idioma==='es'?'Sin palomas hembra':'Sem pombas fêmeas'}</div>
                 ) : femeas.map(p => (
                   <PomboMini key={p.id} pombo={p} selecionado={maeSel?.id===p.id} onClick={()=>setMaeSel(maeSel?.id===p.id?null:p)} idioma={idioma} />
                 ))}
@@ -281,7 +286,7 @@ export default function VLNinhadas({ carreira, onVoltar, onGuardar, idioma = 'pt
 
             {/* Botão cruzar */}
             <button onClick={cruzar} disabled={!paiSel||!maeSel}
-              style={{ padding:'14px', borderRadius:12, border:'none', background: paiSel&&maeSel?'linear-gradient(135deg,#A855F7,#7C3AED)':'rgba(255,255,255,.06)', color: paiSel&&maeSel?'#fff':'#475569', fontSize:14, fontWeight:700, cursor:paiSel&&maeSel?'pointer':'default', fontFamily:'inherit' }}>
+              style={{ padding:'14px', borderRadius:12, border:'none', background: paiSel&&maeSel?'linear-gradient(135deg,#A855F7,#7C3AED)':'rgba(255,255,255,.06)', color: paiSel&&maeSel?'#fff':'#475569', fontSize:14, fontWeight:700, cursor:paiSel&&maeSel?'pointer':'default', fontFamily:"'Inter',system-ui,sans-serif" }}>
               🥚 {idioma==='en'?'Start Breeding':idioma==='es'?'Iniciar Cruce':'Iniciar Cruzamento'}
               {paiSel&&maeSel?` (${paiSel.nome} × ${maeSel.nome})`:''}
             </button>
@@ -293,7 +298,7 @@ export default function VLNinhadas({ carreira, onVoltar, onGuardar, idioma = 'pt
           ninhadas.length===0 ? (
             <div style={{ textAlign:'center', padding:'40px 20px' }}>
               <div style={{ fontSize:40, marginBottom:12 }}>🥚</div>
-              <div style={{ fontSize:14, color:'#475569', fontWeight:600 }}>
+              <div style={{ fontSize:14, color:T.muted, fontWeight:600 }}>
                 {idioma==='en'?'No litters yet':idioma==='es'?'Sin nidadas aún':'Sem ninhadas ainda'}
               </div>
             </div>
@@ -302,15 +307,15 @@ export default function VLNinhadas({ carreira, onVoltar, onGuardar, idioma = 'pt
               <div style={{ display:'flex', justifyContent:'space-between', marginBottom:8 }}>
                 <div>
                   <div style={{ fontSize:13, fontWeight:700 }}>♂ {n.pai_nome} × ♀ {n.mae_nome}</div>
-                  <div style={{ fontSize:10, color:'#475569' }}>Ép.{n.epoca} Sem.{n.semana}</div>
+                  <div style={{ fontSize:10, color:T.muted }}>Ép.{n.epoca} Sem.{n.semana}</div>
                 </div>
                 <div style={{ fontSize:20 }}>🐣</div>
               </div>
               <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:6 }}>
                 {n.filhos.map(f => (
-                  <div key={f.id} style={{ padding:'8px', background:'rgba(255,255,255,.03)', borderRadius:8, textAlign:'center' }}>
+                  <div key={f.id} style={{ padding:'8px', background:T.surface, borderRadius:8, textAlign:'center' }}>
                     <div style={{ fontSize:11, fontWeight:700, color: f.sexo==='M'?'#4C8DFF':'#c084fc' }}>{f.nome}</div>
-                    <div style={{ fontSize:9, color:'#475569' }}>{f.sexo==='M'?'♂':'♀'}</div>
+                    <div style={{ fontSize:9, color:T.muted }}>{f.sexo==='M'?'♂':'♀'}</div>
                     <div style={{ display:'flex', gap:1, justifyContent:'center', marginTop:4 }}>
                       {Array.from({length:5}).map((_,i)=><div key={i} style={{ fontSize:6, color:i<f.rating?'#D4AF37':'rgba(255,255,255,.1)' }}>★</div>)}
                     </div>
@@ -326,7 +331,7 @@ export default function VLNinhadas({ carreira, onVoltar, onGuardar, idioma = 'pt
           borrachinhos.length===0 ? (
             <div style={{ textAlign:'center', padding:'40px 20px' }}>
               <div style={{ fontSize:40, marginBottom:12 }}>🐣</div>
-              <div style={{ fontSize:14, color:'#475569', fontWeight:600 }}>
+              <div style={{ fontSize:14, color:T.muted, fontWeight:600 }}>
                 {idioma==='en'?'No chicks yet':idioma==='es'?'Sin polluelos aún':'Sem borrachinhos ainda'}
               </div>
             </div>
@@ -335,23 +340,23 @@ export default function VLNinhadas({ carreira, onVoltar, onGuardar, idioma = 'pt
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
                 <div>
                   <div style={{ fontSize:14, fontWeight:800, color: p.sexo==='M'?'#4C8DFF':'#c084fc' }}>{p.nome}</div>
-                  <div style={{ fontSize:10, color:'#475569' }}>{p.anilha} · {p.sexo==='M'?'♂':'♀'}</div>
-                  {p.pai_nome && <div style={{ fontSize:10, color:'#475569' }}>♂{p.pai_nome} × ♀{p.mae_nome}</div>}
+                  <div style={{ fontSize:10, color:T.muted }}>{p.anilha} · {p.sexo==='M'?'♂':'♀'}</div>
+                  {p.pai_nome && <div style={{ fontSize:10, color:T.muted }}>♂{p.pai_nome} × ♀{p.mae_nome}</div>}
                 </div>
-                <div style={{ fontSize:9, background:'rgba(212,175,55,.15)', color:'#D4AF37', padding:'3px 8px', borderRadius:4, fontWeight:700 }}>
+                <div style={{ fontSize:9, background:'rgba(212,175,55,.15)', color:T.gold, padding:'3px 8px', borderRadius:4, fontWeight:700 }}>
                   {faseLabel(p)}
                 </div>
               </div>
               <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:6, marginBottom:10 }}>
                 {['velocidade','resistencia','orientacao'].map(a=>(
-                  <div key={a} style={{ textAlign:'center', padding:'6px', background:'rgba(255,255,255,.03)', borderRadius:6 }}>
+                  <div key={a} style={{ textAlign:'center', padding:'6px', background:T.surface, borderRadius:6 }}>
                     <div style={{ fontSize:13, fontWeight:700, color:corAttr(p.atributos[a]) }}>{p.atributos[a]}</div>
-                    <div style={{ fontSize:8, color:'#475569' }}>{a.slice(0,3).toUpperCase()}</div>
+                    <div style={{ fontSize:8, color:T.muted }}>{a.slice(0,3).toUpperCase()}</div>
                   </div>
                 ))}
               </div>
               <button onClick={()=>promoverParaAdulto(p.id)}
-                style={{ width:'100%', padding:'8px', borderRadius:8, border:'none', background:'linear-gradient(135deg,#D4AF37,#B8960C)', color:'#050D1A', fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
+                style={{ width:'100%', padding:'8px', borderRadius:8, border:'none', background:'linear-gradient(135deg,#D4AF37,#B8960C)', color:T.surface, fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:"'Inter',system-ui,sans-serif" }}>
                 🐦 {idioma==='en'?'Promote to Adult':idioma==='es'?'Promover a Adulto':'Promover a Adulto'}
               </button>
             </div>
