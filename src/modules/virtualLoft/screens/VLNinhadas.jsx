@@ -96,6 +96,26 @@ function PrevisaoGentica({ pai, mae, idioma }) {
   )
 }
 
+
+// Actualiza fases dos ovos/ninhegos automaticamente
+export function actualizarFasesCria(carreira) {
+  const sem = carreira.semana
+  const ep = carreira.epoca
+  const novosPombos = (carreira.pombos||[]).map(p => {
+    if (!p.fase || p.fase === 'adulto' || p.estado === 'activo') return p
+    // Calcular semana absoluta
+    const semAbs = (ep-1)*40 + sem
+    const semPostura = (p.epoca_postura-1)*40 + (p.semana_postura||0)
+    const semanas = semAbs - semPostura
+    if (semanas >= 11) return { ...p, estado:'activo', fase:'adulto' }
+    if (semanas >= 7)  return { ...p, estado:'jovem', fase:'jovem' }
+    if (semanas >= 3)  return { ...p, estado:'ninhego', fase:'ninhego' }
+    if (semanas >= 2)  return { ...p, estado:'borrachinho', fase:'nascido' }
+    return p // ainda ovo
+  })
+  return { ...carreira, pombos: novosPombos }
+}
+
 export default function VLNinhadas({ carreira, onVoltar, onGuardar, idioma = 'pt' }) {
   const [tab, setTab] = useState('cruzar')
   const [paiSel, setPaiSel] = useState(null)
@@ -111,7 +131,7 @@ export default function VLNinhadas({ carreira, onVoltar, onGuardar, idioma = 'pt
   const cruzar = () => {
     if (!paiSel || !maeSel) return
 
-    const nNovos = 2 + Math.floor(Math.random() * 2) // 2-3 filhos
+    const nNovos = 2 // Sempre 2 ovos por casal
     const ano = 2025 + (carreira.epoca - 1)
     const nomes = NOMES[idioma] || NOMES.pt
 
@@ -126,13 +146,15 @@ export default function VLNinhadas({ carreira, onVoltar, onGuardar, idioma = 'pt
         personalidade: [PERSONALIDADES[idioma]?.[Math.floor(Math.random()*12)] || 'Calmo'],
         atributos: attrsFilho,
         rating: Math.round((paiSel.rating + maeSel.rating) / 2),
-        estado: 'borrachinho', // ainda não adulto
+        // Fases: ovo(2sem) → nascido(1sem) → ninhego(4sem) → jovem(4sem) → adulto
+        estado: 'ovo', fase: 'ovo',
+        semana_postura: carreira.semana,
+        epoca_postura: carreira.epoca,
+        sem_adulto: carreira.semana + 11, // torna-se adulto após 11 semanas
         idade: 0, provas: 0, vitorias: 0, percentil_medio: 0,
         valor: Math.round((paiSel.valor + maeSel.valor) / 3),
         pai_id: paiSel.id, mae_id: maeSel.id,
         pai_nome: paiSel.nome, mae_nome: maeSel.nome,
-        semana_nascimento: carreira.semana, epoca_nascimento: carreira.epoca,
-        semanas_para_adulto: 8,
       }
     })
 
@@ -161,14 +183,26 @@ export default function VLNinhadas({ carreira, onVoltar, onGuardar, idioma = 'pt
   }
 
   const promoverParaAdulto = (pomboId) => {
-    const novosPombos = (carreira.pombos||[]).map(p =>
-      p.id === pomboId ? { ...p, estado: 'activo', rating: Math.min(5, p.rating + (Math.random() > 0.7 ? 1 : 0)) } : p
-    )
-    onGuardar?.({ ...carreira, pombos: novosPombos })
+    const novosPombos = (carreira.pombos||[]).map(p => {
+      if (p.id !== pomboId) return p
+      return { ...p, estado: 'activo', fase: 'adulto', rating: Math.min(5, p.rating + (Math.random() > 0.7 ? 1 : 0)) }
+    })
+    const novaCarreira = { ...carreira, pombos: novosPombos }
+    onGuardar?.(novaCarreira)
     showMsg(idioma==='en'?'Pigeon promoted to adult!':idioma==='es'?'¡Paloma promovida a adulta!':'Pombo promovido a adulto!')
   }
 
-  const borrachinhos = (carreira.pombos||[]).filter(p => p.estado === 'borrachinho')
+
+  const faseLabel = (p) => {
+    const f = p.fase || p.estado
+    if (f==='ovo') return {pt:'🥚 Ovo',en:'🥚 Egg',es:'🥚 Huevo'}[idioma]||'🥚 Ovo'
+    if (f==='nascido') return {pt:'🐣 Nascido',en:'🐣 Hatched',es:'🐣 Nacido'}[idioma]||'🐣 Nascido'
+    if (f==='ninhego') return {pt:'🐤 Ninhego',en:'🐤 Chick',es:'🐤 Polluelo'}[idioma]||'🐤 Ninhego'
+    if (f==='jovem') return {pt:'🐦 Jovem',en:'🐦 Young',es:'🐦 Joven'}[idioma]||'🐦 Jovem'
+    return {pt:'🕊️ Adulto',en:'🕊️ Adult',es:'🕊️ Adulto'}[idioma]||'🕊️ Adulto'
+  }
+
+  const borrachinhos = (carreira.pombos||[]).filter(p => ['ovo','borrachinho','ninhego','jovem'].includes(p.estado) || p.fase === 'nascido')
 
   return (
     <div style={{ minHeight:'100vh', background:'#030812', color:'#fff', fontFamily:'inherit' }}>
@@ -294,7 +328,7 @@ export default function VLNinhadas({ carreira, onVoltar, onGuardar, idioma = 'pt
                   {p.pai_nome && <div style={{ fontSize:10, color:'#475569' }}>♂{p.pai_nome} × ♀{p.mae_nome}</div>}
                 </div>
                 <div style={{ fontSize:9, background:'rgba(212,175,55,.15)', color:'#D4AF37', padding:'3px 8px', borderRadius:4, fontWeight:700 }}>
-                  {idioma==='en'?'CHICK':idioma==='es'?'POLLUELO':'BORRACHINHO'}
+                  {faseLabel(p)}
                 </div>
               </div>
               <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:6, marginBottom:10 }}>
