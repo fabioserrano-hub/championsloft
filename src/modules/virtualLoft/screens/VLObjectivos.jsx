@@ -140,7 +140,7 @@ export default function VLObjectivos({ carreira, onVoltar, onGuardar, idioma = '
                   <div style={{ display:'flex', justifyContent:'space-between', marginBottom:2 }}>
                     <div style={{ fontSize:13, fontWeight:700, color: obj.concluido?'#475569':'#fff' }}>{obj.titulo}</div>
                     <span style={{ fontSize:9, color:cor, fontWeight:700, background:`${cor}15`, padding:'2px 6px', borderRadius:4 }}>
-                      {obj.dificuldade==='facil'?(idioma==='en'?'EASY':idioma==='es'?'FÁCIL':'FÁCIL'):obj.dificuldade==='medio'?(idioma==='en'?'MED':'MED':'MED'):'HARD'}
+                      {obj.dificuldade==='facil'?'EASY':obj.dificuldade==='medio'?'MED':'HARD'}
                     </span>
                   </div>
                   <div style={{ fontSize:11, color:'#7A8699', marginBottom:8 }}>{obj.desc}</div>
