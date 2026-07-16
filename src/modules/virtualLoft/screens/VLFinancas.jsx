@@ -5,7 +5,7 @@ const T={bg:'#050A14',surface:'#0D1829',surface2:'#1A2A45',gold:'#C9A84C',blue:'
 function lerLS(){try{return JSON.parse(localStorage.getItem('vl_carreira'))}catch{return null}}
 function gravarLS(d){try{localStorage.setItem('vl_carreira',JSON.stringify(d))}catch{}}
 function GoldLine(){return <div style={{position:'absolute',top:0,left:0,right:0,height:1,background:'linear-gradient(90deg,transparent,#C9A84C,transparent)',opacity:.7}}/>}
-
+ 
 const CATEGORIAS = { 
   pt: {
     receitas: ['Prémio de prova','Venda de pombo','Patrocínio','Subsídio','Outro'],
