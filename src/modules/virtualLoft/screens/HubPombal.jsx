@@ -11,6 +11,8 @@ import VLMercado from './VLMercado'
 import VLRankings from './VLRankings'
 import VLNinhadas, { actualizarFasesCria } from './VLNinhadas'
 import VLForma from './VLForma'
+import VLHallOfFame from './VLHallOfFame'
+import VLObjectivos from './VLObjectivos'
 
 const MODULOS = [
   { id:'pombos',   icon:'🐦', cor:'#4C8DFF',  corBg:'rgba(76,141,255,.1)'  },
@@ -23,6 +25,8 @@ const MODULOS = [
   { id:'rankings', icon:'📊', cor:'#f87171',  corBg:'rgba(248,113,113,.1)' },
   { id:'ninhadas', icon:'🥚', cor:'#A855F7',  corBg:'rgba(168,85,247,.08)' },
   { id:'forma',    icon:'📈', cor:'#06b6d4',  corBg:'rgba(6,182,212,.08)'  },
+  { id:'halloffame', icon:'🏛️', cor:'#D4AF37',  corBg:'rgba(212,175,55,.08)' },
+  { id:'objectivos', icon:'🎯', cor:'#2DD4A7',  corBg:'rgba(45,212,167,.08)' },
 ]
 
 const LABELS = {
@@ -36,6 +40,8 @@ const LABELS = {
   rankings: { pt:'Rankings',  en:'Rankings',   es:'Rankings'     },
   ninhadas: { pt:'Ninhadas',  en:'Breeding',   es:'Reproducción' },
   forma:    { pt:'Forma',     en:'Form',       es:'Forma'        },
+  halloffame:{ pt:'Hall of Fame', en:'Hall of Fame', es:'Hall of Fame' },
+  objectivos:{ pt:'Objectivos', en:'Objectives',  es:'Objetivos'    },
 }
 
 const EM_BREVE = []
@@ -141,6 +147,8 @@ export default function HubPombal(props) {
     if (moduloAtivo === 'rankings') return <VLRankings {...modProps} />
     if (moduloAtivo === 'ninhadas') return <VLNinhadas {...modProps} />
     if (moduloAtivo === 'forma')    return <VLForma    {...modProps} />
+    if (moduloAtivo === 'halloffame') return <VLHallOfFame {...modProps} />
+    if (moduloAtivo === 'objectivos') return <VLObjectivos {...modProps} />
     return (
       <div style={{ minHeight:'100vh', background:'#030812', color:'#fff', display:'flex', flexDirection:'column', fontFamily:'inherit' }}>
         <div style={{ padding:'14px 16px', borderBottom:'1px solid rgba(255,255,255,.05)', display:'flex', alignItems:'center', gap:10 }}>
@@ -228,7 +236,7 @@ export default function HubPombal(props) {
               :m.id==='treinos'?'Plano semanal'
               :m.id==='provas'?`Época ${c.epoca||1}`
               :m.id==='ninhadas'?`${(c.pombos||[]).filter(p=>p.fase&&p.estado!=='activo').length} activas`
-              :m.id==='forma'?'Condição':m.id==='rankings'?'Ver ranking':''
+              :m.id==='forma'?'Condição':m.id==='rankings'?'Ver ranking':m.id==='halloffame'?`${(c.hall_of_fame||[]).length} lendas`:m.id==='objectivos'?`${(c.objectivos_concluidos||[]).length} concluídos`:''
             return (
               <div key={m.id} onClick={() => !emBreve && setModuloAtivo(m.id)}
                 style={{ background:emBreve?'rgba(255,255,255,.02)':m.corBg, border:`1px solid ${emBreve?'rgba(255,255,255,.05)':m.cor+'30'}`, borderRadius:14, padding:'16px 14px', cursor:emBreve?'default':'pointer', transition:'all .15s', opacity:emBreve?.5:1, position:'relative', overflow:'hidden' }}>
