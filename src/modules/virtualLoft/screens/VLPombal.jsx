@@ -56,9 +56,39 @@ function EventoBanner({ evento }) {
   )
 }
 
+function calcAvancarSemana(c) {
+  const nova = { ...c, pombos: [...(c.pombos||[])] }
+  const custoStaff = Math.round((nova.staff||[]).reduce((s,m) => s+(m.salario||0), 0) / 4)
+  const custoAlim = (nova.pombos||[]).length * 5
+  nova.orcamento = Math.max(0, (nova.orcamento||0) - custoStaff - custoAlim)
+  nova.reputacao = Math.min(100, (nova.reputacao||5) + 0.5)
+  nova.semana = (nova.semana||1) + 1
+  if (nova.semana > 40) { nova.semana = 1; nova.epoca = (nova.epoca||1) + 1 }
+  if (nova.reputacao>=90) nova.nivel_reputacao='olimpico'
+  else if (nova.reputacao>=70) nova.nivel_reputacao='internacional'
+  else if (nova.reputacao>=50) nova.nivel_reputacao='nacional'
+  else if (nova.reputacao>=35) nova.nivel_reputacao='regional'
+  else if (nova.reputacao>=20) nova.nivel_reputacao='distrital'
+  else nova.nivel_reputacao='local'
+  return nova
+}
+
 export default function HubPombal(props) {
   const { carreira, onNavegar, onApagarCarreira, idioma = 'pt' } = props
-  const onAvancarSemana = props.onAvancarSemana || props['onAvançarSemana']
+  const onGuardar = props.onGuardar || props.onAvancarSemana || props['onAvançarSemana']
+
+  const handleAvancarSemana = () => {
+    if (!carreira) return
+    const nova = calcAvancarSemana(carreira)
+    // Guardar no localStorage directamente como fallback
+    try { localStorage.setItem('vl_carreira', JSON.stringify(nova)) } catch {}
+    // Tentar chamar qualquer callback disponível
+    if (typeof props.onAvancarSemana === 'function') props.onAvancarSemana(nova)
+    else if (typeof props['onAvançarSemana'] === 'function') props['onAvançarSemana'](nova)
+    else if (typeof props.onGuardar === 'function') props.onGuardar(nova)
+    // Forçar reload para mostrar novos valores
+    window.location.reload()
+  }
   const t = useT(idioma)
   const [menuAberto, setMenuAberto] = useState(false)
 
@@ -211,7 +241,7 @@ export default function HubPombal(props) {
         </div>
 
         {/* ── AVANÇAR SEMANA ── */}
-        <button onClick={() => onAvancarSemana?.()}
+        <button onClick={handleAvancarSemana}
           style={{ width:'100%', padding:'14px', borderRadius:12, border:'none', background:'linear-gradient(135deg,#D4AF37,#B8960C)', color:'#050D1A', fontSize:14, fontWeight:800, cursor:'pointer', fontFamily:'inherit', letterSpacing:.3 }}>
           ⏭️ {idioma==='en'?'Advance Week':idioma==='es'?'Avanzar Semana':'Avançar Semana'} →
         </button>
