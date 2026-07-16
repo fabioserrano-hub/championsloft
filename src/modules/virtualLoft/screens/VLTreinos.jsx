@@ -171,6 +171,30 @@ export default function VLTreinos({ carreira, onVoltar, onGuardar, idioma = 'pt'
           )}
         </div>
 
+        {/* Pombos e impacto do treino */}
+        <div style={{ background:'rgba(255,255,255,.02)', border:'1px solid rgba(255,255,255,.05)', borderRadius:12, padding:'14px' }}>
+          <div style={{ fontSize:9, color:'#4C8DFF', fontWeight:700, letterSpacing:1.5, marginBottom:10 }}>
+            {idioma==='en'?'SQUAD IMPACT':idioma==='es'?'IMPACTO EN PLANTEL':'IMPACTO NO PLANTEL'}
+          </div>
+          {(carreira.pombos||[]).filter(p=>p.estado==='activo').slice(0,5).map(p => {
+            const mediaAttr = Math.round(Object.values(p.atributos).filter((_,i)=>i<8).reduce((s,v)=>s+v,0)/8)
+            const forma = Math.min(100, Math.round(mediaAttr * (0.8 + Math.random()*0.4)))
+            const corForma = forma>=75?'#2DD4A7':forma>=50?'#D4AF37':'#f87171'
+            return (
+              <div key={p.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'6px 0', borderBottom:'1px solid rgba(255,255,255,.04)' }}>
+                <div style={{ width:28, height:28, borderRadius:6, background: p.sexo==='F'?'rgba(192,132,252,.15)':'rgba(76,141,255,.15)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:9, fontWeight:900, color:p.sexo==='F'?'#c084fc':'#4C8DFF', fontFamily:"'Fraunces',serif" }}>{p.anilha?.slice(-3)}</div>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:11, fontWeight:600, color:'#fff' }}>{p.nome}</div>
+                  <div style={{ height:3, background:'rgba(255,255,255,.06)', borderRadius:2, marginTop:3 }}>
+                    <div style={{ height:'100%', width:`${forma}%`, background:corForma, borderRadius:2 }}/>
+                  </div>
+                </div>
+                <div style={{ fontSize:10, fontWeight:700, color:corForma }}>{forma}%</div>
+              </div>
+            )
+          })}
+        </div>
+
         {/* Guardar */}
         <button onClick={guardar}
           style={{ width:'100%', padding:'14px', borderRadius:12, border:'none', background: guardado ? 'linear-gradient(135deg,#2DD4A7,#059669)' : 'linear-gradient(135deg,#1E5FD9,#1456C0)', color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer', fontFamily:'inherit', transition:'all .3s' }}>
