@@ -99,11 +99,10 @@ function PrevisaoGentica({ pai, mae, idioma }) {
 
 // Actualiza fases dos ovos/ninhegos automaticamente
 export function actualizarFasesCria(carreira) {
-  const sem = c.semana
-  const ep = c.epoca
-  const novosPombos = (c.pombos||[]).map(p => {
+  const sem = carreira.semana || 1
+  const ep = carreira.epoca || 1
+  const novosPombos = (carreira.pombos||[]).map(p => {
     if (!p.fase || p.fase === 'adulto' || p.estado === 'activo') return p
-    // Calcular semana absoluta
     const semAbs = (ep-1)*40 + sem
     const semPostura = (p.epoca_postura-1)*40 + (p.semana_postura||0)
     const semanas = semAbs - semPostura
@@ -111,9 +110,9 @@ export function actualizarFasesCria(carreira) {
     if (semanas >= 7)  return { ...p, estado:'jovem', fase:'jovem' }
     if (semanas >= 3)  return { ...p, estado:'ninhego', fase:'ninhego' }
     if (semanas >= 2)  return { ...p, estado:'borrachinho', fase:'nascido' }
-    return p // ainda ovo
+    return p
   })
-  return { ...c, pombos: novosPombos }
+  return { ...carreira, pombos: novosPombos }
 }
 
 export default function VLNinhadas({ carreira, onVoltar, onGuardar, idioma = 'pt' }) {
