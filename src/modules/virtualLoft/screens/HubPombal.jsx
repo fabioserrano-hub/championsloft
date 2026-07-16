@@ -9,6 +9,7 @@ import VLProvas from './VLProvas'
 import VLFinancas from './VLFinancas'
 import VLMercado from './VLMercado'
 import VLRankings from './VLRankings'
+import VLNinhadas from './VLNinhadas'
 
 const MODULOS = [
   { id:'pombos',   icon:'🐦', cor:'#4C8DFF',  corBg:'rgba(76,141,255,.1)'  },
@@ -19,6 +20,7 @@ const MODULOS = [
   { id:'staff',    icon:'👥', cor:'#06b6d4',  corBg:'rgba(6,182,212,.1)'   },
   { id:'financas', icon:'💰', cor:'#22c55e',  corBg:'rgba(34,197,94,.1)'   },
   { id:'rankings', icon:'📊', cor:'#f87171',  corBg:'rgba(248,113,113,.1)' },
+  { id:'ninhadas', icon:'🥚', cor:'#A855F7',  corBg:'rgba(168,85,247,.1)'  },
 ]
 
 const LABELS = {
@@ -30,6 +32,7 @@ const LABELS = {
   staff:    { pt:'Staff',     en:'Staff',    es:'Staff'     },
   financas: { pt:'Finanças',  en:'Finances', es:'Finanzas'  },
   rankings: { pt:'Rankings',  en:'Rankings', es:'Rankings'  },
+  ninhadas: { pt:'Ninhadas',  en:'Breeding', es:'Reproducción' },
 }
 
 const EM_BREVE = []
@@ -147,7 +150,8 @@ export default function HubPombal(props) {
     if (moduloAtivo === 'provas')   return <VLProvas   {...modProps} />
     if (moduloAtivo === 'financas') return <VLFinancas {...modProps} />
     if (moduloAtivo === 'mercado')  return <VLMercado  {...modProps} />
-    if (moduloAtivo === 'rankings') return <VLRankings {...modProps} />
+    if (moduloAtivo === 'rankings')  return <VLRankings  {...modProps} />
+    if (moduloAtivo === 'ninhadas') return <VLNinhadas {...modProps} />
     return (
       <div style={{ minHeight:'100vh', background:'#030812', color:'#fff', display:'flex', flexDirection:'column', fontFamily:'inherit' }}>
         <div style={{ padding:'14px 16px', borderBottom:'1px solid rgba(255,255,255,.05)', display:'flex', alignItems:'center', gap:10 }}>
