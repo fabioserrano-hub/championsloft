@@ -1,7 +1,6 @@
 // src/modules/virtualLoft/screens/HubPombal.jsx
 import { useState } from 'react'
 import { useT } from '../data/traducoes'
-import { avancarSemana } from '../engine/progression'
 
 const MODULOS = [
   { id:'pombos',   icon:'🐦', cor:'#4C8DFF',  corBg:'rgba(76,141,255,.1)'  },
