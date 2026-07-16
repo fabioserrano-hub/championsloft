@@ -12,52 +12,27 @@ const ADMIN_UUID = '30709f29-152e-4813-ac7f-e3376c5e0646'
 export default function VirtualLoftApp({ user, idiomaApp = 'pt' }) {
   if (user?.id !== ADMIN_UUID) return null
 
-  const { carreira, criarCarreira, carregarCarreira, guardarCarreira } = useCarreira()
-  const [screen, setScreen] = useState('loading')
+  const { carreira, criarCarreira, guardarCarreira } = useCarreira()
   const [moduloAtivo, setModuloAtivo] = useState(null)
 
-  useEffect(() => {
-    const temCarreira = carregarCarreira()
-    setScreen(temCarreira ? 'hub' : 'criar')
-  }, [])
+  // Screen determinada pelo estado da carreira — sem useEffect
+  const screen = moduloAtivo ? 'modulo' : carreira ? 'hub' : 'criar'
+  const idioma = carreira?.idioma || idiomaApp
 
   const handleCriar = async (form) => {
     await criarCarreira(form)
-    setScreen('hub')
-  }
-
-  const handleNavegar = (modulo) => {
-    setModuloAtivo(modulo)
-    setScreen('modulo')
-  }
-
-  const handleVoltar = () => {
     setModuloAtivo(null)
-    setScreen('hub')
   }
+
+  const handleNavegar = (modulo) => setModuloAtivo(modulo)
+  const handleVoltar = () => setModuloAtivo(null)
 
   const handleApagar = () => {
     localStorage.removeItem('vl_carreira')
-    setScreen('criar')
-    setModuloAtivo(null)
+    window.location.reload()
   }
 
-  const handleGuardar = (novaCarreira) => {
-    guardarCarreira(novaCarreira)
-  }
-
-  const idioma = carreira?.idioma || idiomaApp
-
-  if (screen === 'loading') return (
-    <div style={{ minHeight:'100vh', background:'#030812', display:'flex', alignItems:'center', justifyContent:'center' }}>
-      <div style={{ textAlign:'center' }}>
-        <div style={{ fontSize:48, marginBottom:16 }}>🕊️</div>
-        <div style={{ color:'#D4AF37', fontSize:14, fontWeight:700, letterSpacing:2 }}>
-          {idiomaApp==='en'?'LOADING...':idiomaApp==='es'?'CARGANDO...':'A CARREGAR...'}
-        </div>
-      </div>
-    </div>
-  )
+  const handleGuardar = (novaCarreira) => guardarCarreira(novaCarreira)
 
   if (screen === 'criar') return <CarreiraCreate onCriar={handleCriar} idiomaApp={idiomaApp} />
 
@@ -66,7 +41,6 @@ export default function VirtualLoftApp({ user, idiomaApp = 'pt' }) {
     if (moduloAtivo === 'treinos') return <VLTreinos carreira={carreira} onVoltar={handleVoltar} onGuardar={handleGuardar} idioma={idioma} />
     if (moduloAtivo === 'pombal')  return <VLPombal  carreira={carreira} onVoltar={handleVoltar} onGuardar={handleGuardar} idioma={idioma} />
 
-    // Módulos em breve
     return (
       <div style={{ minHeight:'100vh', background:'#030812', color:'#fff', fontFamily:'inherit', display:'flex', flexDirection:'column' }}>
         <div style={{ padding:'14px 16px', borderBottom:'1px solid rgba(255,255,255,.05)', display:'flex', alignItems:'center', gap:10 }}>
@@ -79,7 +53,7 @@ export default function VirtualLoftApp({ user, idiomaApp = 'pt' }) {
             {idioma==='en'?'Under construction':idioma==='es'?'En construcción':'Em construção'}
           </div>
           <div style={{ fontSize:12, color:'#475569' }}>
-            {idioma==='en'?'This module is being developed':idioma==='es'?'Este módulo está en desarrollo':'Este módulo está a ser desenvolvido'}
+            {idioma==='en'?'Coming soon':idioma==='es'?'Próximamente':'Em breve'}
           </div>
         </div>
       </div>
