@@ -84,7 +84,7 @@ function CardPombo({ pombo, onClick, idioma }) {
   )
 }
 
-function DetalhesPombo({ pombo, onFechar, idioma }) {
+function DetalhesPombo({ pombo, onFechar, idioma, historico }) {
   const [tabAtiva, setTabAtiva] = useState('atributos')
   const isFemea = pombo.sexo === 'F'
   const cor = isFemea ? '#c084fc' : '#4C8DFF'
@@ -219,14 +219,26 @@ function DetalhesPombo({ pombo, onFechar, idioma }) {
 
           {/* HISTORIAL */}
           {tabAtiva === 'historial' && (
-            <div style={{ textAlign:'center', padding:'40px 20px' }}>
-              <div style={{ fontSize:32, marginBottom:12 }}>📋</div>
-              <div style={{ fontSize:14, color:'#475569', fontWeight:600 }}>
-                {idioma==='en'?'No races yet':idioma==='es'?'Sin carreras aún':'Sem provas ainda'}
-              </div>
-              <div style={{ fontSize:11, color:'#2a3a5a', marginTop:6 }}>
-                {idioma==='en'?'Race history will appear here':idioma==='es'?'El historial aparecerá aquí':'O historial de provas aparecerá aqui'}
-              </div>
+            <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+              {(!historico || historico.length === 0) ? (
+                <div style={{ textAlign:'center', padding:'40px 20px' }}>
+                  <div style={{ fontSize:32, marginBottom:12 }}>📋</div>
+                  <div style={{ fontSize:14, color:'#475569', fontWeight:600 }}>
+                    {idioma==='en'?'No races yet':idioma==='es'?'Sin carreras aún':'Sem provas ainda'}
+                  </div>
+                </div>
+              ) : [...historico].reverse().map((r,i) => (
+                <div key={i} style={{ padding:'10px 14px', background:'rgba(255,255,255,.02)', border:'1px solid rgba(255,255,255,.05)', borderRadius:10 }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
+                    <div style={{ fontSize:12, fontWeight:700, color:'#fff' }}>{r.provaNome}</div>
+                    <div style={{ fontSize:13, fontWeight:800, color: r.posicao<=3?'#D4AF37':'#7A8699' }}>{r.posicao}º/{r.total}</div>
+                  </div>
+                  <div style={{ display:'flex', justifyContent:'space-between' }}>
+                    <div style={{ fontSize:10, color:'#475569' }}>Sem. {r.semana}</div>
+                    <div style={{ fontSize:11, fontWeight:700, color:'#2DD4A7' }}>P{r.percentil}%</div>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
@@ -338,7 +350,7 @@ export default function VLPombos({ carreira, onVoltar, idioma = 'pt' }) {
 
       {/* Modal detalhe */}
       {selecionado && (
-        <DetalhesPombo pombo={selecionado} onFechar={() => setSelecionado(null)} idioma={idioma} />
+        <DetalhesPombo pombo={selecionado} onFechar={() => setSelecionado(null)} idioma={idioma} historico={(carreira?.historico_provas||[]).filter(r=>r.pomboId===selecionado?.id)} />
       )}
     </div>
   )
