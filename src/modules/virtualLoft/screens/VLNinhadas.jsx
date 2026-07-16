@@ -99,9 +99,9 @@ function PrevisaoGentica({ pai, mae, idioma }) {
 
 // Actualiza fases dos ovos/ninhegos automaticamente
 export function actualizarFasesCria(carreira) {
-  const sem = carreira.semana
-  const ep = carreira.epoca
-  const novosPombos = (carreira.pombos||[]).map(p => {
+  const sem = c.semana
+  const ep = c.epoca
+  const novosPombos = (c.pombos||[]).map(p => {
     if (!p.fase || p.fase === 'adulto' || p.estado === 'activo') return p
     // Calcular semana absoluta
     const semAbs = (ep-1)*40 + sem
@@ -113,18 +113,30 @@ export function actualizarFasesCria(carreira) {
     if (semanas >= 2)  return { ...p, estado:'borrachinho', fase:'nascido' }
     return p // ainda ovo
   })
-  return { ...carreira, pombos: novosPombos }
+  return { ...c, pombos: novosPombos }
 }
 
 export default function VLNinhadas({ carreira, onVoltar, onGuardar, idioma = 'pt' }) {
+  // Ler sempre do localStorage para ter dados mais recentes
+  const [carreiraLocal, setCarreiraLocal] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('vl_carreira')) || carreira } catch { return carreira }
+  })
+  const c = carreiraLocal
+
+  const salvarLocal = (dados) => {
+    try { localStorage.setItem('vl_carreira', JSON.stringify(dados)) } catch {}
+    setCarreiraLocal({ ...dados })
+    onGuardar?.(dados)
+  }
+
   const [tab, setTab] = useState('cruzar')
   const [paiSel, setPaiSel] = useState(null)
   const [maeSel, setMaeSel] = useState(null)
-  const [ninhadas, setNinhadas] = useState(carreira.ninhadas_virtuais || [])
+  const [ninhadas, setNinhadas] = useState(c.ninhadas_virtuais || [])
   const [msg, setMsg] = useState(null)
 
-  const machos = (carreira.pombos||[]).filter(p => p.sexo==='M' && p.estado==='activo')
-  const femeas = (carreira.pombos||[]).filter(p => p.sexo==='F' && p.estado==='activo')
+  const machos = (c.pombos||[]).filter(p => p.sexo==='M' && p.estado==='activo')
+  const femeas = (c.pombos||[]).filter(p => p.sexo==='F' && p.estado==='activo')
 
   const showMsg = (texto, tipo='ok') => { setMsg({texto,tipo}); setTimeout(()=>setMsg(null),3000) }
 
@@ -132,7 +144,7 @@ export default function VLNinhadas({ carreira, onVoltar, onGuardar, idioma = 'pt
     if (!paiSel || !maeSel) return
 
     const nNovos = 2 // Sempre 2 ovos por casal
-    const ano = 2025 + (carreira.epoca - 1)
+    const ano = 2025 + (c.epoca - 1)
     const nomes = NOMES[idioma] || NOMES.pt
 
     const filhos = Array.from({length: nNovos}, (_, i) => {
@@ -148,9 +160,9 @@ export default function VLNinhadas({ carreira, onVoltar, onGuardar, idioma = 'pt
         rating: Math.round((paiSel.rating + maeSel.rating) / 2),
         // Fases: ovo(2sem) → nascido(1sem) → ninhego(4sem) → jovem(4sem) → adulto
         estado: 'ovo', fase: 'ovo',
-        semana_postura: carreira.semana,
-        epoca_postura: carreira.epoca,
-        sem_adulto: carreira.semana + 11, // torna-se adulto após 11 semanas
+        semana_postura: c.semana,
+        epoca_postura: c.epoca,
+        sem_adulto: c.semana + 11, // torna-se adulto após 11 semanas
         idade: 0, provas: 0, vitorias: 0, percentil_medio: 0,
         valor: Math.round((paiSel.valor + maeSel.valor) / 3),
         pai_id: paiSel.id, mae_id: maeSel.id,
@@ -162,7 +174,7 @@ export default function VLNinhadas({ carreira, onVoltar, onGuardar, idioma = 'pt
       id: `ninhada_${Date.now()}`,
       pai_id: paiSel.id, pai_nome: paiSel.nome,
       mae_id: maeSel.id, mae_nome: maeSel.nome,
-      filhos, semana: carreira.semana, epoca: carreira.epoca,
+      filhos, semana: c.semana, epoca: c.epoca,
       estado: 'ativa',
     }
 
@@ -172,10 +184,10 @@ export default function VLNinhadas({ carreira, onVoltar, onGuardar, idioma = 'pt
     // Adicionar filhos à lista de pombos como borrachinhos
     const novaCarreira = {
       ...carreira,
-      pombos: [...carreira.pombos, ...filhos],
+      pombos: [...c.pombos, ...filhos],
       ninhadas_virtuais: novasNinhadas,
     }
-    onGuardar?.(novaCarreira)
+    salvarLocal(novaCarreira)
 
     setPaiSel(null); setMaeSel(null)
     showMsg(`${nNovos} ${idioma==='en'?'chicks born!':idioma==='es'?'polluelos nacidos!':'borrachinhos nascidos!'}`)
@@ -183,12 +195,12 @@ export default function VLNinhadas({ carreira, onVoltar, onGuardar, idioma = 'pt
   }
 
   const promoverParaAdulto = (pomboId) => {
-    const novosPombos = (carreira.pombos||[]).map(p => {
+    const novosPombos = (c.pombos||[]).map(p => {
       if (p.id !== pomboId) return p
       return { ...p, estado: 'activo', fase: 'adulto', rating: Math.min(5, p.rating + (Math.random() > 0.7 ? 1 : 0)) }
     })
-    const novaCarreira = { ...carreira, pombos: novosPombos }
-    onGuardar?.(novaCarreira)
+    const novaCarreira = { ...c, pombos: novosPombos }
+    salvarLocal(novaCarreira)
     showMsg(idioma==='en'?'Pigeon promoted to adult!':idioma==='es'?'¡Paloma promovida a adulta!':'Pombo promovido a adulto!')
   }
 
@@ -202,7 +214,7 @@ export default function VLNinhadas({ carreira, onVoltar, onGuardar, idioma = 'pt
     return {pt:'🕊️ Adulto',en:'🕊️ Adult',es:'🕊️ Adulto'}[idioma]||'🕊️ Adulto'
   }
 
-  const borrachinhos = (carreira.pombos||[]).filter(p => ['ovo','borrachinho','ninhego','jovem'].includes(p.estado) || p.fase === 'nascido')
+  const borrachinhos = (c.pombos||[]).filter(p => ['ovo','borrachinho','ninhego','jovem'].includes(p.estado) || p.fase === 'nascido')
 
   return (
     <div style={{ minHeight:'100vh', background:'#030812', color:'#fff', fontFamily:'inherit' }}>
