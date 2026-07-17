@@ -1,6 +1,11 @@
 // src/modules/virtualLoft/screens/VLTimeline.jsx
 import { useState } from 'react'
- 
+
+const T={bg:'#050A14',surface:'#0D1829',surface2:'#1A2A45',gold:'#C9A84C',blue:'#4FC3F7',text:'#E8EDF5',muted:'#6B7A99',success:'#2DD4A7',danger:'#F87171',purple:'#A855F7'}
+function lerLS(){try{return JSON.parse(localStorage.getItem('vl_carreira'))}catch{return null}}
+function gravarLS(d){try{localStorage.setItem('vl_carreira',JSON.stringify(d))}catch{}}
+function GoldLine(){return <div style={{position:'absolute',top:0,left:0,right:0,height:1,background:'linear-gradient(90deg,transparent,#C9A84C,transparent)',opacity:.7}}/>}
+
 const TIPOS = {
   prova:      { icon:'🏆', cor:'#A855F7' },
   vitoria:    { icon:'🥇', cor:'#D4AF37' },
@@ -99,13 +104,13 @@ export default function VLTimeline({ carreira, onVoltar, idioma = 'pt' }) {
   const epocas = carreira.epoca||1
 
   return (
-    <div style={{ minHeight:'100vh', background:'#030812', color:'#fff', fontFamily:'inherit' }}>
+    <div style={{ minHeight:'100vh', background:T.bg, color:T.text, fontFamily:"'Inter',system-ui,sans-serif" }}>
       <div style={{ background:'linear-gradient(180deg,#050D1A,#030812)', borderBottom:'1px solid rgba(255,255,255,.05)', padding:'14px 16px' }}>
         <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:12 }}>
-          <button onClick={onVoltar} style={{ background:'rgba(255,255,255,.06)', border:'none', borderRadius:8, width:32, height:32, color:'#7A8699', cursor:'pointer', fontSize:16 }}>←</button>
+          <button onClick={onVoltar} style={{ background:T.surface, border:'none', borderRadius:8, width:32, height:32, color:T.muted, cursor:'pointer', fontSize:16 }}>←</button>
           <div>
             <div style={{ fontSize:16, fontWeight:800 }}>📜 {idioma==='en'?'Career Timeline':idioma==='es'?'Historia':'Timeline'}</div>
-            <div style={{ fontSize:10, color:'#7A8699' }}>{timeline.length} {idioma==='en'?'events':idioma==='es'?'eventos':'eventos'} · {epocas} {idioma==='en'?'seasons':idioma==='es'?'temporadas':'épocas'}</div>
+            <div style={{ fontSize:10, color:T.muted }}>{timeline.length} {idioma==='en'?'events':idioma==='es'?'eventos':'eventos'} · {epocas} {idioma==='en'?'seasons':idioma==='es'?'temporadas':'épocas'}</div>
           </div>
         </div>
 
@@ -116,9 +121,9 @@ export default function VLTimeline({ carreira, onVoltar, idioma = 'pt' }) {
             { label:idioma==='en'?'Litters':idioma==='es'?'Nidadas':'Ninhadas', n:ninhadas, cor:'#06b6d4' },
             { label:idioma==='en'?'Seasons':idioma==='es'?'Temporadas':'Épocas', n:epocas, cor:'#7A8699' },
           ].map((s,i)=>(
-            <div key={i} style={{ padding:'8px', background:'rgba(255,255,255,.03)', border:`1px solid ${s.cor}20`, borderRadius:8, textAlign:'center' }}>
+            <div key={i} style={{ padding:'8px', background:T.surface, border:`1px solid ${s.cor}20`, borderRadius:8, textAlign:'center' }}>
               <div style={{ fontFamily:"'Fraunces',serif", fontSize:18, fontWeight:900, color:s.cor }}>{s.n}</div>
-              <div style={{ fontSize:9, color:'#475569' }}>{s.label.toUpperCase()}</div>
+              <div style={{ fontSize:9, color:T.muted }}>{s.label.toUpperCase()}</div>
             </div>
           ))}
         </div>
@@ -126,7 +131,7 @@ export default function VLTimeline({ carreira, onVoltar, idioma = 'pt' }) {
         <div style={{ display:'flex', gap:6, overflowX:'auto', scrollbarWidth:'none' }}>
           {filtros.map(f=>(
             <button key={f.id} onClick={()=>setFiltro(f.id)}
-              style={{ flex:'none', padding:'7px 12px', borderRadius:8, border:filtro===f.id?'none':'1px solid rgba(255,255,255,.08)', background:filtro===f.id?'linear-gradient(135deg,#1E5FD9,#1456C0)':'rgba(255,255,255,.04)', color:filtro===f.id?'#fff':'#cbd5e1', fontSize:11, fontWeight:filtro===f.id?700:500, cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap' }}>
+              style={{ flex:'none', padding:'7px 12px', borderRadius:8, border:filtro===f.id?'none':'1px solid rgba(255,255,255,.08)', background:filtro===f.id?'linear-gradient(135deg,#1E5FD9,#1456C0)':'rgba(255,255,255,.04)', color:filtro===f.id?'#fff':'#cbd5e1', fontSize:11, fontWeight:filtro===f.id?700:500, cursor:'pointer', fontFamily:"'Inter',system-ui,sans-serif", whiteSpace:'nowrap' }}>
               {f.label}
             </button>
           ))}
@@ -137,14 +142,14 @@ export default function VLTimeline({ carreira, onVoltar, idioma = 'pt' }) {
         {lista.length === 0 ? (
           <div style={{ textAlign:'center', padding:'40px 20px' }}>
             <div style={{ fontSize:40, marginBottom:12 }}>📜</div>
-            <div style={{ fontSize:14, color:'#475569', fontWeight:600 }}>
+            <div style={{ fontSize:14, color:T.muted, fontWeight:600 }}>
               {idioma==='en'?'No events yet. Start racing!':idioma==='es'?'Sin eventos aún. ¡Empieza a competir!':'Sem eventos ainda. Começa a competir!'}
             </div>
           </div>
         ) : (
           <div style={{ position:'relative' }}>
             {/* Linha vertical */}
-            <div style={{ position:'absolute', left:19, top:0, bottom:0, width:2, background:'rgba(255,255,255,.06)', borderRadius:1 }}/>
+            <div style={{ position:'absolute', left:19, top:0, bottom:0, width:2, background:T.surface, borderRadius:1 }}/>
 
             <div style={{ display:'flex', flexDirection:'column', gap:0 }}>
               {lista.map((ev, i) => {
@@ -152,13 +157,13 @@ export default function VLTimeline({ carreira, onVoltar, idioma = 'pt' }) {
                 return (
                   <div key={ev.id} style={{ display:'flex', gap:12, paddingBottom:16, position:'relative' }}>
                     {/* Dot */}
-                    <div style={{ width:38, height:38, borderRadius:'50%', background:`${tipo.cor}15`, border:`2px solid ${tipo.cor}40`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, flexShrink:0, zIndex:1, background:'#030812' }}>
+                    <div style={{ width:38, height:38, borderRadius:'50%', background:`${tipo.cor}15`, border:`2px solid ${tipo.cor}40`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, flexShrink:0, zIndex:1, background:T.bg }}>
                       {tipo.icon}
                     </div>
                     {/* Conteúdo */}
                     <div style={{ flex:1, paddingTop:4 }}>
                       <div style={{ fontSize:13, fontWeight:700, color: ev.tipo==='vitoria'?'#D4AF37':'#fff', marginBottom:2 }}>{ev.titulo}</div>
-                      <div style={{ fontSize:11, color:'#7A8699', marginBottom:4 }}>{ev.desc}</div>
+                      <div style={{ fontSize:11, color:T.muted, marginBottom:4 }}>{ev.desc}</div>
                       <div style={{ fontSize:9, color:'#2a3a5a' }}>
                         {idioma==='en'?'Season':idioma==='es'?'Temporada':'Época'} {ev.epoca} · {idioma==='en'?'Week':idioma==='es'?'Semana':'Sem.'} {ev.semana}
                       </div>
