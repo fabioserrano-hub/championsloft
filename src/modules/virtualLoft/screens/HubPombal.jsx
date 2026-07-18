@@ -44,6 +44,8 @@ const CSS = `
   .vl-btn-avancar::after { content:''; position:absolute; top:0; left:-100%; width:100%; height:100%; background:linear-gradient(90deg,transparent,rgba(255,255,255,.15),transparent); animation:shimmer 2s infinite; }
 `
 
+
+const T={purple:'#A855F7',gold:'#C9A84C',blue:'#4FC3F7',green:'#2DD4A7',red:'#F87171',bg:'#050A14',card:'#0D1829',text:'#E8EDF5',muted:'#6B7A99'}
 const MODULOS = [
   { id:'pombos',     icon:'🐦', label:'Pombos',      cor:'#4FC3F7', desc:'Plantel' },
   { id:'provas',     icon:'🏆', label:'Provas',       cor:'#A855F7', desc:'Competir' },
