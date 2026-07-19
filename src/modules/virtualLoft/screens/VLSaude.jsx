@@ -33,7 +33,7 @@ function debitar(c,valor,desc){
   if(typeof c.orcamento==='number') c.orcamento-=valor
   else if(typeof c.orc==='number') c.orc-=valor
   else if(typeof c.saldo==='number') c.saldo-=valor
-  c.movimentos=[...(c.movimentos||[]),{valor:-valor,desc,categoria:'saude',semana:c.semana||1,dia:c.dia||1,data:Date.now()}]
+  c.movimentos=[...(c.movimentos||[]),{tipo:'saude',descricao:desc,valor:-valor,semana:c.semana||1}]
 }
 function saldoDe(c){
   if(typeof c.orcamento==='number') return c.orcamento
