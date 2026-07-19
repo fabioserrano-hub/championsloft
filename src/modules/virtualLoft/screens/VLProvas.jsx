@@ -1,5 +1,6 @@
 // src/modules/virtualLoft/screens/VLProvas.jsx — V4 Liga + Campeonato + Simulação Avançada
 import { useState, useEffect, useRef } from 'react'
+import { PROVAS_CALENDARIO } from '../data/calendario'
 
 const T={bg:'#050A14',surface:'#0D1829',s2:'#1A2A45',gold:'#C9A84C',blue:'#4FC3F7',text:'#E8EDF5',muted:'#6B7A99',success:'#2DD4A7',danger:'#F87171',purple:'#A855F7',orange:'#FB923C'}
 function lerLS(){try{return JSON.parse(localStorage.getItem('vl_carreira'))}catch{return null}}
@@ -7,24 +8,7 @@ function gravarLS(d){try{localStorage.setItem('vl_carreira',JSON.stringify(d))}c
 function GL(){return <div style={{position:'absolute',top:0,left:0,right:0,height:1,background:'linear-gradient(90deg,transparent,#C9A84C,transparent)',opacity:.8}}/>}
 
 // ── Calendário intercalado por especialidade ──────────────────────────────────
-const PROVAS_CALENDARIO = [
-  // Semana: tipo intercalado, dificuldade crescente
-  {id:'p1', nome:'Local - Santarém',       dist:80,  tipo:'velocidade',   semana:2,  nivel:'div3', pontos:10, premio:100},
-  {id:'p2', nome:'Local - Setúbal',        dist:150, tipo:'fundo',        semana:4,  nivel:'div3', pontos:10, premio:150},
-  {id:'p3', nome:'Local - Évora',          dist:120, tipo:'meio_fundo',   semana:6,  nivel:'div3', pontos:10, premio:200},
-  {id:'p4', nome:'Distrital - Badajoz',    dist:250, tipo:'velocidade',   semana:8,  nivel:'div2', pontos:20, premio:350},
-  {id:'p5', nome:'Distrital - Beja',       dist:300, tipo:'fundo',        semana:10, nivel:'div2', pontos:20, premio:400},
-  {id:'p6', nome:'Distrital - Mérida',     dist:280, tipo:'meio_fundo',   semana:12, nivel:'div2', pontos:20, premio:500},
-  {id:'p7', nome:'Regional - Salamanca',   dist:420, tipo:'velocidade',   semana:15, nivel:'div2', pontos:30, premio:700},
-  {id:'p8', nome:'Regional - Valladolid',  dist:500, tipo:'fundo',        semana:18, nivel:'div2', pontos:30, premio:900},
-  {id:'p9', nome:'Regional - Zaragoza',    dist:460, tipo:'meio_fundo',   semana:20, nivel:'div2', pontos:30, premio:1000},
-  {id:'p10',nome:'Nacional - Madrid',      dist:600, tipo:'velocidade',   semana:23, nivel:'div1', pontos:50, premio:2000},
-  {id:'p11',nome:'Nacional - Valladolid',  dist:650, tipo:'grande_fundo', semana:25, nivel:'div1', pontos:50, premio:2500},
-  {id:'p12',nome:'Nacional - Burgos',      dist:700, tipo:'fundo',        semana:27, nivel:'div1', pontos:50, premio:3000},
-  {id:'p13',nome:'Internacional - Lyon',   dist:900, tipo:'grande_fundo', semana:30, nivel:'elite',pontos:100,premio:8000},
-  {id:'p14',nome:'Internacional - Paris',  dist:1000,tipo:'velocidade',   semana:33, nivel:'elite',pontos:100,premio:10000},
-  {id:'p15',nome:'Grande Final - Pau',     dist:1100,tipo:'grande_fundo', semana:36, nivel:'elite',pontos:150,premio:20000},
-]
+// Calendário — fonte única partilhada com HubPombal
 
 const DIV_CFG = {
   div3:  {label:'Divisão 3',  cor:T.muted,   bg:'rgba(107,122,153,.15)', desc:'Nível local — para começar'},
@@ -802,6 +786,12 @@ export default function VLProvas({ carreira, onVoltar, onGuardar }) {
                               <div style={{width:28,height:3,background:T.s2,borderRadius:2}}><div style={{height:'100%',width:`${fadiga}%`,background:fadiga<30?T.success:fadiga<60?T.gold:T.danger,borderRadius:2}}/></div>
                               <span style={{fontSize:8,fontWeight:700,color:fadiga<30?T.success:fadiga<60?T.gold:T.danger}}>{fadiga}%</span>
                             </div>
+                          </div>
+                          <div style={{display:'flex',gap:6,marginTop:3,fontSize:8,color:T.muted}}>
+                            <span>⚡<b style={{color:T.gold}}>{p.atributos?.velocidade??'-'}</b></span>
+                            <span>🛡️<b style={{color:T.success}}>{p.atributos?.resistencia??'-'}</b></span>
+                            <span>🧭<b style={{color:T.blue}}>{p.atributos?.orientacao??'-'}</b></span>
+                            <span style={{marginLeft:'auto',color:T.purple,fontWeight:700}}>{p.especialidade||''}</span>
                           </div>
                         </div>
                         {sel&&<div style={{width:18,height:18,borderRadius:'50%',background:cor,display:'flex',alignItems:'center',justifyContent:'center',fontSize:9,color:'#fff',fontWeight:700,flexShrink:0}}>✓</div>}
