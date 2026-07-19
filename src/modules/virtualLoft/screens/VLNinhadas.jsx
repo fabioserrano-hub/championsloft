@@ -1,364 +1,400 @@
-// src/modules/virtualLoft/screens/VLNinhadas.jsx
+// src/modules/virtualLoft/screens/VLNinhadas.jsx — V3 Genética profunda
 import { useState } from 'react'
-import { cruzamento, gerarPombo, NOMES, PERSONALIDADES } from '../engine/genetics'
 
-const T={bg:'#050A14',surface:'#0D1829',surface2:'#1A2A45',gold:'#C9A84C',blue:'#4FC3F7',text:'#E8EDF5',muted:'#6B7A99',success:'#2DD4A7',danger:'#F87171',purple:'#A855F7'}
+const T={bg:'#050A14',surface:'#0D1829',s2:'#1A2A45',gold:'#C9A84C',blue:'#4FC3F7',text:'#E8EDF5',muted:'#6B7A99',success:'#2DD4A7',danger:'#F87171',purple:'#A855F7',orange:'#FB923C'}
 function lerLS(){try{return JSON.parse(localStorage.getItem('vl_carreira'))}catch{return null}}
 function gravarLS(d){try{localStorage.setItem('vl_carreira',JSON.stringify(d))}catch{}}
-function GoldLine(){return <div style={{position:'absolute',top:0,left:0,right:0,height:1,background:'linear-gradient(90deg,transparent,#C9A84C,transparent)',opacity:.7}}/>}
+function GL(){return <div style={{position:'absolute',top:0,left:0,right:0,height:1,background:'linear-gradient(90deg,transparent,#C9A84C,transparent)',opacity:.8}}/>}
 
-function gerarAnilha(ano = 2025) {
-  return `VL-${ano}-${String(Math.floor(Math.random()*99999)).padStart(5,'0')}`
-}
-
-function corAttr(v) {
-  return v>=80?'#2DD4A7':v>=65?'#4C8DFF':v>=45?'#D4AF37':'#f87171'
-}
-
-function PomboMini({ pombo, selecionado, onClick, idioma }) {
-  const isFemea = pombo.sexo === 'F'
-  const cor = isFemea ? '#c084fc' : '#4C8DFF'
-  return (
-    <div onClick={onClick} style={{ padding:'10px 12px', background: selecionado?`${cor}15`:T.surface, border:`1.5px solid ${selecionado?cor:'rgba(255,255,255,.06)'}`, borderRadius:10, cursor:'pointer', transition:'all .15s' }}>
-      <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-        <div style={{ width:32, height:32, borderRadius:8, background:`${cor}15`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:900, color:cor, fontFamily:"'Fraunces',serif" }}>
-          {pombo.anilha?.slice(-3)}
-        </div>
-        <div style={{ flex:1 }}>
-          <div style={{ fontSize:12, fontWeight:700, color: selecionado?cor:'#fff' }}>{pombo.nome}</div>
-          <div style={{ fontSize:10, color:T.muted }}>{pombo.sexo==='M'?'♂':'♀'} · {pombo.especialidade}</div>
-        </div>
-        <div style={{ display:'flex', gap:1 }}>
-          {Array.from({length:5}).map((_,i)=><div key={i} style={{ fontSize:7, color:i<pombo.rating?'#D4AF37':'rgba(255,255,255,.1)' }}>★</div>)}
-        </div>
-      </div>
-      {/* Atributos chave */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:4, marginTop:8 }}>
-        {['velocidade','resistencia','orientacao'].map(a=>(
-          <div key={a} style={{ textAlign:'center' }}>
-            <div style={{ fontSize:11, fontWeight:700, color:corAttr(pombo.atributos[a]) }}>{pombo.atributos[a]}</div>
-            <div style={{ fontSize:8, color:T.muted }}>{a.slice(0,3).toUpperCase()}</div>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function PrevisaoGentica({ pai, mae, idioma }) {
-  if (!pai || !mae) return null
-
-  // Calcular previsão dos filhos
-  const pais = pai.atributos
-  const maes = mae.atributos
-  const attrs = ['velocidade','resistencia','orientacao','inteligencia','coragem']
-
-  const previsao = attrs.map(a => ({
-    attr: a,
-    min: Math.max(1, Math.round(Math.min(pais[a],maes[a]) * 0.85)),
-    med: Math.round((pais[a]+maes[a])/2),
-    max: Math.min(99, Math.round(Math.max(pais[a],maes[a]) * 1.15)),
-  }))
-
-  const attrNames = {
-    pt:{velocidade:'Velocidade',resistencia:'Resistência',orientacao:'Orientação',inteligencia:'Inteligência',coragem:'Coragem'},
-    en:{velocidade:'Speed',resistencia:'Stamina',orientacao:'Navigation',inteligencia:'Intelligence',coragem:'Courage'},
-    es:{velocidade:'Velocidad',resistencia:'Resistencia',orientacao:'Orientación',inteligencia:'Inteligencia',coragem:'Coraje'},
-  }
-  const names = attrNames[idioma] || attrNames.pt
-
-  // Potencial estimado
-  const potencialMedio = Math.round((pai.atributos.potencial_oculto + mae.atributos.potencial_oculto) / 2)
-  const chanceExcepcional = potencialMedio > 70 ? 'Alta' : potencialMedio > 50 ? 'Média' : 'Baixa'
-
-  return (
-    <div style={{ padding:'14px', background:'rgba(168,85,247,.06)', border:'1px solid rgba(168,85,247,.2)', borderRadius:12 }}>
-      <div style={{ fontSize:11, fontWeight:700, color:'#A855F7', marginBottom:10 }}>
-        🔬 {idioma==='en'?'Genetic Preview':idioma==='es'?'Previsión Genética':'Previsão Genética'}
-      </div>
-      <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
-        {previsao.map(p => (
-          <div key={p.attr} style={{ display:'flex', alignItems:'center', gap:8 }}>
-            <div style={{ width:70, fontSize:9, color:T.muted }}>{names[p.attr]}</div>
-            <div style={{ flex:1, height:4, background:T.surface, borderRadius:2, position:'relative' }}>
-              <div style={{ position:'absolute', left:`${(p.min/99)*100}%`, right:`${((99-p.max)/99)*100}%`, height:'100%', background:'rgba(168,85,247,.4)', borderRadius:2 }}/>
-              <div style={{ position:'absolute', left:`${(p.med/99)*100}%`, transform:'translateX(-50%)', width:6, height:6, borderRadius:'50%', background:'#A855F7', top:-1 }}/>
-            </div>
-            <div style={{ fontSize:9, color:'#A855F7', width:60, textAlign:'right' }}>{p.min}-{p.max}</div>
-          </div>
-        ))}
-      </div>
-      <div style={{ marginTop:10, display:'flex', justifyContent:'space-between', fontSize:10 }}>
-        <span style={{ color:T.muted }}>
-          {idioma==='en'?'Exceptional chance':idioma==='es'?'Prob. excepcional':'Chance excepcional'}:
-          <span style={{ color: chanceExcepcional==='Alta'?'#D4AF37':chanceExcepcional==='Média'?'#4C8DFF':'#7A8699', fontWeight:700, marginLeft:4 }}>{chanceExcepcional}</span>
-        </span>
-        <span style={{ color:T.muted }}>
-          {idioma==='en'?'Potential':idioma==='es'?'Potencial':'Potencial'}: <span style={{ color:'#A855F7', fontWeight:700 }}>{potencialMedio}/100</span>
-        </span>
-      </div>
-    </div>
-  )
-}
-
-
-// Actualiza fases dos ovos/ninhegos automaticamente
-export function actualizarFasesCria(carreira) {
-  const sem = carreira.semana || 1
-  const ep = carreira.epoca || 1
-  const novosPombos = (carreira.pombos||[]).map(p => {
-    if (!p.fase || p.fase === 'adulto' || p.estado === 'activo') return p
-    const semAbs = (ep-1)*40 + sem
-    const semPostura = (p.epoca_postura-1)*40 + (p.semana_postura||0)
-    const semanas = semAbs - semPostura
-    if (semanas >= 11) return { ...p, estado:'activo', fase:'adulto' }
-    if (semanas >= 7)  return { ...p, estado:'jovem', fase:'jovem' }
-    if (semanas >= 3)  return { ...p, estado:'ninhego', fase:'ninhego' }
-    if (semanas >= 2)  return { ...p, estado:'borrachinho', fase:'nascido' }
+export function actualizarFasesCria(carreira){
+  const dia=carreira.dia||1
+  const pombos=(carreira.pombos||[]).map(p=>{
+    if(!p.fase||p.fase==='adulto'||p.estado==='activo')return p
+    const diasDesde=dia-(p.dia_postura||0)
+    if(diasDesde>=77)return{...p,estado:'activo',fase:'adulto'}
+    if(diasDesde>=49)return{...p,estado:'jovem',fase:'jovem'}
+    if(diasDesde>=21)return{...p,estado:'ninhego',fase:'ninhego'}
+    if(diasDesde>=14)return{...p,estado:'borrachinho',fase:'nascido'}
     return p
   })
-  return { ...carreira, pombos: novosPombos }
+  return{...carreira,pombos}
 }
 
-export default function VLNinhadas({ carreira, onVoltar, onGuardar, idioma = 'pt' }) {
-  // Ler sempre do localStorage para ter dados mais recentes
-  const [carreiraLocal, setCarreiraLocal] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('vl_carreira')) || carreira } catch { return carreira }
-  })
-  const c = carreiraLocal
+const FASES=[
+  {id:'ovo',      icon:'🥚', label:'Ovo',       dias:'0-14',   cor:'#94A3B8', desc:'Incubação. Os pais revezam-se a aquecer os ovos.'},
+  {id:'nascido',  icon:'🐣', label:'Nascido',   dias:'14-21',  cor:'#818CF8', desc:'Acabou de eclodir. Totalmente dependente dos pais.'},
+  {id:'ninhego',  icon:'🐤', label:'Ninhego',   dias:'21-49',  cor:'#4FC3F7', desc:'Crescimento rápido. Desenvolve plumagem e musculatura.'},
+  {id:'jovem',    icon:'🐦', label:'Jovem',     dias:'49-77',  cor:'#2DD4A7', desc:'Primeiros voos. Personalidade a desenvolver-se.'},
+  {id:'adulto',   icon:'🕊️', label:'Adulto',    dias:'77+',    cor:'#C9A84C', desc:'Pronto para treino e competição.'},
+]
 
-  const salvarLocal = (dados) => {
-    try { localStorage.setItem('vl_carreira', JSON.stringify(dados)) } catch {}
-    setCarreiraLocal({ ...dados })
-    onGuardar?.(dados)
+const NOMES_CRIA=['Relâmpago','Trovão','Brisa','Aurora','Eclipse','Cometa','Estrela','Falcão','Titan','Orion','Vega','Atlas','Zeus','Apolo','Marte','Mercúrio','Diana','Ares','Hera','Nike']
+const GENES_RAROS=['Linha Campeã','Mutação Velocista','Sangue Puro','Gene Olímpico','Resistência Infinita','Orientador Nato']
+
+function g(base,std=12){return Math.min(99,Math.max(1,Math.round(base+(Math.random()-.5)*2*std)))}
+
+function herdarAtributos(paiA,maeA,temGeneticista){
+  const herdar=(a,b)=>{
+    const base=(a+b)/2
+    const variacao=(Math.random()-.5)*24
+    const mutacao=Math.random()<0.06?(Math.random()-.5)*30:0
+    return Math.min(99,Math.max(1,Math.round(base+variacao+mutacao)))
   }
+  const temGR=Math.random()<(temGeneticista?0.12:0.06)
+  return{
+    velocidade:herdar(paiA.velocidade||50,maeA.velocidade||50),
+    resistencia:herdar(paiA.resistencia||50,maeA.resistencia||50),
+    orientacao:herdar(paiA.orientacao||50,maeA.orientacao||50),
+    coragem:herdar(paiA.coragem||50,maeA.coragem||50),
+    recuperacao:herdar(paiA.recuperacao||50,maeA.recuperacao||50),
+    inteligencia:herdar(paiA.inteligencia||50,maeA.inteligencia||50),
+    instinto:herdar(paiA.instinto||50,maeA.instinto||50),
+    forca:herdar(paiA.forca||50,maeA.forca||50),
+    fertilidade:herdar(paiA.fertilidade||50,maeA.fertilidade||50),
+    sangue:herdar(paiA.sangue||50,maeA.sangue||50),
+    potencial_revelado:temGeneticista?15:0,
+    potencial_maximo:g((paiA.potencial_maximo||70+maeA.potencial_maximo||70)/2,15),
+    gene_raro_tipo:temGR?GENES_RAROS[Math.floor(Math.random()*GENES_RAROS.length)]:null,
+  }
+}
 
-  const [tab, setTab] = useState('cruzar')
-  const [paiSel, setPaiSel] = useState(null)
-  const [maeSel, setMaeSel] = useState(null)
-  const [ninhadas, setNinhadas] = useState(c.ninhadas_virtuais || [])
-  const [msg, setMsg] = useState(null)
+function calcCompatibilidade(pai,mae){
+  const aP=pai.atributos||{}, aM=mae.atributos||{}
+  const mediaP=(aP.velocidade||50+aP.resistencia||50+aP.orientacao||50)/3
+  const mediaM=(aM.velocidade||50+aM.resistencia||50+aM.orientacao||50)/3
+  const mediaFilho=(mediaP+mediaM)/2
+  // Compatibilidade: especialidade + diversidade genética + potencial
+  const espBonus=pai.especialidade===mae.especialidade?10:5
+  const potBonus=((aP.potencial_maximo||70)+(aM.potencial_maximo||70))/2-60
+  const score=Math.min(99,Math.max(1,Math.round(mediaFilho+espBonus+potBonus/3)))
+  return{
+    score,
+    label:score>=80?'Excelente':score>=65?'Boa':score>=50?'Razoável':'Baixa',
+    cor:score>=80?T.success:score>=65?T.blue:score>=50?T.gold:T.danger,
+    prevVelocidade:Math.round((aP.velocidade||50+aM.velocidade||50)/2),
+    prevResistencia:Math.round((aP.resistencia||50+aM.resistencia||50)/2),
+    prevOrientacao:Math.round((aP.orientacao||50+aM.orientacao||50)/2),
+    chanceGeneRaro:pai.atributos?.gene_raro_tipo||mae.atributos?.gene_raro_tipo?'Alta (15%)':'Normal (6%)',
+  }
+}
 
-  const machos = (c.pombos||[]).filter(p => p.sexo==='M' && p.estado==='activo')
-  const femeas = (c.pombos||[]).filter(p => p.sexo==='F' && p.estado==='activo')
+export default function VLNinhadas({carreira,onVoltar,onGuardar}){
+  const [cl,setCL]=useState(()=>lerLS()||carreira)
+  const c=cl
+  const salvar=d=>{gravarLS(d);setCL({...d});onGuardar?.(d)}
 
-  const showMsg = (texto, tipo='ok') => { setMsg({texto,tipo}); setTimeout(()=>setMsg(null),3000) }
+  const [tab,setTab]=useState('criar')
+  const [paiSel,setPaiSel]=useState(null)
+  const [maeSel,setMaeSel]=useState(null)
+  const [msg,setMsg]=useState(null)
 
-  const cruzar = () => {
-    if (!paiSel || !maeSel) return
+  const diaAtual=c.dia||1
+  const temGeneticista=(c.staff||[]).some(s=>s.tipo==='geneticista')
+  const temVet=(c.staff||[]).some(s=>s.tipo==='veterinario')
+  const pombosActivos=(c.pombos||[]).filter(p=>p.estado==='activo')
+  const machos=pombosActivos.filter(p=>p.sexo==='M')
+  const femeas=pombosActivos.filter(p=>p.sexo==='F')
+  const emDesenvolvimento=(c.pombos||[]).filter(p=>p.fase&&p.estado!=='activo')
 
-    const nNovos = 2 // Sempre 2 ovos por casal
-    const ano = 2025 + (c.epoca - 1)
-    const nomes = NOMES[idioma] || NOMES.pt
+  const showMsg=(texto,tipo='ok')=>{setMsg({texto,tipo});setTimeout(()=>setMsg(null),4000)}
 
-    const filhos = Array.from({length: nNovos}, (_, i) => {
-      const sexo = Math.random() > 0.5 ? 'M' : 'F'
-      const attrsFilho = cruzamento(paiSel, maeSel)
-      const nome = nomes[Math.floor(Math.random() * nomes.length)]
-      return {
-        id: `pombo_${Date.now()}_${i}_${Math.random().toString(36).slice(2,5)}`,
-        nome, anilha: gerarAnilha(ano), sexo, ano,
-        especialidade: paiSel.especialidade, esp_idx: paiSel.esp_idx,
-        personalidade: [PERSONALIDADES[idioma]?.[Math.floor(Math.random()*12)] || 'Calmo'],
-        atributos: attrsFilho,
-        rating: Math.round((paiSel.rating + maeSel.rating) / 2),
-        // Fases: ovo(2sem) → nascido(1sem) → ninhego(4sem) → jovem(4sem) → adulto
-        estado: 'ovo', fase: 'ovo',
-        semana_postura: c.semana,
-        epoca_postura: c.epoca,
-        sem_adulto: c.semana + 11, // torna-se adulto após 11 semanas
-        idade: 0, provas: 0, vitorias: 0, percentil_medio: 0,
-        valor: Math.round((paiSel.valor + maeSel.valor) / 3),
-        pai_id: paiSel.id, mae_id: maeSel.id,
-        pai_nome: paiSel.nome, mae_nome: maeSel.nome,
+  const criarNinhada=()=>{
+    if(!paiSel||!maeSel)return
+    const pai=pombosActivos.find(p=>p.id===paiSel)
+    const mae=pombosActivos.find(p=>p.id===maeSel)
+    if(!pai||!mae)return
+
+    const filhos=Array.from({length:2},(_,i)=>{
+      const attrs=herdarAtributos(pai.atributos||{},mae.atributos||{},temGeneticista)
+      const sexo=Math.random()>.5?'M':'F'
+      const espIdx=Math.random()<0.7?pai.esp_idx??0:Math.floor(Math.random()*4)
+      const ESPS=['Velocidade','Meio-Fundo','Fundo','Grande Fundo']
+      const rating=Math.round(((pai.rating||3)+(mae.rating||3))/2+(Math.random()>.7?1:-1)*Math.floor(Math.random()*2))
+      const nome=NOMES_CRIA[Math.floor(Math.random()*NOMES_CRIA.length)]
+      const ano=(new Date().getFullYear()+Math.floor((diaAtual-1)/280))
+      return{
+        id:`p_${Date.now()}_${i}`,
+        nome,
+        anilha:`PT-${ano}-${Math.floor(Math.random()*900000+100000)}`,
+        sexo,ano,
+        especialidade:ESPS[espIdx],esp_idx:espIdx,
+        personalidade:['Calmo'],
+        personalidade_tipo:['guerreiro','calmo','competitivo','inteligente','resistente','lider','determinado'][Math.floor(Math.random()*7)],
+        temperamento:['Dócil','Activo','Curioso','Reservado','Sociável','Independente'][Math.floor(Math.random()*6)],
+        motivacao:['Competição','Liberdade','Território','Social','Conquista','Exploração'][Math.floor(Math.random()*6)],
+        atributos:attrs,
+        rating:Math.min(5,Math.max(1,rating)),
+        estado:'ovo',fase:'ovo',
+        dia_postura:diaAtual,
+        forma_atual:50,fadiga:0,
+        provas:0,vitorias:0,percentil_medio:0,
+        valor:Math.round((rating*400+Math.random()*800)),
+        pai_id:pai.id,mae_id:mae.id,pai_nome:pai.nome,mae_nome:mae.nome,
+        historico_provas:[],historico_treinos:[],
       }
     })
 
-    const novaNinhada = {
-      id: `ninhada_${Date.now()}`,
-      pai_id: paiSel.id, pai_nome: paiSel.nome,
-      mae_id: maeSel.id, mae_nome: maeSel.nome,
-      filhos, semana: c.semana, epoca: c.epoca,
-      estado: 'ativa',
+    const ninhada={
+      id:`n_${Date.now()}`,
+      pai_id:pai.id,mae_id:mae.id,pai_nome:pai.nome,mae_nome:mae.nome,
+      dia_inicio:diaAtual,filhos_ids:filhos.map(f=>f.id),
+      num_filhos:filhos.length,
     }
 
-    const novasNinhadas = [...ninhadas, novaNinhada]
-    setNinhadas(novasNinhadas)
-
-    // Adicionar filhos à lista de pombos como borrachinhos
-    const novaCarreira = {
-      ...carreira,
-      pombos: [...c.pombos, ...filhos],
-      ninhadas_virtuais: novasNinhadas,
+    const novaCarreira={
+      ...c,
+      pombos:[...(c.pombos||[]),...filhos],
+      ninhadas_virtuais:[...(c.ninhadas_virtuais||[]),ninhada],
     }
-    salvarLocal(novaCarreira)
-
-    setPaiSel(null); setMaeSel(null)
-    showMsg(`${nNovos} ${idioma==='en'?'chicks born!':idioma==='es'?'polluelos nacidos!':'borrachinhos nascidos!'}`)
-    setTab('ninhadas')
+    salvar(novaCarreira)
+    setPaiSel(null);setMaeSel(null)
+    showMsg(`Ninhada criada! 2 ovos postos por ${pai.nome} × ${mae.nome}`)
+    setTab('acompanhar')
   }
 
-  const promoverParaAdulto = (pomboId) => {
-    const novosPombos = (c.pombos||[]).map(p => {
-      if (p.id !== pomboId) return p
-      return { ...p, estado: 'activo', fase: 'adulto', rating: Math.min(5, p.rating + (Math.random() > 0.7 ? 1 : 0)) }
-    })
-    const novaCarreira = { ...c, pombos: novosPombos }
-    salvarLocal(novaCarreira)
-    showMsg(idioma==='en'?'Pigeon promoted to adult!':idioma==='es'?'¡Paloma promovida a adulta!':'Pombo promovido a adulto!')
-  }
+  const compat=paiSel&&maeSel?calcCompatibilidade(
+    pombosActivos.find(p=>p.id===paiSel)||{},
+    pombosActivos.find(p=>p.id===maeSel)||{}
+  ):null
 
+  const sugestaoGeneticista=temGeneticista&&machos.length&&femeas.length?(()=>{
+    let melhorScore=0,melhorPar=null
+    machos.slice(0,5).forEach(m=>femeas.slice(0,5).forEach(f=>{
+      const s=calcCompatibilidade(m,f).score
+      if(s>melhorScore){melhorScore=s;melhorPar={pai:m,mae:f,score:s}}
+    }))
+    return melhorPar
+  })():null
 
-  const faseLabel = (p) => {
-    const f = p.fase || p.estado
-    if (f==='ovo') return {pt:'🥚 Ovo',en:'🥚 Egg',es:'🥚 Huevo'}[idioma]||'🥚 Ovo'
-    if (f==='nascido') return {pt:'🐣 Nascido',en:'🐣 Hatched',es:'🐣 Nacido'}[idioma]||'🐣 Nascido'
-    if (f==='ninhego') return {pt:'🐤 Ninhego',en:'🐤 Chick',es:'🐤 Polluelo'}[idioma]||'🐤 Ninhego'
-    if (f==='jovem') return {pt:'🐦 Jovem',en:'🐦 Young',es:'🐦 Joven'}[idioma]||'🐦 Jovem'
-    return {pt:'🕊️ Adulto',en:'🕊️ Adult',es:'🕊️ Adulto'}[idioma]||'🕊️ Adulto'
-  }
-
-  const borrachinhos = (c.pombos||[]).filter(p => ['ovo','borrachinho','ninhego','jovem'].includes(p.estado) || p.fase === 'nascido')
-
-  return (
-    <div style={{ minHeight:'100vh', background:T.bg, color:T.text, fontFamily:"'Inter',system-ui,sans-serif" }}>
-      <div style={{ background:'linear-gradient(180deg,#050D1A,#030812)', borderBottom:'1px solid rgba(255,255,255,.05)', padding:'14px 16px' }}>
-        <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:12 }}>
-          <button onClick={onVoltar} style={{ background:T.surface, border:'none', borderRadius:8, width:32, height:32, color:T.muted, cursor:'pointer', fontSize:16 }}>←</button>
-          <div>
-            <div style={{ fontSize:16, fontWeight:800 }}>🥚 {idioma==='en'?'Breeding':idioma==='es'?'Reproducción':'Ninhadas'}</div>
-            <div style={{ fontSize:10, color:T.muted }}>{ninhadas.length} {idioma==='en'?'litters':idioma==='es'?'nidadas':'ninhadas'} · {borrachinhos.length} {idioma==='en'?'chicks':idioma==='es'?'polluelos':'borrachinhos'}</div>
+  return(
+    <div style={{minHeight:'100vh',background:T.bg,color:T.text,fontFamily:"system-ui,sans-serif"}}>
+      <div style={{background:`linear-gradient(180deg,${T.surface},${T.bg})`,borderBottom:`1px solid ${T.s2}`,padding:'14px 16px',position:'relative'}}>
+        <GL/>
+        <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12}}>
+          <button onClick={onVoltar} style={{background:T.surface,border:`1px solid ${T.s2}`,borderRadius:8,width:32,height:32,color:T.muted,cursor:'pointer',fontSize:16}}>←</button>
+          <div style={{flex:1}}>
+            <div style={{fontSize:16,fontWeight:800}}>🥚 Ninhadas</div>
+            <div style={{fontSize:9,color:T.muted}}>
+              {emDesenvolvimento.length} em desenvolvimento
+              {temGeneticista&&<span style={{color:T.purple}}> · 🧬 Geneticista activo</span>}
+            </div>
           </div>
         </div>
-        <div style={{ display:'flex', gap:6 }}>
-          {[['cruzar',idioma==='en'?'Breed':idioma==='es'?'Cruzar':'Cruzar'],
-            ['ninhadas',idioma==='en'?'Litters':idioma==='es'?'Nidadas':'Ninhadas'],
-            ['jovens',idioma==='en'?'Chicks':idioma==='es'?'Polluelos':'Borrachinhos']].map(([id,label])=>(
+        <div style={{display:'flex',gap:6}}>
+          {[['criar','Cruzar'],['acompanhar','Acompanhar'],['historico','Historial']].map(([id,label])=>(
             <button key={id} onClick={()=>setTab(id)}
-              style={{ flex:'none', padding:'8px 14px', borderRadius:8, border:tab===id?'none':'1px solid rgba(255,255,255,.08)', background:tab===id?'linear-gradient(135deg,#A855F7,#7C3AED)':'rgba(255,255,255,.04)', color:tab===id?'#fff':'#cbd5e1', fontSize:12, fontWeight:tab===id?700:500, cursor:'pointer', fontFamily:"'Inter',system-ui,sans-serif", minHeight:36 }}>
-              {label}{id==='jovens'&&borrachinhos.length>0?` (${borrachinhos.length})`:''}
+              style={{flex:'none',padding:'7px 11px',borderRadius:8,border:tab===id?'none':`1px solid ${T.s2}`,background:tab===id?`${T.purple}20`:'transparent',color:tab===id?T.purple:T.muted,fontSize:10,fontWeight:tab===id?700:400,cursor:'pointer',fontFamily:'inherit'}}>
+              {label}{id==='acompanhar'&&emDesenvolvimento.length>0?` (${emDesenvolvimento.length})`:''}
             </button>
           ))}
         </div>
       </div>
 
-      {msg && (
-        <div style={{ margin:'10px 16px 0', padding:'10px 14px', background:msg.tipo==='ok'?'rgba(168,85,247,.1)':'rgba(248,113,113,.1)', border:`1px solid ${msg.tipo==='ok'?'rgba(168,85,247,.3)':'rgba(248,113,113,.3)'}`, borderRadius:10, fontSize:12, color:msg.tipo==='ok'?'#A855F7':'#f87171', fontWeight:600 }}>
-          {msg.tipo==='ok'?'🥚':'❌'} {msg.texto}
-        </div>
-      )}
+      {msg&&<div style={{margin:'10px 16px 0',padding:'10px 14px',background:msg.tipo==='ok'?`${T.success}10`:`${T.danger}10`,border:`1px solid ${msg.tipo==='ok'?T.success:T.danger}30`,borderRadius:10,fontSize:12,color:msg.tipo==='ok'?T.success:T.danger,fontWeight:600}}>✅ {msg.texto}</div>}
 
-      <div style={{ padding:'12px 16px', display:'flex', flexDirection:'column', gap:12 }}>
+      <div style={{padding:'12px 16px',display:'flex',flexDirection:'column',gap:12}}>
 
-        {/* CRUZAR */}
-        {tab==='cruzar' && (
-          <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-            {/* Seleccionar Pai */}
-            <div>
-              <div style={{ fontSize:9, color:T.blue, fontWeight:700, letterSpacing:1.5, marginBottom:8 }}>
-                ♂ {idioma==='en'?'SELECT FATHER':idioma==='es'?'SELECCIONAR PADRE':'SELECCIONAR PAI'}
+        {/* CRIAR NINHADA */}
+        {tab==='criar'&&(
+          <div style={{display:'flex',flexDirection:'column',gap:12}}>
+            {/* Sugestão geneticista */}
+            {sugestaoGeneticista&&(
+              <div style={{padding:'12px 14px',background:`${T.purple}08`,border:`1px solid ${T.purple}25`,borderRadius:12,position:'relative',overflow:'hidden'}}>
+                <GL/>
+                <div style={{fontSize:10,fontWeight:700,color:T.purple,marginBottom:6}}>🧬 Sugestão do Geneticista</div>
+                <div style={{fontSize:12,color:T.text,marginBottom:4}}>{sugestaoGeneticista.pai.nome} × {sugestaoGeneticista.mae.nome}</div>
+                <div style={{fontSize:10,color:T.muted,marginBottom:8}}>Compatibilidade: <span style={{color:T.success,fontWeight:700}}>{sugestaoGeneticista.score}%</span> — par ideal detectado!</div>
+                <button onClick={()=>{setPaiSel(sugestaoGeneticista.pai.id);setMaeSel(sugestaoGeneticista.mae.id)}}
+                  style={{padding:'7px 14px',borderRadius:8,border:`1px solid ${T.purple}30`,background:`${T.purple}15`,color:T.purple,fontSize:10,fontWeight:700,cursor:'pointer',fontFamily:'inherit'}}>
+                  Usar este par ✓
+                </button>
               </div>
-              <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
-                {machos.length===0 ? (
-                  <div style={{ fontSize:11, color:T.muted, padding:'10px' }}>{idioma==='en'?'No male pigeons':idioma==='es'?'Sin palomas macho':'Sem pombos machos'}</div>
-                ) : machos.map(p => (
-                  <PomboMini key={p.id} pombo={p} selecionado={paiSel?.id===p.id} onClick={()=>setPaiSel(paiSel?.id===p.id?null:p)} idioma={idioma} />
-                ))}
+            )}
+
+            {/* Selecção de pai */}
+            <div>
+              <div style={{fontSize:9,color:T.muted,fontWeight:700,letterSpacing:1,marginBottom:8}}>SELECCIONAR PAI ♂</div>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:5}}>
+                {machos.map(p=>{
+                  const isSel=paiSel===p.id
+                  return(
+                    <div key={p.id} onClick={()=>setPaiSel(isSel?null:p.id)}
+                      style={{padding:'10px',background:isSel?`${T.blue}10`:T.surface,border:`${isSel?2:1}px solid ${isSel?T.blue:T.s2}`,borderRadius:10,cursor:'pointer',transition:'all .15s',position:'relative',overflow:'hidden'}}>
+                      {isSel&&<GL/>}
+                      <div style={{fontSize:12,fontWeight:700,color:isSel?T.blue:T.text,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.nome}</div>
+                      <div style={{fontSize:9,color:T.muted}}>{p.especialidade}</div>
+                      <div style={{display:'flex',gap:1,marginTop:3}}>
+                        {Array.from({length:5}).map((_,i)=><span key={i} style={{fontSize:8,color:i<p.rating?T.gold:'rgba(255,255,255,.1)'}}>{i<p.rating?'★':'☆'}</span>)}
+                      </div>
+                      {p.atributos?.gene_raro_tipo&&<div style={{fontSize:8,color:T.gold,marginTop:2}}>💎 Gene Raro</div>}
+                    </div>
+                  )
+                })}
               </div>
             </div>
 
-            {/* Seleccionar Mãe */}
+            {/* Selecção de mãe */}
             <div>
-              <div style={{ fontSize:9, color:'#c084fc', fontWeight:700, letterSpacing:1.5, marginBottom:8 }}>
-                ♀ {idioma==='en'?'SELECT MOTHER':idioma==='es'?'SELECCIONAR MADRE':'SELECCIONAR MÃE'}
-              </div>
-              <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
-                {femeas.length===0 ? (
-                  <div style={{ fontSize:11, color:T.muted, padding:'10px' }}>{idioma==='en'?'No female pigeons':idioma==='es'?'Sin palomas hembra':'Sem pombas fêmeas'}</div>
-                ) : femeas.map(p => (
-                  <PomboMini key={p.id} pombo={p} selecionado={maeSel?.id===p.id} onClick={()=>setMaeSel(maeSel?.id===p.id?null:p)} idioma={idioma} />
-                ))}
+              <div style={{fontSize:9,color:T.muted,fontWeight:700,letterSpacing:1,marginBottom:8}}>SELECCIONAR MÃE ♀</div>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:5}}>
+                {femeas.map(p=>{
+                  const isSel=maeSel===p.id
+                  return(
+                    <div key={p.id} onClick={()=>setMaeSel(isSel?null:p.id)}
+                      style={{padding:'10px',background:isSel?`${'#C084FC'}10`:T.surface,border:`${isSel?2:1}px solid ${isSel?'#C084FC':T.s2}`,borderRadius:10,cursor:'pointer',transition:'all .15s',position:'relative',overflow:'hidden'}}>
+                      {isSel&&<GL/>}
+                      <div style={{fontSize:12,fontWeight:700,color:isSel?'#C084FC':T.text,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.nome}</div>
+                      <div style={{fontSize:9,color:T.muted}}>{p.especialidade}</div>
+                      <div style={{display:'flex',gap:1,marginTop:3}}>
+                        {Array.from({length:5}).map((_,i)=><span key={i} style={{fontSize:8,color:i<p.rating?T.gold:'rgba(255,255,255,.1)'}}>{i<p.rating?'★':'☆'}</span>)}
+                      </div>
+                      {p.atributos?.gene_raro_tipo&&<div style={{fontSize:8,color:T.gold,marginTop:2}}>💎 Gene Raro</div>}
+                    </div>
+                  )
+                })}
               </div>
             </div>
 
-            {/* Previsão genética */}
-            {paiSel && maeSel && <PrevisaoGentica pai={paiSel} mae={maeSel} idioma={idioma}/>}
+            {/* Análise de compatibilidade */}
+            {compat&&(
+              <div style={{padding:'14px',background:`${compat.cor}08`,border:`1px solid ${compat.cor}25`,borderRadius:12,position:'relative',overflow:'hidden'}}>
+                <GL/>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
+                  <div style={{fontSize:12,fontWeight:700,color:T.text}}>
+                    {pombosActivos.find(p=>p.id===paiSel)?.nome} × {pombosActivos.find(p=>p.id===maeSel)?.nome}
+                  </div>
+                  <div style={{textAlign:'center',background:`${compat.cor}15`,border:`1px solid ${compat.cor}30`,borderRadius:8,padding:'6px 12px'}}>
+                    <div style={{fontFamily:"Georgia,serif",fontSize:20,fontWeight:900,color:compat.cor}}>{compat.score}%</div>
+                    <div style={{fontSize:8,color:compat.cor,fontWeight:700}}>{compat.label.toUpperCase()}</div>
+                  </div>
+                </div>
+                <div style={{fontSize:9,color:T.muted,fontWeight:700,letterSpacing:1,marginBottom:6}}>PREVISÃO GENÉTICA DOS FILHOS</div>
+                {[
+                  {l:'Velocidade',v:compat.prevVelocidade},
+                  {l:'Resistência',v:compat.prevResistencia},
+                  {l:'Orientação',v:compat.prevOrientacao},
+                ].map((s,i)=>{
+                  const cor=s.v>=70?T.success:s.v>=55?T.blue:T.gold
+                  return(
+                    <div key={i} style={{display:'flex',alignItems:'center',gap:8,padding:'3px 0'}}>
+                      <div style={{width:70,fontSize:9,color:T.muted}}>{s.l}</div>
+                      <div style={{flex:1,height:5,background:'rgba(255,255,255,.05)',borderRadius:3,overflow:'hidden'}}><div style={{height:'100%',width:`${s.v}%`,background:cor,borderRadius:3}}/></div>
+                      <div style={{width:22,fontSize:10,fontWeight:700,color:cor}}>{s.v}</div>
+                    </div>
+                  )
+                })}
+                <div style={{marginTop:8,fontSize:10,color:T.gold}}>
+                  💎 Chance gene raro: {compat.chanceGeneRaro}
+                  {temGeneticista&&' (geneticista activo: +2×)'}
+                </div>
+              </div>
+            )}
 
-            {/* Botão cruzar */}
-            <button onClick={cruzar} disabled={!paiSel||!maeSel}
-              style={{ padding:'14px', borderRadius:12, border:'none', background: paiSel&&maeSel?'linear-gradient(135deg,#A855F7,#7C3AED)':'rgba(255,255,255,.06)', color: paiSel&&maeSel?'#fff':'#475569', fontSize:14, fontWeight:700, cursor:paiSel&&maeSel?'pointer':'default', fontFamily:"'Inter',system-ui,sans-serif" }}>
-              🥚 {idioma==='en'?'Start Breeding':idioma==='es'?'Iniciar Cruce':'Iniciar Cruzamento'}
-              {paiSel&&maeSel?` (${paiSel.nome} × ${maeSel.nome})`:''}
+            <button onClick={criarNinhada} disabled={!paiSel||!maeSel}
+              style={{width:'100%',padding:'14px',borderRadius:12,border:'none',background:paiSel&&maeSel?`linear-gradient(135deg,${T.purple},#7C3AED)`:T.s2,color:paiSel&&maeSel?'#fff':T.muted,fontSize:13,fontWeight:800,cursor:paiSel&&maeSel?'pointer':'default',fontFamily:'inherit',boxShadow:paiSel&&maeSel?`0 4px 16px ${T.purple}30`:'none'}}>
+              🥚 Criar Ninhada (2 ovos)
             </button>
           </div>
         )}
 
-        {/* NINHADAS */}
-        {tab==='ninhadas' && (
-          ninhadas.length===0 ? (
-            <div style={{ textAlign:'center', padding:'40px 20px' }}>
-              <div style={{ fontSize:40, marginBottom:12 }}>🥚</div>
-              <div style={{ fontSize:14, color:T.muted, fontWeight:600 }}>
-                {idioma==='en'?'No litters yet':idioma==='es'?'Sin nidadas aún':'Sem ninhadas ainda'}
-              </div>
+        {/* ACOMPANHAR */}
+        {tab==='acompanhar'&&(
+          emDesenvolvimento.length===0?(
+            <div style={{textAlign:'center',padding:'40px 20px'}}>
+              <div style={{fontSize:40,marginBottom:12}}>🥚</div>
+              <div style={{fontSize:13,color:T.muted}}>Sem ninhadas em desenvolvimento</div>
             </div>
-          ) : ninhadas.map(n => (
-            <div key={n.id} style={{ padding:'14px', background:'rgba(168,85,247,.05)', border:'1px solid rgba(168,85,247,.15)', borderRadius:12 }}>
-              <div style={{ display:'flex', justifyContent:'space-between', marginBottom:8 }}>
-                <div>
-                  <div style={{ fontSize:13, fontWeight:700 }}>♂ {n.pai_nome} × ♀ {n.mae_nome}</div>
-                  <div style={{ fontSize:10, color:T.muted }}>Ép.{n.epoca} Sem.{n.semana}</div>
-                </div>
-                <div style={{ fontSize:20 }}>🐣</div>
-              </div>
-              <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:6 }}>
-                {n.filhos.map(f => (
-                  <div key={f.id} style={{ padding:'8px', background:T.surface, borderRadius:8, textAlign:'center' }}>
-                    <div style={{ fontSize:11, fontWeight:700, color: f.sexo==='M'?'#4C8DFF':'#c084fc' }}>{f.nome}</div>
-                    <div style={{ fontSize:9, color:T.muted }}>{f.sexo==='M'?'♂':'♀'}</div>
-                    <div style={{ display:'flex', gap:1, justifyContent:'center', marginTop:4 }}>
-                      {Array.from({length:5}).map((_,i)=><div key={i} style={{ fontSize:6, color:i<f.rating?'#D4AF37':'rgba(255,255,255,.1)' }}>★</div>)}
+          ):emDesenvolvimento.map(p=>{
+            const diasDesde=diaAtual-(p.dia_postura||0)
+            const fase=FASES.find(f=>f.id===(p.fase||'ovo'))||FASES[0]
+            const proxFase=FASES[FASES.indexOf(fase)+1]
+            const diasProxFase=proxFase?[0,14,21,49,77][FASES.indexOf(fase)+1]-diasDesde:0
+            const pct=Math.min(100,Math.round((diasDesde/77)*100))
+            const temGeneRaro=p.atributos?.gene_raro_tipo
+            return(
+              <div key={p.id} style={{background:T.surface,border:`1px solid ${fase.cor}25`,borderRadius:14,padding:'14px',position:'relative',overflow:'hidden'}}>
+                <div style={{position:'absolute',top:0,left:0,right:0,height:2,background:fase.cor}}/>
+                {/* Header */}
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:10}}>
+                  <div>
+                    <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:3}}>
+                      <span style={{fontSize:24}}>{fase.icon}</span>
+                      <div>
+                        <div style={{fontSize:14,fontWeight:800,color:T.text}}>{p.nome}</div>
+                        <div style={{fontSize:9,color:fase.cor,fontWeight:700}}>{fase.label.toUpperCase()} · Dia {diasDesde}</div>
+                      </div>
                     </div>
+                    <div style={{fontSize:9,color:T.muted}}>♂ {p.pai_nome||'?'} × ♀ {p.mae_nome||'?'}</div>
                   </div>
-                ))}
+                  <div style={{textAlign:'center'}}>
+                    <div style={{fontFamily:"Georgia,serif",fontSize:22,fontWeight:900,color:fase.cor}}>{pct}%</div>
+                    <div style={{fontSize:7,color:T.muted,fontWeight:700}}>PARA ADULTO</div>
+                  </div>
+                </div>
+                {/* Barra de crescimento */}
+                <div style={{marginBottom:10}}>
+                  <div style={{height:8,background:'rgba(255,255,255,.05)',borderRadius:4,overflow:'hidden',position:'relative'}}>
+                    {/* Markers das fases */}
+                    {[14,21,49,77].map((d,i)=>(
+                      <div key={i} style={{position:'absolute',left:`${(d/77)*100}%`,top:0,bottom:0,width:1,background:'rgba(255,255,255,.15)'}}/>
+                    ))}
+                    <div style={{height:'100%',width:`${pct}%`,background:`linear-gradient(90deg,${T.purple},${fase.cor})`,borderRadius:4,transition:'width .5s'}}/>
+                  </div>
+                  <div style={{display:'flex',justifyContent:'space-between',marginTop:3}}>
+                    {FASES.slice(0,4).map((f,i)=>(
+                      <span key={i} style={{fontSize:7,color:f.id===fase.id?f.cor:T.s2,fontWeight:f.id===fase.id?700:400}}>{f.icon}</span>
+                    ))}
+                    <span style={{fontSize:7,color:T.gold}}>🕊️</span>
+                  </div>
+                </div>
+                {/* Descrição da fase */}
+                <div style={{fontSize:10,color:T.muted,fontStyle:'italic',marginBottom:8}}>{fase.desc}</div>
+                {/* Próxima fase */}
+                {proxFase&&diasProxFase>0&&(
+                  <div style={{padding:'6px 10px',background:`${proxFase.cor}08`,border:`1px solid ${proxFase.cor}20`,borderRadius:6,fontSize:9,color:proxFase.cor}}>
+                    {proxFase.icon} {proxFase.label} em {diasProxFase} dia{diasProxFase>1?'s':''}
+                  </div>
+                )}
+                {/* Gene raro */}
+                {temGeneRaro&&(
+                  <div style={{marginTop:8,padding:'6px 10px',background:`${T.gold}08`,border:`1px solid ${T.gold}25`,borderRadius:6,fontSize:9,color:T.gold,fontWeight:700}}>
+                    💎 Gene Raro detectado: {p.atributos.gene_raro_tipo}
+                  </div>
+                )}
+                {/* Atributos previstos */}
+                <div style={{marginTop:8,display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:4}}>
+                  {['velocidade','resistencia','orientacao'].map(k=>{
+                    const val=p.atributos?.[k]||50
+                    const NOMES={velocidade:'VEL',resistencia:'RES',orientacao:'ORI'}
+                    const cor=val>=70?T.success:val>=55?T.blue:T.gold
+                    return(
+                      <div key={k} style={{padding:'6px',background:T.s2,borderRadius:6,textAlign:'center'}}>
+                        <div style={{fontSize:12,fontWeight:700,color:cor}}>{val}</div>
+                        <div style={{fontSize:7,color:T.muted}}>{NOMES[k]}</div>
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
-            </div>
-          ))
+            )
+          })
         )}
 
-        {/* BORRACHINHOS */}
-        {tab==='jovens' && (
-          borrachinhos.length===0 ? (
-            <div style={{ textAlign:'center', padding:'40px 20px' }}>
-              <div style={{ fontSize:40, marginBottom:12 }}>🐣</div>
-              <div style={{ fontSize:14, color:T.muted, fontWeight:600 }}>
-                {idioma==='en'?'No chicks yet':idioma==='es'?'Sin polluelos aún':'Sem borrachinhos ainda'}
-              </div>
+        {/* HISTORIAL */}
+        {tab==='historico'&&(
+          (c.ninhadas_virtuais||[]).length===0?(
+            <div style={{textAlign:'center',padding:'40px 20px'}}>
+              <div style={{fontSize:40,marginBottom:12}}>📋</div>
+              <div style={{fontSize:13,color:T.muted}}>Sem historial de ninhadas</div>
             </div>
-          ) : borrachinhos.map(p => (
-            <div key={p.id} style={{ padding:'14px', background:'rgba(212,175,55,.06)', border:'1px solid rgba(212,175,55,.2)', borderRadius:12 }}>
-              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
-                <div>
-                  <div style={{ fontSize:14, fontWeight:800, color: p.sexo==='M'?'#4C8DFF':'#c084fc' }}>{p.nome}</div>
-                  <div style={{ fontSize:10, color:T.muted }}>{p.anilha} · {p.sexo==='M'?'♂':'♀'}</div>
-                  {p.pai_nome && <div style={{ fontSize:10, color:T.muted }}>♂{p.pai_nome} × ♀{p.mae_nome}</div>}
-                </div>
-                <div style={{ fontSize:9, background:'rgba(212,175,55,.15)', color:T.gold, padding:'3px 8px', borderRadius:4, fontWeight:700 }}>
-                  {faseLabel(p)}
-                </div>
+          ):[...(c.ninhadas_virtuais||[])].reverse().map((n,i)=>(
+            <div key={i} style={{background:T.surface,border:`1px solid ${T.s2}`,borderRadius:10,padding:'12px 14px',position:'relative',overflow:'hidden'}}>
+              <GL/>
+              <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}>
+                <div style={{fontSize:12,fontWeight:700,color:T.text}}>🥚 {n.pai_nome} × {n.mae_nome}</div>
+                <div style={{fontSize:9,color:T.muted}}>Dia {n.dia_inicio}</div>
               </div>
-              <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:6, marginBottom:10 }}>
-                {['velocidade','resistencia','orientacao'].map(a=>(
-                  <div key={a} style={{ textAlign:'center', padding:'6px', background:T.surface, borderRadius:6 }}>
-                    <div style={{ fontSize:13, fontWeight:700, color:corAttr(p.atributos[a]) }}>{p.atributos[a]}</div>
-                    <div style={{ fontSize:8, color:T.muted }}>{a.slice(0,3).toUpperCase()}</div>
-                  </div>
-                ))}
-              </div>
-              <button onClick={()=>promoverParaAdulto(p.id)}
-                style={{ width:'100%', padding:'8px', borderRadius:8, border:'none', background:'linear-gradient(135deg,#D4AF37,#B8960C)', color:T.surface, fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:"'Inter',system-ui,sans-serif" }}>
-                🐦 {idioma==='en'?'Promote to Adult':idioma==='es'?'Promover a Adulto':'Promover a Adulto'}
-              </button>
+              <div style={{fontSize:10,color:T.muted}}>{n.num_filhos||2} filhos · IDs: {(n.filhos_ids||[]).length} registados</div>
             </div>
           ))
         )}
