@@ -18,7 +18,7 @@ const DIFICULDADES = [
   { id: 'lenda',  cor: '#f87171', emoji: '💀' },
 ]
 
-export default function CarreiraCreate({ onCriar, idiomaApp = 'pt' }) {
+export default function CarreiraCreate({ onCriar, onVoltar, idiomaApp = 'pt' }) {
   const [idioma, setIdioma] = useState(idiomaApp)
   const t = useT(idioma)
 
