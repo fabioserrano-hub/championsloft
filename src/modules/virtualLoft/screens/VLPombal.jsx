@@ -122,7 +122,7 @@ export default function VLPombal({carreira,onVoltar,onGuardar}){
   const construir=()=>{
     if(!podeComprar||!estruturaSel)return
     const novasEst={...c.estruturas,[selId]:{nivel:nivelAtual+1}}
-    const nova={...c,estruturas:novasEst,orcamento:(c.orcamento||0)-proxCusto}
+    const nova={...c,estruturas:novasEst,orcamento:(c.orcamento||0)-proxCusto,movimentos:[...(c.movimentos||[]),{tipo:'obras',descricao:`Obras: ${estruturaSel.label} Nv.${nivelAtual+1}`,valor:-proxCusto,semana:c.semana||1}]}
     salvar(nova)
     setMsg({tipo:'ok',texto:`${estruturaSel.label} melhorado para Nível ${nivelAtual+1}!`})
     setTimeout(()=>setMsg(null),3000)
