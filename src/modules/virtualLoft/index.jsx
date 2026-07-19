@@ -9,6 +9,7 @@ import VLStaff from './screens/VLStaff'
 import VLProvas from './screens/VLProvas'
 import VLFinancas from './screens/VLFinancas'
 import { gerarPlantelInicial } from './engine/genetics'
+import VLPerfil from './screens/VLPerfil'
 
 const ADMIN_UUID = '30709f29-152e-4813-ac7f-e3376c5e0646'
 const STORAGE_KEY = 'vl_carreira'
@@ -67,7 +68,7 @@ export default function VirtualLoftApp({ user, idiomaApp = 'pt' }) {
       orcamento: Math.round((ORCAMENTOS[form.tipoInicio]||8000) * (MULT[form.dificuldade]||1)),
       reputacao: form.tipoInicio==='lenda'?80:form.tipoInicio==='profissional'?40:form.tipoInicio==='amador'?20:5,
       nivel_reputacao: 'local',
-      epoca: 1, semana: 1,
+      epoca: 1, semana: 1, dia: 1,
       pombos: gerarPlantelInicial(form.tipoInicio, form.idioma),
       staff: [], estruturas: {}, movimentos: [],
       historico_provas: [], conquistas: [],
@@ -87,11 +88,12 @@ export default function VirtualLoftApp({ user, idiomaApp = 'pt' }) {
     setModulo(null)
   }
 
-  if (!carreira) return <CarreiraCreate onCriar={handleCriar} idiomaApp={idiomaApp} />
+  if (!carreira) return <CarreiraCreate onCriar={handleCriar} idiomaApp={idiomaApp} userId={user?.id} />
 
   if (modulo) {
     const props = { carreira, onVoltar:() => setModulo(null), onGuardar: salvarEActualizar, idioma }
     if (modulo==='pombos')   return <VLPombos   {...props} />
+    if (modulo==='perfil')    return <VLPerfil   {...props} onApagar={handleApagar} userId={user?.id} />
     if (modulo==='treinos')  return <VLTreinos  {...props} />
     if (modulo==='pombal')   return <VLPombal   {...props} />
     if (modulo==='staff')    return <VLStaff    {...props} />
