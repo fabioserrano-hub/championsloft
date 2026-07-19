@@ -1,23 +1,9 @@
 // src/modules/virtualLoft/screens/VLPerfil.jsx — Perfil + Guardar/Carregar
 import { useState, useEffect } from 'react'
+import { supabase } from '../../../lib/supabase'
 
 const T={bg:'#050A14',surface:'#0D1829',s2:'#1A2A45',gold:'#C9A84C',blue:'#4FC3F7',text:'#E8EDF5',muted:'#6B7A99',success:'#2DD4A7',danger:'#F87171',purple:'#A855F7',orange:'#FB923C'}
 
-const SUPA_URL='https://tgqnbheetpgnpjsjphoj.supabase.co'
-const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRncW5iaGVldHBnbnBqc2pwaG9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0NTk0NDIsImV4cCI6MjA5MjAzNTQ0Mn0.32ZjOUB-bOAIgtwwpKDVRSJy1w4xlOR7IMb4bRTK3Uo'
-// Token JWT do utilizador autenticado — necessário para o RLS permitir ler/escrever
-function getAuthToken(){
-  try{
-    const keys=Object.keys(localStorage).filter(k=>k.includes('supabase.auth.token')||k.includes('sb-'))
-    for(const k of keys){
-      const val=JSON.parse(localStorage.getItem(k)||'{}')
-      const token=val?.access_token||val?.currentSession?.access_token
-      if(token)return token
-    }
-  }catch{}
-  return null
-}
-function HDRS(){const t=getAuthToken();return {'apikey':SUPA_KEY,'Authorization':`Bearer ${t||SUPA_KEY}`,'Content-Type':'application/json'}}
 
 function lerLS(){try{return JSON.parse(localStorage.getItem('vl_carreira'))}catch{return null}}
 function gravarLS(d){try{localStorage.setItem('vl_carreira',JSON.stringify(d))}catch{}}
@@ -38,16 +24,17 @@ const PAISES=[{v:'PT',l:'🇵🇹 Portugal'},{v:'BR',l:'🇧🇷 Brasil'},{v:'ES
 async function guardarNuvem(userId, carreira){
   try{
     const payload={user_id:userId,dados:carreira,nome_pombal:carreira.nomePombal,epoca:carreira.epoca||1,dia:carreira.dia||1,updated_at:new Date().toISOString()}
-    await fetch(`${SUPA_URL}/rest/v1/vl_carreiras`,{method:'POST',headers:{...HDRS(),'Prefer':'resolution=merge-duplicates'},body:JSON.stringify(payload)})
-    return true
-  }catch(e){return false}
+    const {error}=await supabase.from('vl_carreiras').upsert(payload,{onConflict:'user_id'})
+    if(error) return {ok:false,erro:error.message}
+    return {ok:true}
+  }catch(e){return {ok:false,erro:String(e?.message||e)}}
 }
 
 async function carregarNuvem(userId){
   try{
-    const r=await fetch(`${SUPA_URL}/rest/v1/vl_carreiras?user_id=eq.${userId}&select=dados,updated_at,nome_pombal,epoca,dia`,{headers:HDRS()})
-    const d=await r.json()
-    return d?.[0]||null
+    const {data,error}=await supabase.from('vl_carreiras').select('dados,updated_at,nome_pombal,epoca,dia').eq('user_id',userId).maybeSingle()
+    if(error){console.warn('VL carregar:',error.message);return null}
+    return data||null
   }catch(e){return null}
 }
 
@@ -82,13 +69,13 @@ export default function VLPerfil({carreira,onVoltar,onGuardar,onApagar,userId}){
   const guardarManual=async()=>{
     setGuardando(true)
     gravarLS(c)
-    const ok=await guardarNuvem(userId,c)
+    const res=await guardarNuvem(userId,c)
     setGuardando(false)
-    if(ok){
+    if(res.ok){
       setUltimoGuardado(new Date().toLocaleString('pt-PT'))
       showMsg('Carreira guardada na nuvem! ☁️')
     }else{
-      showMsg('Guardado localmente. Sem ligação à nuvem.','aviso')
+      showMsg(`⚠️ Erro ao guardar na nuvem: ${res.erro||'desconhecido'}`,'aviso')
     }
   }
 
