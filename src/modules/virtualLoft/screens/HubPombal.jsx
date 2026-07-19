@@ -113,15 +113,51 @@ function calcAvancarDia(c, acoes={}){
   return n
 }
 
-async function guardarCarreiraSupabase(userId, carreira){
-  const SUPA_URL='https://tgqnbheetpgnpjsjphoj.supabase.co'
-  const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRncW5iaGVldHBnbnBqc2pwaG9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0NTk0NDIsImV4cCI6MjA5MjAzNTQ0Mn0.32ZjOUB-bOAIgtwwpKDVRSJy1w4xlOR7IMb4bRTK3Uo'
+const SUPA_URL='https://tgqnbheetpgnpjsjphoj.supabase.co'
+const SUPA_KEY_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRncW5iaGVldHBnbnBqc2pwaG9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0NTk0NDIsImV4cCI6MjA5MjAzNTQ0Mn0.32ZjOUB-bOAIgtwwpKDVRSJy1w4xlOR7IMb4bRTK3Uo'
+
+// Obtém o token JWT do utilizador autenticado (Supabase auth)
+function getAuthToken(){
   try{
-    const headers={'apikey':SUPA_KEY,'Authorization':`Bearer ${SUPA_KEY}`,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates'}
-    const payload={user_id:userId,dados:carreira,nome_pombal:carreira.nomePombal,epoca:carreira.epoca||1,dia:carreira.dia||1,updated_at:new Date().toISOString()}
-    await fetch(`${SUPA_URL}/rest/v1/vl_carreiras`,{method:'POST',headers,body:JSON.stringify(payload)})
+    // Supabase guarda a sessão no localStorage com esta chave
+    const keys=Object.keys(localStorage).filter(k=>k.includes('supabase.auth.token')||k.includes('sb-'))
+    for(const k of keys){
+      const val=JSON.parse(localStorage.getItem(k)||'{}')
+      const token=val?.access_token||val?.currentSession?.access_token
+      if(token)return token
+    }
+  }catch{}
+  return null
+}
+
+async function guardarCarreiraSupabase(userId, carreira){
+  try{
+    const token=getAuthToken()||SUPA_KEY_ANON
+    const headers={
+      'apikey':SUPA_KEY_ANON,
+      'Authorization':`Bearer ${token}`,
+      'Content-Type':'application/json',
+      'Prefer':'resolution=merge-duplicates,return=minimal'
+    }
+    const payload={
+      user_id:userId,
+      dados:carreira,
+      nome_pombal:carreira.nomePombal||'',
+      epoca:carreira.epoca||1,
+      dia:carreira.dia||1,
+      updated_at:new Date().toISOString()
+    }
+    const r=await fetch(`${SUPA_URL}/rest/v1/vl_carreiras`,{method:'POST',headers,body:JSON.stringify(payload)})
+    if(!r.ok){
+      const err=await r.text()
+      console.warn('Supabase save error:',r.status,err)
+      return false
+    }
     return true
-  }catch(e){return false}
+  }catch(e){
+    console.warn('guardarCarreiraSupabase error:',e)
+    return false
+  }
 }
 
 const DIAS_SEMANA_SHORT = T_ENGINE.DIAS_SHORT
