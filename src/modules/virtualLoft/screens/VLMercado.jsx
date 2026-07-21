@@ -1,5 +1,6 @@
 // src/modules/virtualLoft/screens/VLMercado.jsx — V2 Mercado vivo + IA
 import { useState, useEffect } from 'react'
+import { clubesParaMercado } from '../engine/gameEngine'
 
 const T={bg:'#050A14',surface:'#0D1829',s2:'#1A2A45',gold:'#C9A84C',blue:'#4FC3F7',text:'#E8EDF5',muted:'#6B7A99',success:'#2DD4A7',danger:'#F87171',purple:'#A855F7',orange:'#FB923C'}
 function lerLS(){try{return JSON.parse(localStorage.getItem('vl_carreira'))}catch{return null}}
@@ -86,8 +87,15 @@ export default function VLMercado({carreira,onVoltar,onGuardar}){
   // Gerar/carregar mercado
   const [mercado,setMercado]=useState(()=>{
     const salvo=c.mercado_disponivel
-    if(salvo&&salvo.semana===semana)return salvo.pombos
-    return gerarMercadoInicial(semana)
+    const base=salvo&&salvo.semana===semana?salvo.pombos:gerarMercadoInicial(semana)
+    const iaPombos=clubesParaMercado(c).map(a=>({
+      id:a.id,nome:a.pomboNome,sexo:a.pomboSexo||'M',
+      especialidade:a.especialidade,anilha:a.anilha||'',vitorias:0,provas:0,
+      atributos:a.atributos,valor:a.preco,
+      origem:`${a.clubeNome} · ${a.clubeNivel==='elite'?'Elite':a.clubeNivel==='bom'?'Experiente':'Amateur'}`,
+      iaAnuncioId:a.id,
+    }))
+    return[...iaPombos,...base]
   })
 
   const showMsg=(texto,tipo='ok')=>{setMsg({texto,tipo});setTimeout(()=>setMsg(null),4000)}
