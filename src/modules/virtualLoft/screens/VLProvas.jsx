@@ -1,6 +1,7 @@
 // src/modules/virtualLoft/screens/VLProvas.jsx — V4 Liga + Campeonato + Simulação Avançada
 import { useState, useEffect, useRef } from 'react'
 import { PROVAS_CALENDARIO } from '../data/calendario'
+import { aiParaProva } from '../engine/gameEngine'
 
 const T={bg:'#050A14',surface:'#0D1829',s2:'#1A2A45',gold:'#C9A84C',blue:'#4FC3F7',text:'#E8EDF5',muted:'#6B7A99',success:'#2DD4A7',danger:'#F87171',purple:'#A855F7',orange:'#FB923C'}
 function lerLS(){try{return JSON.parse(localStorage.getItem('vl_carreira'))}catch{return null}}
@@ -487,8 +488,13 @@ export default function VLProvas({ carreira, onVoltar, onGuardar }) {
 
   const iniciarProva = () => {
     if (!pombosSelec.length || !provaAtiva || !meteo) return
-    const res = simularProva(pombosSelec, provaAtiva, meteo, estrategia)
-    setResultados(res)
+    const resJogador = simularProva(pombosSelec, provaAtiva, meteo, estrategia)
+    // Adicionar adversários reais dos clubes IA
+    const resIA = aiParaProva(c, provaAtiva)
+    const todosSorted=[...resJogador,...resIA].sort((a,b)=>b.velocidade-a.velocidade)
+    const nTotal=todosSorted.length
+    const todos=todosSorted.map((r,i)=>({...r,posicao:i+1,total:nTotal,percentil:Math.round(((nTotal-i)/nTotal)*100)}))
+    setResultados(todos)
     setSimulando(true)
   }
 
